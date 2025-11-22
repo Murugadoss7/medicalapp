@@ -1,0 +1,51 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2865
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww19920\viewh13700\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 That's a well-defined project! Here is a detailed prompt that you can use to generate the requirements for your prescription application, incorporating all the features and personas you've listed.\
+\uc0\u55357 \u56424 \u8205 \u55357 \u56507  Prescription Management Application Requirements Prompt\
+Goal\
+Create a modern, secure, and efficient Prescription Management Application designed to streamline the clinical workflow for doctors, enhance administrative control, and provide patients with easy access to their medical information. The system must support the core functionalities of patient registration, appointment management, diagnosis, prescription generation, and reporting.\
+Technical & Security Requirements\
+ * Authentication: Implement a secure login mechanism for all user roles (Doctor, Admin, Patient).\
+ * Identity Provider: Use Keycloak for robust, external-facing identity and access management (login/logout, session management).\
+User Personas & Core Features\
+| Persona | Core Responsibilities & Access |\
+|---|---|\
+| Doctor | Manage clinical duties: appointments, patient history, diagnosis, prescription, and referrals. |\
+| Admin | System management: user accounts, configurations, medicine catalog, and custom templates. |\
+| Patient | View personal records: appointments, visit history, diagnosis, and prescriptions. |\
+Detailed Feature Requirements\
+1. \uc0\u55357 \u56593  User Management & Access (Admin & Doctor)\
+ * Login: Secure login page integrated with Keycloak.\
+ * Patient Registration: Ability for Doctor or Admin to register a new patient with basic details (Name, Age, Gender, Contact Info) and the purpose of their current visit.\
+ * User Roles: Clear permission structure for Doctor, Admin, and Patient.\
+2. \uc0\u55357 \u56517  Appointment & Patient Visit Management (Doctor)\
+ * View Appointments: Doctor must be able to view their daily/weekly schedule of appointments.\
+ * Patient History View: On selecting an appointment/patient, the Doctor must be able to view:\
+   * Full patient details.\
+   * Past visits history.\
+   * Diagnosis reports from previous visits.\
+3. \uc0\u55357 \u56541  Consultation & Prescription Generation (Doctor)\
+ * Diagnosis Update: For the current visit, the Doctor can input and update the patient's diagnosis.\
+ * Prescription Generation: Doctor can generate a new prescription, including:\
+   * Selecting medicines from the Medicine Catalogue.\
+   * Setting dosage, frequency, and duration.\
+   * Adding instructions/notes.\
+ * Printing & Sharing:\
+   * Print the generated prescription.\
+   * Ability to generate the prescription using different customizable templates as per clinical or regulatory requirements.\
+ * Referrals: The Doctor can generate and print/email additional referral documents for:\
+   * X-ray/Lab tests or other diagnostic procedures.\
+   * External consultation with a specialist.\
+4. \uc0\u55357 \u56458  Medicine Catalogue & Short Keys Management (Doctor & Admin)\
+ * Medicine Management: Doctor or Admin can manage the Medicine Catalogue, including adding, editing, and disabling medicines (Name, Composition, Manufacturer, etc.).\
+ * Short Key Codes: Doctor or Admin can create and manage short key codes (e.g., FLU for a standard set of flu medicines).\
+ * Prescription Loading: During prescription generation, entering a short key code must instantly load the associated group of medicines with pre-defined or suggested dosages, which the doctor can then quickly adjust.\
+5. \uc0\u55358 \u56781  Patient Portal (Patient)\
+ * Secure Access: Patient can log in to view their personal medical records.\
+ * Record Access: View past appointments, visit details, diagnosis, and generated prescriptions.\
+}

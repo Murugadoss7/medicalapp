@@ -1,0 +1,236 @@
+# Prescription Management System - Git Ignore File
+
+# ===========================================
+# Claude Code & MCP - DO NOT COMMIT
+# ===========================================
+.claude/
+.mcp/
+*.mcp.json
+mcp-config.json
+claude-config.json
+
+# ===========================================
+# Python Backend
+# ===========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# PyCharm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# FastAPI / Uvicorn
+*.log
+logs/
+*.pid
+
+# Alembic
+alembic.ini.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# ===========================================
+# Node.js Frontend
+# ===========================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Vite
+.vite/
+*.local
+
+# Testing
+coverage/
+
+# ===========================================
+# Operating System Files
+# ===========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ===========================================
+# Temporary Files
+# ===========================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.#*
+
+# Logs
+*.log
+logs/
+/tmp/
+*.out
+
+# ===========================================
+# IDE & Editors
+# ===========================================
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# JetBrains
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ===========================================
+# Backup Files
+# ===========================================
+*.bak
+*.backup
+*.old
+*.orig
+
+# ===========================================
+# Sensitive Data
+# ===========================================
+# Credentials
+*credentials*
+*secrets*
+*.pem
+*.key
+*.cert
+*.crt
+
+# Config with sensitive data
+config.local.*
+settings.local.*
+
+# ===========================================
+# Generated Documentation (keep source docs)
+# ===========================================
+# Keep: CLAUDE.md, ENTITY_RELATIONSHIP_DIAGRAM.md, etc.
+# Ignore: Auto-generated HTML/PDF docs
+docs/_build/
+docs/.doctrees/
+site/
+
+# ===========================================
+# Package Manager Locks (Optional - Uncomment if needed)
+# ===========================================
+# Some teams prefer to commit lock files, some don't
+# Uncomment the lines below if you don't want to commit lock files
+# package-lock.json
+# yarn.lock
+# poetry.lock
+# Pipfile.lock
+
+# ===========================================
+# Test Outputs & Reports
+# ===========================================
+test-results/
+test-reports/
+*.test-results
+junit.xml
+pytest.xml
+
+# ===========================================
+# Static Analysis & Linting
+# ===========================================
+.eslintcache
+.ruff_cache/
+.pylint.d/
+
+# ===========================================
+# Project Specific
+# ===========================================
+# Prescription PDFs (generated at runtime)
+prescription-management/backend/app/generated_pdfs/
+prescription-management/backend/app/uploads/
+prescription-management/backend/app/static/prescriptions/
+
+# Frontend build artifacts
+prescription-management/frontend/dist/
+prescription-management/frontend/build/
+
+# Test data
+test_data/
+sample_data/
+mock_data/
+
+# Development databases
+*.dev.db
+dev_database/
+
+# ===========================================
+# Keep These Files (Force Include)
+# ===========================================
+# These are important and should be committed
+!README.md
+!CLAUDE.md
+!.gitignore
+!requirements.txt
+!package.json
+!pyproject.toml
+!tsconfig.json
