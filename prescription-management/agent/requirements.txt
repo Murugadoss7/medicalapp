@@ -2,24 +2,24 @@
 # Medical Assistant Agent for Prescription Management System
 
 # ==========================================
-# LangChain Core
+# LangChain Core (Compatible Versions)
 # ==========================================
-langchain==0.1.20
-langchain-core==0.1.45
+langchain==0.2.16
+langchain-core==0.2.39
 
 # ==========================================
 # LLM Providers
 # ==========================================
 # OpenAI (GPT-4, GPT-3.5-turbo)
-langchain-openai==0.1.6
-openai==1.14.3
+langchain-openai==0.1.23
+openai==1.45.1
 
 # Anthropic (Claude)
-langchain-anthropic==0.1.8
-anthropic==0.21.3
+langchain-anthropic==0.1.23
+anthropic==0.34.2
 
 # Community integrations (Ollama, etc.)
-langchain-community==0.0.38
+langchain-community==0.2.16
 
 # ==========================================
 # FastAPI & Web Framework
