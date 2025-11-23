@@ -494,7 +494,7 @@ export interface AppointmentConflictResponse {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8000/api/v1',
+    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
     prepareHeaders: (headers, { getState }) => {
       // Try to get token from Redux state first
       let token = (getState() as RootState).auth.tokens?.access_token;
