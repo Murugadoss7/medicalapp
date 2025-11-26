@@ -337,7 +337,10 @@ class PrescriptionService:
         
         if search_params.doctor_id:
             query = query.filter(Prescription.doctor_id == search_params.doctor_id)
-        
+
+        if search_params.appointment_id:
+            query = query.filter(Prescription.appointment_id == search_params.appointment_id)
+
         if search_params.status:
             query = query.filter(Prescription.status == search_params.status)
         

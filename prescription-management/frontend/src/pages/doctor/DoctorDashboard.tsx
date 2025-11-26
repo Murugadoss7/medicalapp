@@ -1,7 +1,8 @@
-import { 
-  Box, 
-  Typography, 
-  Grid, 
+import { useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
   Alert,
   Button,
   CircularProgress,
@@ -32,6 +33,32 @@ import { getCurrentDoctorId } from '../../utils/doctorUtils';
 export const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
+
+  // Redirect non-doctor users to their appropriate dashboard
+  useEffect(() => {
+    if (user && user.role !== 'doctor') {
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin/dashboard', { replace: true });
+          break;
+        case 'patient':
+          navigate('/patient/dashboard', { replace: true });
+          break;
+        default:
+          navigate('/dashboard', { replace: true });
+          break;
+      }
+    }
+  }, [user, navigate]);
+
+  // Return null while redirecting
+  if (!user || user.role !== 'doctor') {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   // API queries
   const {

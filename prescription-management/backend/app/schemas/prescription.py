@@ -418,7 +418,10 @@ class PrescriptionSearchParams(BaseModel):
     
     # Doctor search
     doctor_id: Optional[UUID] = Field(None, description="Filter by doctor")
-    
+
+    # Appointment search
+    appointment_id: Optional[UUID] = Field(None, description="Filter by appointment")
+
     # Date filters
     visit_date_from: Optional[date] = Field(None, description="Visit date from")
     visit_date_to: Optional[date] = Field(None, description="Visit date to")

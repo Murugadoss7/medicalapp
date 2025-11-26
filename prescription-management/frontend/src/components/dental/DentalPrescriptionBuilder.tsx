@@ -96,7 +96,7 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
   // Effect: Load medicines when short key data arrives
   React.useEffect(() => {
     if (shortKeyData && shortKeyData.medicines) {
-      const newItems = shortKeyData.medicines
+      const newItems = [...shortKeyData.medicines]
         .sort((a, b) => a.sequence_order - b.sequence_order)
         .map((skMed) => ({
           medicine_id: skMed.medicine_id,
@@ -169,6 +169,12 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
 
   const handleRemoveMedicine = (index: number) => {
     setPrescriptionItems(prescriptionItems.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItem = (index: number, field: string, value: any) => {
+    const updatedItems = [...prescriptionItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setPrescriptionItems(updatedItems);
   };
 
   const calculateTotal = () => {
@@ -383,17 +389,57 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
                       <Typography variant="body2" fontWeight="bold">
                         {getMedicineName(item)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.instructions}
-                      </Typography>
+                      <TextField
+                        value={item.instructions}
+                        onChange={(e) => handleUpdateItem(index, 'instructions', e.target.value)}
+                        size="small"
+                        placeholder="Instructions"
+                        fullWidth
+                        variant="standard"
+                      />
                     </TableCell>
-                    <TableCell>{item.dosage}</TableCell>
-                    <TableCell>{item.frequency}</TableCell>
-                    <TableCell>{item.duration}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>
+                      <TextField
+                        value={item.dosage}
+                        onChange={(e) => handleUpdateItem(index, 'dosage', e.target.value)}
+                        size="small"
+                        placeholder="Dosage"
+                        variant="standard"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        value={item.frequency}
+                        onChange={(e) => handleUpdateItem(index, 'frequency', e.target.value)}
+                        size="small"
+                        placeholder="Frequency"
+                        variant="standard"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        value={item.duration}
+                        onChange={(e) => handleUpdateItem(index, 'duration', e.target.value)}
+                        size="small"
+                        placeholder="Duration"
+                        variant="standard"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        size="small"
+                        placeholder="Qty"
+                        variant="standard"
+                        inputProps={{ min: 1 }}
+                        sx={{ width: 60 }}
+                      />
+                    </TableCell>
                     <TableCell align="right">₹{(item.quantity * item.unit_price).toFixed(2)}</TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => handleRemoveMedicine(index)}>
+                      <IconButton size="small" onClick={() => handleRemoveMedicine(index)} color="error">
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>

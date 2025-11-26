@@ -97,6 +97,7 @@ async def list_prescriptions(
     patient_first_name: Optional[str] = Query(None, description="Filter by patient first name"),
     patient_uuid: Optional[UUID] = Query(None, description="Filter by patient UUID"),
     doctor_id: Optional[UUID] = Query(None, description="Filter by doctor"),
+    appointment_id: Optional[UUID] = Query(None, description="Filter by appointment"),
     status: Optional[str] = Query(None, description="Filter by status"),
     is_printed: Optional[bool] = Query(None, description="Filter by print status"),
     visit_date_from: Optional[date] = Query(None, description="Visit date from"),
@@ -132,6 +133,7 @@ async def list_prescriptions(
         patient_first_name=patient_first_name,
         patient_uuid=patient_uuid,
         doctor_id=doctor_id,
+        appointment_id=appointment_id,
         status=status,
         is_printed=is_printed,
         visit_date_from=visit_date_from,
@@ -365,15 +367,41 @@ async def update_prescription_item(
 ):
     """
     Update prescription item
-    
+
     **Updatable fields:**
     - Dosage, frequency, duration
     - Instructions and quantity
     - Pricing information
     - Generic substitution preference
+
+    **Security:**
+    - Doctors can only update items in their own prescriptions
+    - Admin/staff can update any prescription item
     """
     try:
         service = get_prescription_service(db)
+
+        # Get the item first to check prescription ownership
+        from app.models.prescription import PrescriptionItem
+        item = db.query(PrescriptionItem).filter(
+            PrescriptionItem.id == item_id,
+            PrescriptionItem.is_active == True
+        ).first()
+
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription item not found")
+
+        # Check doctor ownership for doctor role
+        if current_user.role == 'doctor':
+            from app.models.doctor import Doctor
+            doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+
+            # Get prescription to check ownership
+            prescription = service.get_prescription_by_id(item.prescription_id)
+            if not doctor or str(prescription.doctor_id) != str(doctor.id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You can only update items in your own prescriptions")
+
+        # Proceed with update
         item = service.update_prescription_item(item_id, item_data, current_user.id)
         return PrescriptionItemResponse.model_validate(item)
     except ValidationError:
@@ -390,13 +418,39 @@ async def remove_prescription_item(
 ):
     """
     Remove prescription item (soft delete)
-    
+
     **Requirements:**
     - Prescription must be modifiable (draft/active status)
     - At least one item must remain in prescription
+
+    **Security:**
+    - Doctors can only delete items in their own prescriptions
+    - Admin/staff can delete any prescription item
     """
     try:
         service = get_prescription_service(db)
+
+        # Get the item first to check prescription ownership
+        from app.models.prescription import PrescriptionItem
+        item = db.query(PrescriptionItem).filter(
+            PrescriptionItem.id == item_id,
+            PrescriptionItem.is_active == True
+        ).first()
+
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription item not found")
+
+        # Check doctor ownership for doctor role
+        if current_user.role == 'doctor':
+            from app.models.doctor import Doctor
+            doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+
+            # Get prescription to check ownership
+            prescription = service.get_prescription_by_id(item.prescription_id)
+            if not doctor or str(prescription.doctor_id) != str(doctor.id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You can only delete items in your own prescriptions")
+
+        # Proceed with delete
         success = service.remove_prescription_item(item_id)
         if not success:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription item not found")

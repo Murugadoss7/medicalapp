@@ -3,10 +3,15 @@
 
 ---
 
-**📅 Last Updated**: November 12, 2025
+**📅 Last Updated**: November 26, 2025
 **🎯 Purpose**: Complete technical architecture and folder structure documentation
-**📋 Status**: Backend Complete (99 endpoints across 8 modules), Frontend 90% Complete
-**🚀 Recent Updates**: Doctor registration flow enhanced with 5-step wizard, edit flow validation fixed  
+**📋 Status**: Backend Complete (117+ endpoints across 9 modules), Frontend 95% Complete
+**🚀 Recent Updates**:
+- Short Key Management UI complete (702 lines, /shortcuts route)
+- Prescription items fully editable with inline editing
+- Backend error handling improved (404 for not found)
+- Soft delete filtering for prescription items
+- Doctor ownership validation enforced  
 
 ---
 
@@ -256,11 +261,19 @@ frontend/
 │   │   │   ├── 📄 AppointmentCalendar.tsx # Calendar view with events ✅ IMPLEMENTED
 │   │   │   └── 📄 index.ts               # Module exports ✅ IMPLEMENTED
 │   │   │
-│   │   ├── 📁 medicines/                 # Medicine pages (future)
-│   │   │   ├── 📄 MedicineListPage.tsx   # Medicine catalog
-│   │   │   └── 📄 ShortKeysPage.tsx      # Short key management
+│   │   ├── 📁 medicines/                 # Medicine pages (pending)
+│   │   │   └── 📄 MedicineListPage.tsx   # Medicine catalog (pending)
 │   │   │
-│   │   └── 📁 prescriptions/             # Prescription pages (future)
+│   │   ├── 📁 short-keys/                # Short key management ✅ COMPLETE
+│   │   │   └── 📄 ShortKeyManagement.tsx # Complete CRUD UI (702 lines) ✅
+│   │   │       # Features:
+│   │   │       # - Create/edit/delete shortcuts
+│   │   │       # - Add/remove medicines with inline editing
+│   │   │       # - Drag-and-drop reordering (sequence_order)
+│   │   │       # - Real-time validation and error handling
+│   │   │       # - Usage: Type /CODE in prescription search
+│   │   │
+│   │   └── 📁 prescriptions/             # Prescription pages ✅ COMPLETE
 │   │       ├── 📄 PrescriptionListPage.tsx # Prescription listing
 │   │       └── 📄 PrescriptionViewPage.tsx # Prescription details
 │   │
@@ -271,7 +284,15 @@ frontend/
 │   │
 │   ├── 📁 store/                         # Redux Toolkit store ✅ IMPLEMENTED
 │   │   ├── 📄 store.ts                   # Store configuration with RTK Query ✅ IMPLEMENTED
-│   │   ├── 📄 api.ts                     # Base RTK Query API configuration ✅ IMPLEMENTED
+│   │   ├── 📄 api.ts                     # Base RTK Query API configuration ✅ UPDATED
+│   │   │   # ⭐ Recent Updates (lines 876-952):
+│   │   │   # - listShortKeys: Query for shortcuts with filters
+│   │   │   # - createShortKey: Create new shortcut template
+│   │   │   # - updateShortKey: Update shortcut metadata
+│   │   │   # - deleteShortKey: Soft delete shortcut
+│   │   │   # - addMedicineToShortKey: Add medicine with defaults
+│   │   │   # - removeMedicineFromShortKey: Remove medicine from shortcut
+│   │   │   # - Cache invalidation: Prescription-specific tags
 │   │   └── 📁 slices/                    # Redux slices ✅ IMPLEMENTED
 │   │       ├── 📄 authSlice.ts           # Authentication state management ✅ IMPLEMENTED
 │   │       ├── 📄 uiSlice.ts             # UI state (sidebar, notifications) ✅ IMPLEMENTED
@@ -312,11 +333,21 @@ frontend/
 - ✅ **Doctor Management**: Complete CRUD with search, registration, profiles
 - ✅ **Patient Management**: Complete CRUD with family support, composite keys
 - ✅ **Appointment System**: 3-step booking wizard, calendar view, dashboard integration
+- ✅ **Prescription Management**: Complete CRUD with printing, ownership validation ⭐ UPDATED
+  - Prescription items fully editable (dosage, frequency, duration, quantity, instructions)
+  - Soft delete filtering (is_active=false items excluded from display)
+  - Doctor ownership validation on all operations
+  - Cache invalidation with prescription-specific tags
+- ✅ **Short Key Management**: Complete CRUD UI at /shortcuts route ⭐ NEW
+  - 702-line ShortKeyManagement.tsx component
+  - Inline editing for all medicine fields
+  - Drag-and-drop reordering with sequence_order
+  - RTK Query mutations for all operations
+  - Usage: Type /CODE in prescription medicine search
 - ✅ **Date Standardization**: Centralized date handling with StandardDatePicker
 - ✅ **State Management**: Redux Toolkit + RTK Query with cache invalidation
 - ✅ **UI Framework**: Material-UI v5 with TypeScript
-- 🔄 **Medicine Module**: Backend complete, frontend pending
-- 🔄 **Prescription Module**: Backend complete, frontend pending
+- 🔄 **Medicine Module**: Backend complete, frontend catalog pending
 - 🔄 **Testing**: Test infrastructure setup pending
 
 ---

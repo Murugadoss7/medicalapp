@@ -225,7 +225,7 @@ async def get_short_key_by_code(
 ):
     """
     Get short key details by code.
-    
+
     **Staff access required.**
     """
     try:
@@ -235,9 +235,12 @@ async def get_short_key_by_code(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Short key not found: {code}"
             )
-        
+
         return short_key
-        
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404) without wrapping them
+        raise
     except Exception as e:
         logger.error(f"Error retrieving short key {code}: {str(e)}")
         raise HTTPException(

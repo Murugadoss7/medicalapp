@@ -692,7 +692,10 @@ export const api = createApi({
 
     getPrescription: builder.query<Prescription, string>({
       query: (prescriptionId) => `/prescriptions/${prescriptionId}`,
-      providesTags: ['Prescription'],
+      providesTags: (result, error, prescriptionId) => [
+        { type: 'Prescription', id: prescriptionId },
+        'Prescription',
+      ],
     }),
 
     // Get prescriptions for an appointment
@@ -700,10 +703,11 @@ export const api = createApi({
       query: (appointmentId) => ({
         url: '/prescriptions/',
         params: {
+          appointment_id: appointmentId,
           page: 1,
-          page_size: 10,
+          page_size: 100,  // Increased to get all prescriptions
           sort_by: 'created_at',
-          sort_order: 'desc'
+          sort_order: 'desc'  // Latest first for tabs display
         },
       }),
       transformResponse: (response: { prescriptions: Prescription[] }) => response.prescriptions,
@@ -728,12 +732,27 @@ export const api = createApi({
       invalidatesTags: ['Prescription'],
     }),
 
-    deletePrescriptionItem: builder.mutation<void, string>({
-      query: (itemId) => ({
+    deletePrescriptionItem: builder.mutation<void, { itemId: string; prescriptionId: string }>({
+      query: ({ itemId }) => ({
         url: `/prescriptions/items/${itemId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Prescription'],
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: 'Prescription', id: prescriptionId },
+        'Prescription',
+      ],
+    }),
+
+    updatePrescriptionItem: builder.mutation<any, { itemId: string; prescriptionId: string } & Partial<PrescriptionItemForm>>({
+      query: ({ itemId, prescriptionId, ...itemData }) => ({
+        url: `/prescriptions/items/${itemId}`,
+        method: 'PUT',
+        body: itemData,
+      }),
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: 'Prescription', id: prescriptionId },
+        'Prescription',
+      ],
     }),
 
     updateConsultationNotes: builder.mutation<Appointment, { appointmentId: string; notes: string; status?: string }>({
@@ -852,6 +871,84 @@ export const api = createApi({
         params: { limit },
       }),
       providesTags: ['ShortKey'],
+    }),
+
+    listShortKeys: builder.query<any, {
+      query?: string;
+      is_global?: boolean;
+      page?: number;
+      page_size?: number;
+    }>({
+      query: (params) => ({
+        url: '/short-keys',
+        params,
+      }),
+      providesTags: ['ShortKey'],
+    }),
+
+    createShortKey: builder.mutation<ShortKey, {
+      code: string;
+      name: string;
+      description?: string;
+      is_global?: boolean;
+    }>({
+      query: (data) => ({
+        url: '/short-keys',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['ShortKey'],
+    }),
+
+    updateShortKey: builder.mutation<ShortKey, {
+      id: string;
+      code?: string;
+      name?: string;
+      description?: string;
+      is_global?: boolean;
+    }>({
+      query: ({ id, ...data }) => ({
+        url: `/short-keys/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['ShortKey'],
+    }),
+
+    deleteShortKey: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/short-keys/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ShortKey'],
+    }),
+
+    addMedicineToShortKey: builder.mutation<any, {
+      shortKeyId: string;
+      medicine_id: string;
+      default_dosage: string;
+      default_frequency: string;
+      default_duration: string;
+      default_instructions?: string;
+      sequence_order?: number;
+    }>({
+      query: ({ shortKeyId, ...data }) => ({
+        url: `/short-keys/${shortKeyId}/medicines`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['ShortKey'],
+    }),
+
+    removeMedicineFromShortKey: builder.mutation<void, {
+      shortKeyId: string;
+      medicineId: string;
+    }>({
+      query: ({ shortKeyId, medicineId }) => ({
+        url: `/short-keys/${shortKeyId}/medicines/${medicineId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ShortKey'],
     }),
 
     // Patient Management endpoints
@@ -1043,6 +1140,7 @@ export const {
   useUpdatePrescriptionMutation,
   useAddPrescriptionItemMutation,
   useDeletePrescriptionItemMutation,
+  useUpdatePrescriptionItemMutation,
   useUpdateConsultationNotesMutation,
   useCompleteConsultationMutation,
   useSearchMedicinesQuery,
@@ -1054,6 +1152,12 @@ export const {
   // Short Key hooks
   useGetShortKeyByCodeQuery,
   useGetPopularShortKeysQuery,
+  useListShortKeysQuery,
+  useCreateShortKeyMutation,
+  useUpdateShortKeyMutation,
+  useDeleteShortKeyMutation,
+  useAddMedicineToShortKeyMutation,
+  useRemoveMedicineFromShortKeyMutation,
   // Patient Management hooks
   useCreatePatientMutation,
   useListPatientsQuery,

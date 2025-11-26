@@ -3,7 +3,7 @@
  * Shows created prescription with edit capabilities
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -19,16 +19,31 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  Grid,
+  TextField,
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Collapse,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
   Print as PrintIcon,
+  Search as SearchIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import {
   useGetPrescriptionQuery,
   useDeletePrescriptionItemMutation,
+  useAddPrescriptionItemMutation,
+  useUpdatePrescriptionItemMutation,
+  useSearchMedicinesQuery,
+  type Medicine,
 } from '../../store/api';
 
 interface PrescriptionViewerProps {
@@ -40,6 +55,7 @@ interface PrescriptionViewerProps {
   clinicName?: string;
   clinicAddress?: string;
   clinicPhone?: string;
+  refetch?: () => void;
 }
 
 export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
@@ -51,10 +67,41 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   clinicName = 'Smile Dental Clinic',
   clinicAddress = '123 Main Street, City, State - 123456',
   clinicPhone = '+91 1234567890',
+  refetch: externalRefetch,
 }) => {
   const { data: prescription, isLoading, error, refetch } = useGetPrescriptionQuery(prescriptionId);
   const [deleteItem] = useDeletePrescriptionItemMutation();
-  const [retryCount, setRetryCount] = React.useState(0);
+  const [addItem, { isLoading: addingItem }] = useAddPrescriptionItemMutation();
+  const [updateItem, { isLoading: updatingItem }] = useUpdatePrescriptionItemMutation();
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState('');
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const [newItem, setNewItem] = useState({
+    dosage: '1 tablet',
+    frequency: 'Twice daily',
+    duration: '5 days',
+    quantity: 10,
+    instructions: 'Take after meals',
+  });
+
+  // Inline editing state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editedItems, setEditedItems] = useState<Record<string, any>>({});
+
+  // Adding new row state
+  const [isAddingNewRow, setIsAddingNewRow] = useState(false);
+
+  // Medicine search for adding items
+  const {
+    data: medicineOptions,
+    isLoading: medicineSearchLoading,
+  } = useSearchMedicinesQuery(
+    { search: medicineSearch, limit: 20 },
+    { skip: medicineSearch.length < 2 }
+  );
 
   // Auto-retry once after a short delay if prescription not found
   React.useEffect(() => {
@@ -69,13 +116,41 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   }, [isLoading, prescription, retryCount, refetch]);
 
   const handleDeleteItem = async (itemId: string, medicineName: string) => {
+    if (!prescription) return;
+
     if (window.confirm(`Remove ${medicineName} from prescription?`)) {
       try {
-        await deleteItem(itemId).unwrap();
+        console.log('🗑️ DELETE: Attempting to delete item:', {
+          itemId,
+          prescriptionId: prescription.id,
+          prescriptionNumber: prescription.prescription_number
+        });
+
+        await deleteItem({ itemId, prescriptionId: prescription.id }).unwrap();
+
+        console.log('✅ DELETE: Successfully deleted item', itemId);
+
+        // Wait a moment for cache invalidation to propagate
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Force refetch to update UI
+        await refetch();
+        externalRefetch?.();
+
         alert('Medicine removed successfully');
+      } catch (error: any) {
+        console.error('❌ DELETE FAILED:', {
+          itemId,
+          prescriptionId: prescription.id,
+          error,
+          status: error?.status,
+          detail: error?.data?.detail
+        });
+        const errorMessage = error?.data?.detail || error?.message || 'Failed to remove medicine';
+        alert(`Error: ${errorMessage}\n\nStatus: ${error?.status || 'Unknown'}\n\nPlease check console for details.`);
+        // Force refetch in case of error
         refetch();
-      } catch (error) {
-        alert('Failed to remove medicine');
+        externalRefetch?.();
       }
     }
   };
@@ -87,6 +162,144 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleToggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    if (isEditMode) {
+      // Reset form when closing edit mode
+      setSelectedMedicine(null);
+      setMedicineSearch('');
+      setNewItem({
+        dosage: '1 tablet',
+        frequency: 'Twice daily',
+        duration: '5 days',
+        quantity: 10,
+        instructions: 'Take after meals',
+      });
+    }
+  };
+
+  const handleAddMedicine = async () => {
+    if (!selectedMedicine) {
+      alert('Please select a medicine');
+      return;
+    }
+
+    try {
+      await addItem({
+        prescriptionId,
+        medicine_id: selectedMedicine.id,
+        dosage: newItem.dosage,
+        frequency: newItem.frequency,
+        duration: newItem.duration,
+        instructions: newItem.instructions,
+        quantity: newItem.quantity,
+        unit_price: selectedMedicine.unit_price,
+      }).unwrap();
+
+      alert('Medicine added successfully');
+
+      // Reset form
+      setSelectedMedicine(null);
+      setMedicineSearch('');
+      setNewItem({
+        dosage: '1 tablet',
+        frequency: 'Twice daily',
+        duration: '5 days',
+        quantity: 10,
+        instructions: 'Take after meals',
+      });
+
+      // Refetch prescription
+      refetch();
+      externalRefetch?.();
+    } catch (error: any) {
+      console.error('Failed to add medicine:', error);
+      alert(error?.data?.detail || 'Failed to add medicine. Please try again.');
+    }
+  };
+
+  // Handler for "Add Medicine" button above table
+  const handleAddNewRow = () => {
+    setIsAddingNewRow(true);
+    setIsEditMode(true); // Show the form
+  };
+
+  // Handler for Edit icon click
+  const handleEditItem = (itemId: string) => {
+    setEditingItemId(itemId);
+    // Store the current item data for editing
+    const item = prescription?.items?.find(i => i.id === itemId);
+    if (item) {
+      setEditedItems({
+        ...editedItems,
+        [itemId]: {
+          dosage: item.dosage,
+          frequency: item.frequency,
+          duration: item.duration,
+          quantity: item.quantity,
+          instructions: item.instructions,
+        }
+      });
+    }
+  };
+
+  // Handler to update edited field
+  const handleFieldChange = (itemId: string, field: string, value: any) => {
+    setEditedItems({
+      ...editedItems,
+      [itemId]: {
+        ...editedItems[itemId],
+        [field]: value
+      }
+    });
+  };
+
+  // Handler for Save All Changes button
+  const handleSaveAllChanges = async () => {
+    if (!prescription) return;
+
+    const itemIds = Object.keys(editedItems);
+
+    if (itemIds.length === 0) {
+      alert('No changes to save');
+      return;
+    }
+
+    try {
+      // Save all edited items
+      const savePromises = itemIds.map(itemId =>
+        updateItem({
+          itemId,
+          prescriptionId: prescription.id,
+          ...editedItems[itemId]
+        }).unwrap()
+      );
+
+      await Promise.all(savePromises);
+
+      alert(`Successfully saved ${itemIds.length} medicine(s)`);
+
+      // Clear edit state
+      setEditedItems({});
+      setEditingItemId(null);
+
+      // Refetch prescription
+      refetch();
+      externalRefetch?.();
+    } catch (error: any) {
+      console.error('Failed to save changes:', error);
+      alert(error?.data?.detail || 'Failed to save changes. Please try again.');
+    }
+  };
+
+  // Handler for Cancel button
+  const handleCancelChanges = () => {
+    setEditedItems({});
+    setEditingItemId(null);
+    setIsEditMode(false);
+    alert('Changes discarded');
   };
 
   if (isLoading) {
@@ -221,28 +434,6 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             >
               Print
             </Button>
-            {onAddMore && (
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={onAddMore}
-                size="small"
-                className="no-print"
-              >
-                Add More
-              </Button>
-            )}
-            {onEdit && (
-              <Button
-                variant="outlined"
-                startIcon={<EditIcon />}
-                onClick={onEdit}
-                size="small"
-                className="no-print"
-              >
-                Edit Notes
-              </Button>
-            )}
           </Box>
         </Box>
 
@@ -260,11 +451,23 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
 
       {/* Medicines Table */}
       <Paper elevation={1}>
-        <Typography variant="h6" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-          Prescribed Medicines ({prescription.items?.length || 0})
-        </Typography>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">
+            Prescribed Medicines ({prescription.items?.filter(item => item.is_active !== false).length || 0})
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            size="small"
+            className="no-print"
+            onClick={handleAddNewRow}
+          >
+            Add Medicine
+          </Button>
+        </Box>
 
-        {prescription.items && prescription.items.length > 0 ? (
+        {prescription.items && prescription.items.filter(item => item.is_active !== false).length > 0 ? (
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -279,34 +482,107 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {prescription.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="bold">
-                        {item.medicine_name || 'Medicine'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.instructions}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{item.dosage}</TableCell>
-                    <TableCell>{item.frequency}</TableCell>
-                    <TableCell>{item.duration}</TableCell>
-                    <TableCell align="right">{item.quantity}</TableCell>
-                    <TableCell align="right">
-                      ₹{(item.quantity * item.unit_price).toFixed(2)}
-                    </TableCell>
-                    <TableCell align="right" className="no-print">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteItem(item.id, item.medicine_name || 'this medicine')}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {prescription.items.filter(item => item.is_active !== false).map((item) => {
+                  const isEditing = editingItemId === item.id;
+                  const editedData = editedItems[item.id] || {
+                    dosage: item.dosage,
+                    frequency: item.frequency,
+                    duration: item.duration,
+                    quantity: item.quantity,
+                    instructions: item.instructions,
+                  };
+
+                  return (
+                    <TableRow key={item.id} sx={{ bgcolor: isEditing ? 'action.hover' : 'inherit' }}>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">
+                          {item.medicine_name || 'Medicine'}
+                        </Typography>
+                        {isEditing ? (
+                          <TextField
+                            size="small"
+                            fullWidth
+                            value={editedData.instructions}
+                            onChange={(e) => handleFieldChange(item.id, 'instructions', e.target.value)}
+                            placeholder="Instructions"
+                            sx={{ mt: 0.5 }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            {item.instructions}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <TextField
+                            size="small"
+                            value={editedData.dosage}
+                            onChange={(e) => handleFieldChange(item.id, 'dosage', e.target.value)}
+                          />
+                        ) : (
+                          item.dosage
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <TextField
+                            size="small"
+                            value={editedData.frequency}
+                            onChange={(e) => handleFieldChange(item.id, 'frequency', e.target.value)}
+                          />
+                        ) : (
+                          item.frequency
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <TextField
+                            size="small"
+                            value={editedData.duration}
+                            onChange={(e) => handleFieldChange(item.id, 'duration', e.target.value)}
+                          />
+                        ) : (
+                          item.duration
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        {isEditing ? (
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={editedData.quantity}
+                            onChange={(e) => handleFieldChange(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                            inputProps={{ min: 1, style: { textAlign: 'right' } }}
+                            sx={{ width: 80 }}
+                          />
+                        ) : (
+                          item.quantity
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        ₹{(item.quantity * item.unit_price).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right" className="no-print">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          sx={{ mr: 1 }}
+                          onClick={() => handleEditItem(item.id)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteItem(item.id, item.medicine_name || 'this medicine')}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 <TableRow>
                   <TableCell colSpan={5} align="right">
                     <Typography variant="subtitle1" fontWeight="bold">
@@ -326,6 +602,179 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             <Typography color="text.secondary">No medicines prescribed</Typography>
           </Box>
         )}
+
+        {/* Add Medicine Form - Collapsible */}
+        <Collapse in={isEditMode} timeout="auto" unmountOnExit>
+          <Box sx={{ p: 3, borderTop: 1, borderColor: 'divider' }} className="no-print">
+            <Typography variant="h6" gutterBottom>
+              Add Medicine to Prescription
+            </Typography>
+            <Grid container spacing={2}>
+              {/* Medicine Search */}
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  value={selectedMedicine}
+                  onChange={(_, newValue) => setSelectedMedicine(newValue)}
+                  inputValue={medicineSearch}
+                  onInputChange={(_, newInputValue) => setMedicineSearch(newInputValue)}
+                  options={medicineOptions || []}
+                  getOptionLabel={(option) =>
+                    `${option.name} ${option.strength ? `(${option.strength})` : ''} - ${option.manufacturer}`
+                  }
+                  loading={medicineSearchLoading}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Search Medicine"
+                      placeholder="Type medicine name..."
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                        endAdornment: (
+                          <>
+                            {medicineSearchLoading && <CircularProgress size={20} />}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {option.name} {option.strength && `(${option.strength})`}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {option.manufacturer} • ₹{option.unit_price}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                />
+              </Grid>
+
+              {/* Dosage */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Dosage</InputLabel>
+                  <Select
+                    value={newItem.dosage}
+                    onChange={(e) => setNewItem({ ...newItem, dosage: e.target.value })}
+                    label="Dosage"
+                  >
+                    <MenuItem value="1/2 tablet">1/2 tablet</MenuItem>
+                    <MenuItem value="1 tablet">1 tablet</MenuItem>
+                    <MenuItem value="2 tablets">2 tablets</MenuItem>
+                    <MenuItem value="5ml">5ml</MenuItem>
+                    <MenuItem value="10ml">10ml</MenuItem>
+                    <MenuItem value="1 capsule">1 capsule</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Frequency */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Frequency</InputLabel>
+                  <Select
+                    value={newItem.frequency}
+                    onChange={(e) => setNewItem({ ...newItem, frequency: e.target.value })}
+                    label="Frequency"
+                  >
+                    <MenuItem value="Once daily">Once daily</MenuItem>
+                    <MenuItem value="Twice daily">Twice daily</MenuItem>
+                    <MenuItem value="Three times daily">Three times daily</MenuItem>
+                    <MenuItem value="Four times daily">Four times daily</MenuItem>
+                    <MenuItem value="As needed">As needed</MenuItem>
+                    <MenuItem value="Before meals">Before meals</MenuItem>
+                    <MenuItem value="After meals">After meals</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Duration */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Duration</InputLabel>
+                  <Select
+                    value={newItem.duration}
+                    onChange={(e) => setNewItem({ ...newItem, duration: e.target.value })}
+                    label="Duration"
+                  >
+                    <MenuItem value="3 days">3 days</MenuItem>
+                    <MenuItem value="5 days">5 days</MenuItem>
+                    <MenuItem value="7 days">7 days</MenuItem>
+                    <MenuItem value="10 days">10 days</MenuItem>
+                    <MenuItem value="15 days">15 days</MenuItem>
+                    <MenuItem value="1 month">1 month</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Quantity */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Quantity"
+                  type="number"
+                  value={newItem.quantity}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+
+              {/* Instructions */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Instructions"
+                  value={newItem.instructions}
+                  onChange={(e) => setNewItem({ ...newItem, instructions: e.target.value })}
+                  placeholder="E.g., Take after meals"
+                />
+              </Grid>
+
+              {/* Add Button */}
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<SaveIcon />}
+                  onClick={handleAddMedicine}
+                  disabled={!selectedMedicine || addingItem}
+                  fullWidth
+                >
+                  {addingItem ? 'Adding Medicine...' : 'Add Medicine'}
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        </Collapse>
+
+        {/* Save and Cancel Buttons */}
+        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 2 }} className="no-print">
+          <Button
+            variant="outlined"
+            color="error"
+            size="large"
+            startIcon={<CancelIcon />}
+            onClick={handleCancelChanges}
+            disabled={Object.keys(editedItems).length === 0 && !editingItemId}
+          >
+            Cancel Changes
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            size="large"
+            startIcon={<SaveIcon />}
+            onClick={handleSaveAllChanges}
+            disabled={updatingItem || Object.keys(editedItems).length === 0}
+          >
+            {updatingItem ? 'Saving...' : 'Save All Changes'}
+          </Button>
+        </Box>
       </Paper>
       </Box>
     </>
