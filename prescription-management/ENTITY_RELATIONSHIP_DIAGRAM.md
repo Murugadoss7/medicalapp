@@ -3,15 +3,18 @@
 
 ---
 
-**📅 Last Updated**: November 18, 2025
+**📅 Last Updated**: November 26, 2025
 **🎯 Purpose**: Single source of truth for database schema, field mappings, and relationships
 **📋 Status**: Production Implementation Complete - All 9 modules implemented including dental consultation
 **📅 Date Standardization**: Standardized date handling implemented across all modules
 **🚀 Recent Updates**:
-- Dental module added (2 tables, 15 indexes)
-- UserResponse schema enhanced with `doctor_id` and `specialization` for doctors
-- Prescription viewing and printing with doctor ownership validation
-- Doctor `is_active` validation for prescription operations  
+- Short Key Management: Complete frontend UI with inline editing, reordering, CRUD operations
+- Prescription Items: Now fully editable (all fields modifiable in UI and backend)
+- Soft Delete Filtering: DELETE operations now properly filter is_active=false items
+- Backend Error Handling: Short keys return 404 (not 500) for not found errors
+- Dental module complete (2 tables, 15 indexes)
+- UserResponse schema includes `doctor_id` and `specialization` for doctors
+- Doctor ownership validation enforced for prescription operations  
 
 ---
 
@@ -426,7 +429,7 @@ CREATE TABLE short_key_medicines (
 // Short Key API Response Format
 {
     "id": "uuid",
-    "code": "string",               // "FEVER", "COLD"
+    "code": "string",               // "FEVER", "COLD" (unique, uppercase)
     "name": "string",
     "description": "string",
     "indication": "string",
@@ -439,26 +442,35 @@ CREATE TABLE short_key_medicines (
     "created_at": "datetime",
     "updated_at": "datetime",
     "is_active": boolean,
-    
+
     // Related Medicines (from junction table)
     "medicines": [
         {
             "medicine_id": "uuid",
             "medicine_name": "string",
-            "default_dosage": "string",
-            "default_frequency": "string", 
-            "default_duration": "string",
-            "default_quantity": number,
-            "instructions": "string",
-            "sequence_order": number
+            "default_dosage": "string",         // Editable in UI ⭐
+            "default_frequency": "string",      // Editable in UI ⭐
+            "default_duration": "string",       // Editable in UI ⭐
+            "default_quantity": number,         // Editable in UI ⭐
+            "instructions": "string",           // Editable in UI ⭐
+            "sequence_order": number            // Reorderable via drag-drop ⭐
         }
     ],
-    
+
     // Computed Fields
     "total_medicines": number,
     "can_edit": boolean,            // if current user created it
-    "usage_display": "string"      // formatted usage count
+    "usage_display": "string"       // formatted usage count
 }
+
+// ⭐ Frontend Integration (ShortKeyManagement.tsx - 702 lines):
+// - Complete CRUD interface at /shortcuts route
+// - Inline editing for all medicine fields with validation
+// - Drag-and-drop reordering with automatic sequence_order update
+// - Real-time search and filtering
+// - Usage: Type /CODE in prescription medicine search (e.g., /DAE)
+// - RTK Query mutations: listShortKeys, createShortKey, updateShortKey,
+//   deleteShortKey, addMedicineToShortKey, removeMedicineFromShortKey
 ```
 
 ---
@@ -641,61 +653,62 @@ CREATE TABLE prescription_items (
 {
     "id": "uuid",
     "prescription_number": "string",    // "RX20251031001"
-    
+
     // Patient (Composite Key)
     "patient_mobile_number": "string",
     "patient_first_name": "string",
     "patient_uuid": "uuid",
-    
+
     // Doctor & Appointment
     "doctor_id": "uuid",
     "appointment_id": "uuid",           // optional
-    
+
     // Visit
     "visit_date": "date",               // "2025-10-31"
-    
+
     // Clinical
     "chief_complaint": "string",
     "diagnosis": "string",
-    "symptoms": "string", 
+    "symptoms": "string",
     "clinical_notes": "string",
     "doctor_instructions": "string",
-    
+
     // Status
     "status": "draft|active|dispensed|completed|cancelled|expired",
-    
+
     // Printing
     "is_printed": boolean,
     "printed_at": "datetime",
     "template_used": "string",
-    
+
     // Audit
     "created_at": "datetime",
     "updated_at": "datetime",
     "is_active": boolean,
-    
+
     // Prescription Items
     "items": [
         {
             "id": "uuid",
             "medicine_id": "uuid",
             "medicine_name": "string",      // from medicine table
-            "dosage": "string",
-            "frequency": "string",
-            "duration": "string",
-            "instructions": "string",
-            "quantity": number,
+            "dosage": "string",             // ⭐ NOW FULLY EDITABLE
+            "frequency": "string",          // ⭐ NOW FULLY EDITABLE
+            "duration": "string",           // ⭐ NOW FULLY EDITABLE
+            "instructions": "string",       // ⭐ NOW FULLY EDITABLE
+            "quantity": number,             // ⭐ NOW FULLY EDITABLE
             "unit_price": number,
             "total_amount": number,
             "is_generic_substitution_allowed": boolean,
             "sequence_order": number,
-            
+            "is_active": boolean,           // ⭐ Soft delete support
+
             // Computed
             "formatted_instruction": "string",
             "calculated_total": number
         }
     ],
-    
+
     // Computed Fields (from API)
     "patient_composite_key": ["string", "string"],
     "total_medicines": number,
@@ -703,7 +716,7 @@ CREATE TABLE prescription_items (
     "can_be_modified": boolean,
     "is_expired": boolean,
     "days_until_expiry": number,
-    
+
     // Related Data (when included)
     "patient_details": {
         "full_name": "string",
@@ -716,6 +729,14 @@ CREATE TABLE prescription_items (
         "license_number": "string"
     }
 }
+
+// ⭐ Recent Prescription Management Updates:
+// 1. Items Fully Editable: All prescription item fields now editable in PrescriptionViewer
+// 2. Soft Delete Filtering: DELETE operations filter is_active=false items in UI
+// 3. Doctor Ownership: Backend validates doctor_id for all operations
+// 4. Cache Invalidation: Prescription-specific tags for better RTK Query performance
+// 5. DentalPrescriptionBuilder: Fixed immutable array handling for shortcuts
+// 6. Removed "New Prescription" Button: Streamlined workflow from PrescriptionView
 ```
 
 ---

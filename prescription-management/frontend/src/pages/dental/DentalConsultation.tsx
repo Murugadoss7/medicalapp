@@ -365,15 +365,8 @@ const DentalConsultation: React.FC = () => {
                 variant="contained"
                 color="primary"
                 onClick={() => {
-                  const latestPrescription = patientPrescriptions[0];
-                  // Use logged-in doctor_id if available, otherwise use appointment's doctor_id
-                  const currentDoctorId = doctorId || appointmentDetails?.doctor_id;
-                  if (latestPrescription && latestPrescription.doctor_id === currentDoctorId) {
-                    setCreatedPrescriptionId(latestPrescription.id);
-                    setShowPrescriptionDialog(true);
-                  } else {
-                    showSnackbar('No accessible prescriptions found', 'error');
-                  }
+                  // Navigate to the new PrescriptionView page instead of opening modal
+                  navigate(`/appointments/${appointmentId}/prescription`);
                 }}
               >
                 View Prescription ({patientPrescriptions.length})

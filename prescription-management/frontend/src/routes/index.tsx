@@ -38,6 +38,9 @@ import { ShortKeyManagement } from '../pages/short-keys/ShortKeyManagement';
 // Dental pages
 import { DentalConsultation } from '../pages/dental';
 
+// Prescription pages
+import PrescriptionView from '../pages/prescriptions/PrescriptionView';
+
 // Test pages
 import { TestDashboard } from '../pages/TestDashboard';
 import { SimpleTest } from '../pages/SimpleTest';
@@ -167,6 +170,14 @@ export const router = createBrowserRouter([
           {
             path: ':appointmentId/dental',
             element: <DentalConsultation />,
+          },
+          {
+            path: ':appointmentId/prescription',
+            element: <PrescriptionView />,
+          },
+          {
+            path: ':appointmentId/consultation',
+            element: <PatientConsultation />,
           },
         ],
       },

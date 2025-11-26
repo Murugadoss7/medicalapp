@@ -86,6 +86,10 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     navigate(`/appointments/${appointment.id}/dental`);
   };
 
+  const handleViewPrescription = () => {
+    navigate(`/appointments/${appointment.id}/prescription`);
+  };
+
   // Check if current user is a dental doctor
   const isDentalDoctor = user?.specialization?.toLowerCase().includes('dental') ||
                          user?.specialization?.toLowerCase().includes('dentist');
@@ -159,7 +163,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 variant={isDentalDoctor ? "contained" : "text"}
                 color={isDentalDoctor ? "secondary" : "primary"}
                 startIcon={isDentalDoctor ? <MedicalServices /> : <Visibility />}
-                onClick={() => isDentalDoctor ? handleDentalConsultation() : onView?.(appointment)}
+                onClick={() => isDentalDoctor ? handleDentalConsultation() : handleViewPrescription()}
               >
                 {isDentalDoctor ? 'Start Dental Consultation' : 'View'}
               </Button>

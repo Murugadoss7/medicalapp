@@ -3,15 +3,18 @@
 
 ---
 
-**📅 Last Updated**: November 18, 2025
+**📅 Last Updated**: November 26, 2025
 **🎯 Purpose**: Complete API endpoint reference with request/response formats
 **📋 Status**: All 117+ endpoints implemented and tested including dental module
 **🔗 Base URL**: `http://localhost:8000/api/v1`
 **🚀 Recent Updates**:
-- Dental module added (18 endpoints)
-- Login and /auth/me now return `specialization` and `doctor_id` fields for doctors
-- Prescription viewing and printing with doctor/clinic information
-- Doctor ownership validation for prescriptions
+- Short Key Management UI complete with 6 API mutations (create, update, delete, add medicine, remove medicine, list)
+- Prescription management fixes: DELETE operations filter soft-deleted items, cache invalidation improved
+- Doctor ownership validation enforced for prescriptions (backend validates doctor_id)
+- Prescription items now fully editable (dosage, frequency, duration, quantity, instructions)
+- Short key error handling improved (404 instead of 500 for not found)
+- Dental module complete (18 endpoints)
+- Login and /auth/me return `specialization` and `doctor_id` fields for doctors
 
 ## ⚠️ Important Field Mapping Notes
 
@@ -734,6 +737,13 @@ Authorization: Bearer <access_token>
 
 ## 🔑 Short Key Management (14 endpoints)
 
+**⭐ NEW Frontend Integration**: Complete Shortcut Management UI implemented
+- **Location**: `/frontend/src/pages/short-keys/ShortKeyManagement.tsx` (702 lines)
+- **Features**: Create/edit shortcuts, add medicines with inline editing, reorder, delete
+- **Usage**: Type `/CODE` in prescription medicine search (e.g., `/DAE` for diabetes + hypertension)
+- **API Mutations**: 6 new mutations added to RTK Query (lines 876-952 in api.ts)
+- **Error Handling**: Backend returns 404 (not 500) for shortcut not found (line 241 in short_keys.py)
+
 #### **1. POST /short-keys/** - Create Short Key
 ```javascript
 // Request
@@ -747,7 +757,7 @@ Authorization: Bearer <access_token>
         {
             "medicine_id": "uuid1",
             "default_dosage": "500mg",
-            "default_frequency": "Twice daily", 
+            "default_frequency": "Twice daily",
             "default_duration": "3 days",
             "default_quantity": 6,
             "sequence_order": 1
@@ -756,7 +766,7 @@ Authorization: Bearer <access_token>
             "medicine_id": "uuid2",
             "default_dosage": "650mg",
             "default_frequency": "When fever > 100°F",
-            "default_duration": "3 days", 
+            "default_duration": "3 days",
             "default_quantity": 6,
             "sequence_order": 2
         }
@@ -841,15 +851,23 @@ Authorization: Bearer <access_token>
 #### **5-14. Additional Short Key Endpoints**
 ```javascript
 // GET /short-keys/{id} - Get by ID
-// PUT /short-keys/{id} - Update short key
-// DELETE /short-keys/{id} - Deactivate short key
-// POST /short-keys/{id}/medicines - Add medicine to short key
+// PUT /short-keys/{id} - Update short key (name, description, is_global)
+// DELETE /short-keys/{id} - Deactivate short key (soft delete)
+// POST /short-keys/{id}/medicines - Add medicine to short key ⭐ FRONTEND INTEGRATED
 // PUT /short-keys/{id}/medicines/{medicine_id} - Update medicine in short key
-// DELETE /short-keys/{id}/medicines/{medicine_id} - Remove medicine
-// GET /short-keys/popular - Popular short keys
-// GET /short-keys/statistics/overview - Statistics
-// POST /short-keys/bulk - Bulk operations
+// DELETE /short-keys/{id}/medicines/{medicine_id} - Remove medicine ⭐ FRONTEND INTEGRATED
+// GET /short-keys/popular - Popular short keys (usage_count based)
+// GET /short-keys/statistics/overview - Statistics (usage trends)
+// POST /short-keys/bulk - Bulk operations (create multiple)
 // POST /short-keys/validate - Validate code uniqueness
+
+// ⭐ Frontend Integration Notes:
+// - ShortKeyManagement.tsx provides complete CRUD UI for shortcuts
+// - Inline editing for medicine details (dosage, frequency, duration, quantity)
+// - Drag-and-drop reordering with sequence_order management
+// - Real-time validation and error handling
+// - RTK Query mutations with cache invalidation on success
+// - Usage: /shortcuts route (admin/doctor access only)
 ```
 
 ---
@@ -1245,18 +1263,26 @@ Authorization: Bearer <access_token>
 
 #### **7-18. Additional Prescription Endpoints**
 ```javascript
-// GET /prescriptions/{id} - Get prescription details
+// GET /prescriptions/{id} - Get prescription details (with ownership validation)
 // GET /prescriptions/number/{number} - Get by prescription number
-// PUT /prescriptions/{id} - Update prescription
-// PUT /prescriptions/{id}/status - Update status
-// DELETE /prescriptions/{id} - Cancel prescription
-// PUT /prescriptions/items/{item_id} - Update prescription item
-// DELETE /prescriptions/items/{item_id} - Remove prescription item
+// PUT /prescriptions/{id} - Update prescription (owner or admin only)
+// PUT /prescriptions/{id}/status - Update status (draft/active/dispensed/completed)
+// DELETE /prescriptions/{id} - Cancel prescription (soft delete with is_active=false)
+// PUT /prescriptions/items/{item_id} - Update prescription item ⭐ NOW FULLY EDITABLE
+// DELETE /prescriptions/items/{item_id} - Remove prescription item (soft delete)
 // GET /prescriptions/patient/{mobile}/{name} - Patient's prescriptions
-// GET /prescriptions/doctor/{doctor_id} - Doctor's prescriptions
+// GET /prescriptions/doctor/{doctor_id} - Doctor's prescriptions (ownership validated)
 // GET /prescriptions/statistics/overview - Statistics
 // POST /prescriptions/bulk - Bulk operations
 // GET /prescriptions/search/advanced - Advanced search
+
+// ⭐ Recent Prescription Management Fixes:
+// 1. DELETE Operations: Now filter out soft-deleted items (is_active=false) in PrescriptionViewer
+// 2. Cache Invalidation: Updated to use prescription-specific tags for better performance
+// 3. Doctor Ownership: Backend validates doctor_id for all prescription operations
+// 4. Editable Items: All fields (dosage, frequency, duration, quantity, instructions) now editable
+// 5. Removed "New Prescription" Button: From PrescriptionView.tsx (workflow streamlined)
+// 6. DentalPrescriptionBuilder: Fixed to handle immutable arrays from shortcuts
 ```
 
 ---
