@@ -95,24 +95,35 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                          user?.specialization?.toLowerCase().includes('dentist');
 
   return (
-    <Card 
-      sx={{ 
-        mb: 2,
+    <Card
+      sx={{
+        mb: 1.5,
         '&:hover': showActions ? {
           boxShadow: (theme) => theme.shadows[4],
         } : {},
       }}
     >
-      <CardContent>
+      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box display="flex" gap={2} flex={1}>
-            <Avatar>
-              <Person />
+          <Box display="flex" gap={1.5} flex={1}>
+            <Avatar sx={{ width: 36, height: 36, fontSize: '1rem' }}>
+              <Person fontSize="small" />
             </Avatar>
-            
-            <Box flex={1}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <Typography variant="h6" component="h3">
+
+            <Box flex={1} minWidth={0}>
+              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                <Typography
+                  variant="subtitle2"
+                  component="h3"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
+                    flex: 1,
+                    minWidth: 0
+                  }}
+                >
                   {appointment.patient_first_name}
                 </Typography>
                 <Chip
@@ -120,52 +131,63 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   label={appointment.status}
                   color={getStatusColor(appointment.status)}
                   icon={getStatusIcon(appointment.status)}
+                  sx={{
+                    height: 20,
+                    fontSize: '0.7rem',
+                    '& .MuiChip-icon': { fontSize: '0.875rem' }
+                  }}
                 />
               </Box>
 
-              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                <AccessTime fontSize="small" color="action" />
-                <Typography variant="body2" color="textSecondary">
+              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
+                <AccessTime sx={{ fontSize: 14 }} color="action" />
+                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
                   {appointmentDate.displayDateTime(appointment.appointment_datetime)}
                 </Typography>
               </Box>
 
               {appointment.patient_mobile_number && (
-                <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="body2" color="textSecondary">
+                <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
+                  <Phone sx={{ fontSize: 14 }} color="action" />
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
                     {appointment.patient_mobile_number}
                   </Typography>
                 </Box>
               )}
 
               {appointment.appointment_number && (
-                <Typography variant="caption" color="textSecondary">
-                  Appointment #{appointment.appointment_number}
+                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                  #{appointment.appointment_number}
                 </Typography>
               )}
             </Box>
           </Box>
 
           {showActions && (
-            <IconButton size="small">
-              <MoreVert />
+            <IconButton size="small" sx={{ p: 0.5, ml: 1 }}>
+              <MoreVert fontSize="small" />
             </IconButton>
           )}
         </Box>
 
         {showActions && (
           <>
-            <Divider sx={{ my: 2 }} />
-            <Box display="flex" gap={1} flexWrap="wrap">
+            <Divider sx={{ my: 1.5 }} />
+            <Box display="flex" gap={0.75} flexWrap="wrap">
               <Button
                 size="small"
                 variant={isDentalDoctor ? "contained" : "text"}
                 color={isDentalDoctor ? "secondary" : "primary"}
-                startIcon={isDentalDoctor ? <MedicalServices /> : <Visibility />}
+                startIcon={isDentalDoctor ? <MedicalServices fontSize="small" /> : <Visibility fontSize="small" />}
                 onClick={() => isDentalDoctor ? handleDentalConsultation() : handleViewPrescription()}
+                sx={{
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  px: 1,
+                  minWidth: 'auto'
+                }}
               >
-                {isDentalDoctor ? 'Start Dental Consultation' : 'View'}
+                {isDentalDoctor ? 'Dental' : 'View'}
               </Button>
 
               {!isDentalDoctor && (
@@ -173,8 +195,14 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   size="small"
                   variant="outlined"
                   color="secondary"
-                  startIcon={<MedicalServices />}
+                  startIcon={<MedicalServices fontSize="small" />}
                   onClick={handleDentalConsultation}
+                  sx={{
+                    fontSize: '0.75rem',
+                    py: 0.5,
+                    px: 1,
+                    minWidth: 'auto'
+                  }}
                 >
                   Dental
                 </Button>
@@ -183,9 +211,15 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               {appointment.status === 'scheduled' && !isDentalDoctor && (
                 <Button
                   size="small"
-                  startIcon={<Pending />}
+                  startIcon={<Pending fontSize="small" />}
                   onClick={() => handleStatusUpdate('in_progress')}
                   color="warning"
+                  sx={{
+                    fontSize: '0.75rem',
+                    py: 0.5,
+                    px: 1,
+                    minWidth: 'auto'
+                  }}
                 >
                   Start
                 </Button>
@@ -194,9 +228,15 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               {appointment.status === 'in_progress' && !isDentalDoctor && (
                 <Button
                   size="small"
-                  startIcon={<CheckCircle />}
+                  startIcon={<CheckCircle fontSize="small" />}
                   onClick={() => handleStatusUpdate('completed')}
                   color="success"
+                  sx={{
+                    fontSize: '0.75rem',
+                    py: 0.5,
+                    px: 1,
+                    minWidth: 'auto'
+                  }}
                 >
                   Complete
                 </Button>
@@ -206,16 +246,28 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 <>
                   <Button
                     size="small"
-                    startIcon={<Edit />}
+                    startIcon={<Edit fontSize="small" />}
                     onClick={() => onEdit?.(appointment)}
+                    sx={{
+                      fontSize: '0.75rem',
+                      py: 0.5,
+                      px: 1,
+                      minWidth: 'auto'
+                    }}
                   >
                     Reschedule
                   </Button>
                   <Button
                     size="small"
-                    startIcon={<Cancel />}
+                    startIcon={<Cancel fontSize="small" />}
                     onClick={() => onCancel?.(appointment)}
                     color="error"
+                    sx={{
+                      fontSize: '0.75rem',
+                      py: 0.5,
+                      px: 1,
+                      minWidth: 'auto'
+                    }}
                   >
                     Cancel
                   </Button>
