@@ -97,28 +97,28 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   return (
     <Card
       sx={{
-        mb: 1.5,
+        mb: 1,
         '&:hover': showActions ? {
-          boxShadow: (theme) => theme.shadows[4],
+          boxShadow: (theme) => theme.shadows[3],
         } : {},
       }}
     >
-      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box display="flex" gap={1.5} flex={1}>
-            <Avatar sx={{ width: 36, height: 36, fontSize: '1rem' }}>
-              <Person fontSize="small" />
+          <Box display="flex" gap={1} flex={1}>
+            <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
+              <Person sx={{ fontSize: 18 }} />
             </Avatar>
 
             <Box flex={1} minWidth={0}>
-              <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
                 <Typography
                   variant="subtitle2"
                   component="h3"
                   sx={{
                     fontWeight: 600,
-                    fontSize: '0.9rem',
-                    lineHeight: 1.3,
+                    fontSize: '0.85rem',
+                    lineHeight: 1.2,
                     wordBreak: 'break-word',
                     flex: 1,
                     minWidth: 0
@@ -132,59 +132,56 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   color={getStatusColor(appointment.status)}
                   icon={getStatusIcon(appointment.status)}
                   sx={{
-                    height: 20,
-                    fontSize: '0.7rem',
-                    '& .MuiChip-icon': { fontSize: '0.875rem' }
+                    height: 18,
+                    fontSize: '0.65rem',
+                    '& .MuiChip-icon': { fontSize: '0.75rem', ml: 0.5 },
+                    '& .MuiChip-label': { px: 0.75 }
                   }}
                 />
               </Box>
 
-              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
-                <AccessTime sx={{ fontSize: 14 }} color="action" />
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.125}>
+                <AccessTime sx={{ fontSize: 12 }} color="action" />
+                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
                   {appointmentDate.displayDateTime(appointment.appointment_datetime)}
                 </Typography>
               </Box>
 
               {appointment.patient_mobile_number && (
-                <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
-                  <Phone sx={{ fontSize: 14 }} color="action" />
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Phone sx={{ fontSize: 12 }} color="action" />
+                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
                     {appointment.patient_mobile_number}
                   </Typography>
                 </Box>
-              )}
-
-              {appointment.appointment_number && (
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
-                  #{appointment.appointment_number}
-                </Typography>
               )}
             </Box>
           </Box>
 
           {showActions && (
-            <IconButton size="small" sx={{ p: 0.5, ml: 1 }}>
-              <MoreVert fontSize="small" />
+            <IconButton size="small" sx={{ p: 0.25, ml: 0.5 }}>
+              <MoreVert sx={{ fontSize: 18 }} />
             </IconButton>
           )}
         </Box>
 
         {showActions && (
           <>
-            <Divider sx={{ my: 1.5 }} />
-            <Box display="flex" gap={0.75} flexWrap="wrap">
+            <Divider sx={{ my: 1 }} />
+            <Box display="flex" gap={0.5} flexWrap="wrap">
               <Button
                 size="small"
                 variant={isDentalDoctor ? "contained" : "text"}
                 color={isDentalDoctor ? "secondary" : "primary"}
-                startIcon={isDentalDoctor ? <MedicalServices fontSize="small" /> : <Visibility fontSize="small" />}
+                startIcon={isDentalDoctor ? <MedicalServices sx={{ fontSize: 14 }} /> : <Visibility sx={{ fontSize: 14 }} />}
                 onClick={() => isDentalDoctor ? handleDentalConsultation() : handleViewPrescription()}
                 sx={{
-                  fontSize: '0.75rem',
-                  py: 0.5,
-                  px: 1,
-                  minWidth: 'auto'
+                  fontSize: '0.7rem',
+                  py: 0.375,
+                  px: 0.75,
+                  minWidth: 'auto',
+                  minHeight: 'auto',
+                  lineHeight: 1.2
                 }}
               >
                 {isDentalDoctor ? 'Dental' : 'View'}
@@ -195,13 +192,15 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   size="small"
                   variant="outlined"
                   color="secondary"
-                  startIcon={<MedicalServices fontSize="small" />}
+                  startIcon={<MedicalServices sx={{ fontSize: 14 }} />}
                   onClick={handleDentalConsultation}
                   sx={{
-                    fontSize: '0.75rem',
-                    py: 0.5,
-                    px: 1,
-                    minWidth: 'auto'
+                    fontSize: '0.7rem',
+                    py: 0.375,
+                    px: 0.75,
+                    minWidth: 'auto',
+                    minHeight: 'auto',
+                    lineHeight: 1.2
                   }}
                 >
                   Dental
@@ -211,14 +210,16 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               {appointment.status === 'scheduled' && !isDentalDoctor && (
                 <Button
                   size="small"
-                  startIcon={<Pending fontSize="small" />}
+                  startIcon={<Pending sx={{ fontSize: 14 }} />}
                   onClick={() => handleStatusUpdate('in_progress')}
                   color="warning"
                   sx={{
-                    fontSize: '0.75rem',
-                    py: 0.5,
-                    px: 1,
-                    minWidth: 'auto'
+                    fontSize: '0.7rem',
+                    py: 0.375,
+                    px: 0.75,
+                    minWidth: 'auto',
+                    minHeight: 'auto',
+                    lineHeight: 1.2
                   }}
                 >
                   Start
@@ -228,14 +229,16 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               {appointment.status === 'in_progress' && !isDentalDoctor && (
                 <Button
                   size="small"
-                  startIcon={<CheckCircle fontSize="small" />}
+                  startIcon={<CheckCircle sx={{ fontSize: 14 }} />}
                   onClick={() => handleStatusUpdate('completed')}
                   color="success"
                   sx={{
-                    fontSize: '0.75rem',
-                    py: 0.5,
-                    px: 1,
-                    minWidth: 'auto'
+                    fontSize: '0.7rem',
+                    py: 0.375,
+                    px: 0.75,
+                    minWidth: 'auto',
+                    minHeight: 'auto',
+                    lineHeight: 1.2
                   }}
                 >
                   Complete
@@ -246,27 +249,31 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 <>
                   <Button
                     size="small"
-                    startIcon={<Edit fontSize="small" />}
+                    startIcon={<Edit sx={{ fontSize: 14 }} />}
                     onClick={() => onEdit?.(appointment)}
                     sx={{
-                      fontSize: '0.75rem',
-                      py: 0.5,
-                      px: 1,
-                      minWidth: 'auto'
+                      fontSize: '0.7rem',
+                      py: 0.375,
+                      px: 0.75,
+                      minWidth: 'auto',
+                      minHeight: 'auto',
+                      lineHeight: 1.2
                     }}
                   >
                     Reschedule
                   </Button>
                   <Button
                     size="small"
-                    startIcon={<Cancel fontSize="small" />}
+                    startIcon={<Cancel sx={{ fontSize: 14 }} />}
                     onClick={() => onCancel?.(appointment)}
                     color="error"
                     sx={{
-                      fontSize: '0.75rem',
-                      py: 0.5,
-                      px: 1,
-                      minWidth: 'auto'
+                      fontSize: '0.7rem',
+                      py: 0.375,
+                      px: 0.75,
+                      minWidth: 'auto',
+                      minHeight: 'auto',
+                      lineHeight: 1.2
                     }}
                   >
                     Cancel
