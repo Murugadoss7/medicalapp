@@ -147,6 +147,32 @@ async def list_patients(
         )
 
 
+# Statistics and Analytics (MUST BE BEFORE DYNAMIC ROUTES)
+
+@router.get("/statistics/overview", response_model=Dict[str, Any])
+async def get_patient_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+) -> Dict[str, Any]:
+    """
+    Get patient statistics and analytics
+
+    **Analytics**: Patient counts, demographics, family statistics
+
+    **Staff access required** (admin, doctor, nurse, receptionist)
+    """
+    try:
+        stats = patient_service.get_patient_statistics(db)
+        return stats
+
+    except Exception as e:
+        logger.error(f"Error retrieving patient statistics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve statistics"
+        )
+
+
 # Family Management Endpoints (MOVED BEFORE COMPOSITE KEY ROUTES TO FIX ROUTING CONFLICT)
 
 @router.get("/families/{mobile_number}", response_model=FamilyResponse)
@@ -507,30 +533,4 @@ async def get_patient_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve patient"
-        )
-
-
-# Statistics and Analytics
-
-@router.get("/statistics/overview", response_model=Dict[str, Any])
-async def get_patient_statistics(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
-) -> Dict[str, Any]:
-    """
-    Get patient statistics and analytics
-    
-    **Analytics**: Patient counts, demographics, family statistics
-    
-    **Admin Only**: Statistical data requires admin privileges
-    """
-    try:
-        stats = patient_service.get_patient_statistics(db)
-        return stats
-        
-    except Exception as e:
-        logger.error(f"Error retrieving patient statistics: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve statistics"
         )
