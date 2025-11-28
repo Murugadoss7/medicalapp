@@ -37,6 +37,9 @@ import {
   Search as SearchIcon,
   LocalPharmacy as PharmacyIcon,
 } from '@mui/icons-material';
+import { useToast } from '../../components/common/Toast';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import {
   useListMedicinesQuery,
   useCreateMedicineMutation,
@@ -50,6 +53,10 @@ export const MedicineCatalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+
+  // Toast and confirm dialog hooks
+  const toast = useToast();
+  const { dialogProps, confirm } = useConfirmDialog();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -123,7 +130,7 @@ export const MedicineCatalog = () => {
 
   const handleSubmit = async () => {
     if (!formData.brand_name) {
-      alert('Brand name is required');
+      toast.warning('Brand name is required');
       return;
     }
 
@@ -147,27 +154,35 @@ export const MedicineCatalog = () => {
     try {
       if (editingMedicine) {
         await updateMedicine({ id: editingMedicine.id, ...medicineData }).unwrap();
-        alert('Medicine updated successfully!');
+        toast.success('Medicine updated successfully!');
       } else {
         await createMedicine(medicineData).unwrap();
-        alert('Medicine created successfully!');
+        toast.success('Medicine created successfully!');
       }
       handleCloseDialog();
       refetch();
     } catch (error: any) {
       console.error('Medicine save error:', error);
-      alert(error?.data?.detail || 'Failed to save medicine');
+      toast.error(error?.data?.detail || 'Failed to save medicine');
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+    const confirmed = await confirm({
+      title: 'Delete Medicine',
+      message: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (confirmed) {
       try {
         await deleteMedicine(id).unwrap();
-        alert('Medicine deleted successfully!');
+        toast.success('Medicine deleted successfully!');
         refetch();
       } catch (error: any) {
-        alert(error?.data?.detail || 'Failed to delete medicine');
+        toast.error(error?.data?.detail || 'Failed to delete medicine');
       }
     }
   };
@@ -421,6 +436,9 @@ export const MedicineCatalog = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog {...dialogProps} />
     </Box>
   );
 };

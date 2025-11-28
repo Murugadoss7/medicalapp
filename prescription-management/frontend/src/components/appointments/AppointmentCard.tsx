@@ -1,20 +1,13 @@
 import React from 'react';
 import {
-  Card,
-  CardContent,
   Typography,
   Box,
   Chip,
-  Avatar,
-  IconButton,
   Button,
-  Divider,
 } from '@mui/material';
 import {
-  Person,
   Phone,
   AccessTime,
-  MoreVert,
   CheckCircle,
   Cancel,
   Schedule,
@@ -95,195 +88,185 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                          user?.specialization?.toLowerCase().includes('dentist');
 
   return (
-    <Card
+    <Box
       sx={{
-        mb: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        py: 1.25,
+        px: 2,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
         '&:hover': showActions ? {
-          boxShadow: (theme) => theme.shadows[3],
+          bgcolor: 'action.hover',
+          transform: 'translateX(4px)',
         } : {},
       }}
+      onClick={() => isDentalDoctor ? handleDentalConsultation() : handleViewPrescription()}
     >
-      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box display="flex" gap={1} flex={1}>
-            <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
-              <Person sx={{ fontSize: 18 }} />
-            </Avatar>
-
-            <Box flex={1} minWidth={0}>
-              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
-                <Typography
-                  variant="subtitle2"
-                  component="h3"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    lineHeight: 1.2,
-                    wordBreak: 'break-word',
-                    flex: 1,
-                    minWidth: 0
-                  }}
-                >
-                  {appointment.patient_first_name}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={appointment.status}
-                  color={getStatusColor(appointment.status)}
-                  icon={getStatusIcon(appointment.status)}
-                  sx={{
-                    height: 18,
-                    fontSize: '0.65rem',
-                    '& .MuiChip-icon': { fontSize: '0.75rem', ml: 0.5 },
-                    '& .MuiChip-label': { px: 0.75 }
-                  }}
-                />
-              </Box>
-
-              <Box display="flex" alignItems="center" gap={0.5} mb={0.125}>
-                <AccessTime sx={{ fontSize: 12 }} color="action" />
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                  {appointmentDate.displayDateTime(appointment.appointment_datetime)}
-                </Typography>
-              </Box>
-
-              {appointment.patient_mobile_number && (
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Phone sx={{ fontSize: 12 }} color="action" />
-                  <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                    {appointment.patient_mobile_number}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          {showActions && (
-            <IconButton size="small" sx={{ p: 0.25, ml: 0.5 }}>
-              <MoreVert sx={{ fontSize: 18 }} />
-            </IconButton>
-          )}
+      {/* Left Section - Patient Name and Details */}
+      <Box sx={{ flex: '1 1 35%', minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {appointment.patient_first_name}
+          </Typography>
+          <Chip
+            size="small"
+            label={appointment.status}
+            color={getStatusColor(appointment.status)}
+            icon={getStatusIcon(appointment.status)}
+            sx={{
+              height: 18,
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              '& .MuiChip-icon': { fontSize: '0.7rem', ml: 0.4 },
+              '& .MuiChip-label': { px: 0.6 }
+            }}
+          />
         </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Phone sx={{ fontSize: 12 }} color="action" />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.2 }}>
+              {appointment.patient_mobile_number}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <AccessTime sx={{ fontSize: 12 }} color="action" />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.2 }}>
+              {appointmentDate.displayDateTime(appointment.appointment_datetime)}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
 
-        {showActions && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <Box display="flex" gap={0.5} flexWrap="wrap">
+      {/* Right Section - Compact Actions */}
+      {showActions && (
+        <Box sx={{ display: 'flex', gap: 0.5, flex: '0 0 auto' }}>
+          <Button
+            size="small"
+            variant={isDentalDoctor ? "contained" : "outlined"}
+            color={isDentalDoctor ? "secondary" : "primary"}
+            startIcon={isDentalDoctor ? <MedicalServices sx={{ fontSize: 14 }} /> : <Visibility sx={{ fontSize: 14 }} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              isDentalDoctor ? handleDentalConsultation() : handleViewPrescription();
+            }}
+            sx={{
+              fontSize: '0.7rem',
+              py: 0.5,
+              px: 1,
+              minWidth: 'auto',
+              lineHeight: 1.2,
+              height: 28
+            }}
+          >
+            {isDentalDoctor ? 'Dental' : 'View'}
+          </Button>
+
+          {appointment.status === 'scheduled' && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Pending sx={{ fontSize: 14 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusUpdate('in_progress');
+              }}
+              color="warning"
+              sx={{
+                fontSize: '0.7rem',
+                py: 0.5,
+                px: 1,
+                minWidth: 'auto',
+                lineHeight: 1.2,
+                height: 28
+              }}
+            >
+              Start
+            </Button>
+          )}
+
+          {appointment.status === 'in_progress' && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<CheckCircle sx={{ fontSize: 14 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusUpdate('completed');
+              }}
+              color="success"
+              sx={{
+                fontSize: '0.7rem',
+                py: 0.5,
+                px: 1,
+                minWidth: 'auto',
+                lineHeight: 1.2,
+                height: 28
+              }}
+            >
+              Complete
+            </Button>
+          )}
+
+          {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+            <>
               <Button
                 size="small"
-                variant={isDentalDoctor ? "contained" : "text"}
-                color={isDentalDoctor ? "secondary" : "primary"}
-                startIcon={isDentalDoctor ? <MedicalServices sx={{ fontSize: 14 }} /> : <Visibility sx={{ fontSize: 14 }} />}
-                onClick={() => isDentalDoctor ? handleDentalConsultation() : handleViewPrescription()}
+                variant="text"
+                startIcon={<Edit sx={{ fontSize: 14 }} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(appointment);
+                }}
                 sx={{
                   fontSize: '0.7rem',
-                  py: 0.375,
-                  px: 0.75,
+                  py: 0.5,
+                  px: 1,
                   minWidth: 'auto',
-                  minHeight: 'auto',
-                  lineHeight: 1.2
+                  lineHeight: 1.2,
+                  height: 28
                 }}
               >
-                {isDentalDoctor ? 'Dental' : 'View'}
+                Edit
               </Button>
-
-              {!isDentalDoctor && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="secondary"
-                  startIcon={<MedicalServices sx={{ fontSize: 14 }} />}
-                  onClick={handleDentalConsultation}
-                  sx={{
-                    fontSize: '0.7rem',
-                    py: 0.375,
-                    px: 0.75,
-                    minWidth: 'auto',
-                    minHeight: 'auto',
-                    lineHeight: 1.2
-                  }}
-                >
-                  Dental
-                </Button>
-              )}
-
-              {appointment.status === 'scheduled' && !isDentalDoctor && (
-                <Button
-                  size="small"
-                  startIcon={<Pending sx={{ fontSize: 14 }} />}
-                  onClick={() => handleStatusUpdate('in_progress')}
-                  color="warning"
-                  sx={{
-                    fontSize: '0.7rem',
-                    py: 0.375,
-                    px: 0.75,
-                    minWidth: 'auto',
-                    minHeight: 'auto',
-                    lineHeight: 1.2
-                  }}
-                >
-                  Start
-                </Button>
-              )}
-
-              {appointment.status === 'in_progress' && !isDentalDoctor && (
-                <Button
-                  size="small"
-                  startIcon={<CheckCircle sx={{ fontSize: 14 }} />}
-                  onClick={() => handleStatusUpdate('completed')}
-                  color="success"
-                  sx={{
-                    fontSize: '0.7rem',
-                    py: 0.375,
-                    px: 0.75,
-                    minWidth: 'auto',
-                    minHeight: 'auto',
-                    lineHeight: 1.2
-                  }}
-                >
-                  Complete
-                </Button>
-              )}
-
-              {appointment.status !== 'completed' && appointment.status !== 'cancelled' && !isDentalDoctor && (
-                <>
-                  <Button
-                    size="small"
-                    startIcon={<Edit sx={{ fontSize: 14 }} />}
-                    onClick={() => onEdit?.(appointment)}
-                    sx={{
-                      fontSize: '0.7rem',
-                      py: 0.375,
-                      px: 0.75,
-                      minWidth: 'auto',
-                      minHeight: 'auto',
-                      lineHeight: 1.2
-                    }}
-                  >
-                    Reschedule
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<Cancel sx={{ fontSize: 14 }} />}
-                    onClick={() => onCancel?.(appointment)}
-                    color="error"
-                    sx={{
-                      fontSize: '0.7rem',
-                      py: 0.375,
-                      px: 0.75,
-                      minWidth: 'auto',
-                      minHeight: 'auto',
-                      lineHeight: 1.2
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              )}
-            </Box>
-          </>
-        )}
-      </CardContent>
-    </Card>
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<Cancel sx={{ fontSize: 14 }} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel?.(appointment);
+                }}
+                color="error"
+                sx={{
+                  fontSize: '0.7rem',
+                  py: 0.5,
+                  px: 1,
+                  minWidth: 'auto',
+                  lineHeight: 1.2,
+                  height: 28
+                }}
+              >
+                Cancel
+              </Button>
+            </>
+          )}
+        </Box>
+      )}
+    </Box>
   );
 };

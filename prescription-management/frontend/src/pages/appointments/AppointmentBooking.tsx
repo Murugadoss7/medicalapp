@@ -41,6 +41,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/common/Toast';
 import {
   useListPatientsQuery,
   useListDoctorsQuery,
@@ -94,6 +95,7 @@ const validationSchema = yup.object({
 
 export const AppointmentBooking = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeStep, setActiveStep] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -238,16 +240,16 @@ export const AppointmentBooking = () => {
       }).unwrap();
 
       if (conflictCheck.has_conflict) {
-        alert('This time slot is no longer available. Please select a different time.');
+        toast.warning('This time slot is no longer available. Please select a different time.');
         return;
       }
 
       const result = await createAppointment(appointmentData).unwrap();
-      alert('Appointment booked successfully!');
+      toast.success('Appointment booked successfully!');
       navigate('/doctor/appointments');
     } catch (error) {
       console.error('Failed to book appointment:', error);
-      alert('Failed to book appointment. Please try again.');
+      toast.error('Failed to book appointment. Please try again.');
     }
   };
 
@@ -322,74 +324,100 @@ export const AppointmentBooking = () => {
           sx={{ mb: 4 }}
         />
 
-        {patientsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : patientsData?.patients && patientsData.patients.length > 0 ? (
-          <>
-            <Grid container spacing={3}>
-              {patientsData.patients.map((patient) => (
-                <Grid item xs={12} sm={6} md={4} key={patient.id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        transform: 'translateY(-8px)',
-                        boxShadow: 6,
-                      },
-                      height: '100%',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                    onClick={() => handlePatientSelect(patient)}
-                  >
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <Avatar sx={{ bgcolor: 'primary.main', mr: 2, width: 56, height: 56 }}>
-                          <Person fontSize="large" />
-                        </Avatar>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }} noWrap>
-                            {patient.first_name} {patient.last_name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Phone sx={{ fontSize: 14 }} />
-                            {patient.mobile_number}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      {patient.age && (
-                        <Typography variant="body2" color="text.secondary">
-                          Age: {patient.age} years
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+        {/* Content wrapper - flex layout for proper spacing */}
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {patientsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : patientsData?.patients && patientsData.patients.length > 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              {/* Grid layout for patients - shows more on wider screens */}
+              <Grid container spacing={2} sx={{ alignContent: 'flex-start' }}>
+                {patientsData.patients.map((patient) => (
+                  <Grid item xs={12} sm={6} lg={4} key={patient.id}>
+                    <Card
+                      sx={{
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        '&:hover': {
+                          bgcolor: 'primary.lighter',
+                          borderColor: 'primary.main',
+                          transform: 'translateY(-2px)',
+                          boxShadow: 2,
+                        }
+                      }}
+                      onClick={() => handlePatientSelect(patient)}
+                      elevation={0}
+                    >
+                      <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+                            <Person />
+                          </Avatar>
 
-            {patientsData.total_pages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <Pagination
-                  count={patientsData.total_pages}
-                  page={patientPage}
-                  onChange={(_, page) => setPatientPage(page)}
-                  color="primary"
-                  size="large"
-                />
-              </Box>
-            )}
-          </>
-        ) : (
-          <Alert severity="info" sx={{ mt: 4 }}>
-            {patientSearch
-              ? 'No patients found matching your search.'
-              : 'Start typing to search for patients.'}
-          </Alert>
-        )}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="subtitle1"
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: '1rem',
+                                lineHeight: 1.3,
+                                mb: 0.5,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {patient.first_name} {patient.last_name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Phone sx={{ fontSize: 14 }} color="action" />
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                                  {patient.mobile_number}
+                                </Typography>
+                              </Box>
+                              {patient.age && (
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                                  Age: {patient.age} years
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+
+                          <CheckIcon sx={{ color: 'primary.main', opacity: 0.3 }} />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {patientsData.total_pages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                  <Pagination
+                    count={patientsData.total_pages}
+                    page={patientPage}
+                    onChange={(_, page) => setPatientPage(page)}
+                    color="primary"
+                    size="large"
+                  />
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+              <Alert severity="info">
+                {patientSearch
+                  ? 'No patients found matching your search.'
+                  : 'Start typing to search for patients.'}
+              </Alert>
+            </Box>
+          )}
+        </Box>
       </Box>
     </Fade>
   );
@@ -429,69 +457,93 @@ export const AppointmentBooking = () => {
             sx={{ mb: 3 }}
           />
 
-          {doctorsLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : doctorsData?.doctors && doctorsData.doctors.length > 0 ? (
-            <>
-              <Grid container spacing={2}>
-                {doctorsData.doctors.map((doctor) => (
-                  <Grid item xs={12} sm={6} md={4} key={doctor.id}>
-                    <Card
-                      sx={{
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        border: '2px solid',
-                        borderColor: selectedDoctor?.id === doctor.id ? 'primary.main' : 'divider',
-                        bgcolor: selectedDoctor?.id === doctor.id ? 'primary.50' : 'background.paper',
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: 4,
-                        },
-                      }}
-                      onClick={() => handleDoctorSelect(doctor)}
-                    >
-                      <CardContent sx={{ p: 2.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.5 }}>
-                          <Avatar sx={{ bgcolor: 'primary.main', mr: 1.5, width: 48, height: 48 }}>
-                            <LocalHospital />
-                          </Avatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }} noWrap>
-                              Dr. {doctor.first_name} {doctor.last_name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {doctor.specialization}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Rating value={doctor.rating || 4.5} precision={0.5} size="small" readOnly />
-                          <Typography variant="caption" color="text.secondary">
-                            ({doctor.rating?.toFixed(1) || '4.5'})
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+          {/* Content wrapper - flex layout for proper spacing */}
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            {doctorsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : doctorsData?.doctors && doctorsData.doctors.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                {/* Grid layout for doctors - shows more on wider screens */}
+                <Grid container spacing={2} sx={{ alignContent: 'flex-start' }}>
+                  {doctorsData.doctors.map((doctor) => (
+                    <Grid item xs={12} sm={6} lg={4} key={doctor.id}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          border: '2px solid',
+                          borderColor: selectedDoctor?.id === doctor.id ? 'primary.main' : 'divider',
+                          bgcolor: selectedDoctor?.id === doctor.id ? 'primary.lighter' : 'background.paper',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            transform: 'translateY(-2px)',
+                            boxShadow: 2,
+                          }
+                        }}
+                        onClick={() => handleDoctorSelect(doctor)}
+                        elevation={0}
+                      >
+                        <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+                              <LocalHospital />
+                            </Avatar>
 
-              {doctorsData.total_pages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                  <Pagination
-                    count={doctorsData.total_pages}
-                    page={doctorPage}
-                    onChange={(_, page) => setDoctorPage(page)}
-                    color="primary"
-                  />
-                </Box>
-              )}
-            </>
-          ) : (
-            <Alert severity="info">No doctors available</Alert>
-          )}
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography
+                                variant="subtitle1"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: '1rem',
+                                  lineHeight: 1.3,
+                                  mb: 0.5,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Dr. {doctor.first_name} {doctor.last_name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', mb: 0.5 }}>
+                                {doctor.specialization}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Rating value={doctor.rating || 4.5} precision={0.5} size="small" readOnly />
+                                <Typography variant="caption" color="text.secondary">
+                                  ({doctor.rating?.toFixed(1) || '4.5'})
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {selectedDoctor?.id === doctor.id && (
+                              <CheckCircle sx={{ color: 'primary.main' }} />
+                            )}
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {doctorsData.total_pages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={doctorsData.total_pages}
+                      page={doctorPage}
+                      onChange={(_, page) => setDoctorPage(page)}
+                      color="primary"
+                    />
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                <Alert severity="info">No doctors available</Alert>
+              </Box>
+            )}
+          </Box>
         </Box>
 
         {/* Date & Time Selection */}
@@ -801,7 +853,7 @@ export const AppointmentBooking = () => {
       {renderPatientHeader()}
 
       {/* Step Content */}
-      <Paper elevation={0} sx={{ p: { xs: 3, sm: 4, md: 5 }, border: '1px solid', borderColor: 'divider', minHeight: 500 }}>
+      <Paper elevation={0} sx={{ p: { xs: 3, sm: 4, md: 5 }, border: '1px solid', borderColor: 'divider' }}>
         {renderStep()}
       </Paper>
     </Box>

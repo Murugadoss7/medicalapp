@@ -136,6 +136,7 @@ export const RecentPrescriptions = ({
               </ListItemIcon>
               
               <ListItemText
+                disableTypography
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="subtitle2">
@@ -150,21 +151,21 @@ export const RecentPrescriptions = ({
                   </Box>
                 }
                 secondary={
-                  <Box>
+                  <Box sx={{ mt: 0.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                      <Person fontSize="small" />
+                      <Person fontSize="small" sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
                         {prescription.patient_full_name}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                      <Phone fontSize="small" />
+                      <Phone fontSize="small" sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
                         {prescription.patient_mobile_number}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                      <CalendarToday fontSize="small" />
+                      <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
                         {format(parseISO(prescription.created_at), 'MMM dd, yyyy')}
                       </Typography>

@@ -1,7 +1,7 @@
-import { 
-  Box, 
-  Typography, 
-  Grid, 
+import {
+  Box,
+  Typography,
+  Grid,
   Button,
   Paper,
   Divider
@@ -15,32 +15,35 @@ import {
 import { StatCard } from '../components/dashboard/StatCard';
 import { TodaySchedule } from '../components/dashboard/TodaySchedule';
 import { RecentPrescriptions } from '../components/dashboard/RecentPrescriptions';
-import { 
-  mockDoctorStatistics, 
-  mockTodayAppointments, 
-  mockRecentPrescriptions 
+import { useToast } from '../components/common/Toast';
+import {
+  mockDoctorStatistics,
+  mockTodayAppointments,
+  mockRecentPrescriptions
 } from '../utils/testData';
 import type { Appointment, Prescription } from '../store/api';
 
 export const TestDashboard = () => {
+  const toast = useToast();
+
   const handleAppointmentClick = (appointment: Appointment) => {
     console.log('Appointment clicked:', appointment);
-    alert(`Appointment clicked: ${appointment.patient_full_name} at ${appointment.appointment_time}`);
+    toast.info(`Appointment: ${appointment.patient_full_name} at ${appointment.appointment_time}`);
   };
 
   const handleStartConsultation = (appointment: Appointment) => {
     console.log('Start consultation:', appointment);
-    alert(`Starting consultation for: ${appointment.patient_full_name}`);
+    toast.success(`Starting consultation for: ${appointment.patient_full_name}`);
   };
 
   const handlePrescriptionClick = (prescription: Prescription) => {
     console.log('Prescription clicked:', prescription);
-    alert(`Prescription clicked: ${prescription.prescription_number}`);
+    toast.info(`Prescription: ${prescription.prescription_number}`);
   };
 
   const handlePrintPrescription = (prescription: Prescription) => {
     console.log('Print prescription:', prescription);
-    alert(`Printing prescription: ${prescription.prescription_number}`);
+    toast.success(`Printing prescription: ${prescription.prescription_number}`);
   };
 
   return (

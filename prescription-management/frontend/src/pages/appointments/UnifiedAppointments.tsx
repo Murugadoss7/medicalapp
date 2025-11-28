@@ -484,7 +484,7 @@ export const UnifiedAppointments = () => {
 
       {/* Calendar/Schedule View */}
       {selectedDoctorId && (
-        <Box>
+        <Box sx={{ minHeight: 600 }}>
           {viewMode === 'month' && (
             <AppointmentCalendarEnhanced
               appointments={filteredAppointments}
