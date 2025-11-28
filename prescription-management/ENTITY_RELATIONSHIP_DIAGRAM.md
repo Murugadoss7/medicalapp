@@ -3,11 +3,17 @@
 
 ---
 
-**📅 Last Updated**: November 26, 2025
+**📅 Last Updated**: November 28, 2025
 **🎯 Purpose**: Single source of truth for database schema, field mappings, and relationships
 **📋 Status**: Production Implementation Complete - All 9 modules implemented including dental consultation
 **📅 Date Standardization**: Standardized date handling implemented across all modules
 **🚀 Recent Updates**:
+- **Appointment Status Transitions**: Backend now allows direct `scheduled → in_progress` transition for consultation workflow
+- **Consultation Status Tracking**: Frontend DentalConsultation.tsx shows real-time status chip (Scheduled/In Progress/Completed)
+- **Complete Consultation Button**: Added for marking appointments as completed from consultation page
+- **Navigation Guard**: Exit dialog appears when navigating away from in_progress consultations
+- **Toast Notification System**: Browser alerts replaced with ToastContext-based notifications
+- **Dashboard Real-time Stats**: Doctor dashboard shows calculated statistics from actual appointment data
 - Short Key Management: Complete frontend UI with inline editing, reordering, CRUD operations
 - Prescription Items: Now fully editable (all fields modifiable in UI and backend)
 - Soft Delete Filtering: DELETE operations now properly filter is_active=false items
@@ -1026,6 +1032,33 @@ CREATE INDEX idx_dental_proc_code ON dental_procedures(procedure_code);
 - **Working Hours**: 9 AM - 10 PM, Monday-Friday
 - **Breaks**: 10 minutes between appointments
 - **Conflict Detection**: No overlapping appointments for same doctor
+
+**⭐ Appointment Status Transitions (Updated)**:
+```
+scheduled → in_progress → completed
+    ↓           ↓
+cancelled   cancelled
+
+confirmed → in_progress → completed
+    ↓           ↓
+cancelled   cancelled
+
+no_show (terminal state)
+rescheduled → scheduled/confirmed
+```
+
+**Valid Status Transitions**:
+| From Status  | Allowed Transitions |
+|--------------|---------------------|
+| `scheduled`  | `confirmed`, `in_progress`, `cancelled`, `no_show` |
+| `confirmed`  | `in_progress`, `cancelled`, `no_show` |
+| `in_progress` | `completed`, `cancelled` |
+| `completed`  | (terminal state - no transitions) |
+| `cancelled`  | (terminal state - no transitions) |
+| `no_show`    | (terminal state - no transitions) |
+| `rescheduled` | `scheduled`, `confirmed`, `cancelled` |
+
+**Note**: The `scheduled → in_progress` transition was added to support direct consultation start from the doctor dashboard without requiring a separate "confirm" step.
 
 ### **3. Prescription Management**
 - **Status Workflow**: draft → active → dispensed → completed

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -11,15 +11,16 @@ import {
 import {
   Today,
   Assignment,
-  People,
   CheckCircle,
   Refresh,
   Add as AddIcon,
+  HourglassEmpty,
+  Cancel,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks';
+import { useToast } from '../../components/common/Toast';
 import {
-  useGetDoctorStatisticsQuery,
   useGetDoctorTodayAppointmentsQuery,
   useGetDoctorRecentPrescriptionsQuery,
   type Appointment,
@@ -33,6 +34,7 @@ import { getCurrentDoctorId } from '../../utils/doctorUtils';
 export const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
+  const toast = useToast();
 
   // Redirect non-doctor users to their appropriate dashboard
   useEffect(() => {
@@ -60,19 +62,12 @@ export const DoctorDashboard = () => {
     );
   }
 
-  // API queries
-  const {
-    data: statistics,
-    isLoading: statsLoading,
-    error: statsError,
-    refetch: refetchStats,
-  } = useGetDoctorStatisticsQuery();
-
   // Use consistent doctor ID across all components
   const doctorId = getCurrentDoctorId();
 
+  // API queries - Get ALL today's appointments (no status filter)
   const {
-    data: todayAppointments = [],
+    data: todayAppointmentsData,
     isLoading: appointmentsLoading,
     error: appointmentsError,
     refetch: refetchAppointments,
@@ -83,23 +78,90 @@ export const DoctorDashboard = () => {
     isLoading: prescriptionsLoading,
     error: prescriptionsError,
     refetch: refetchPrescriptions,
-  } = useGetDoctorRecentPrescriptionsQuery({ 
-    doctorId, 
-    limit: 5 
+  } = useGetDoctorRecentPrescriptionsQuery({
+    doctorId,
+    limit: 5
   });
 
-  const handleRefreshAll = () => {
-    refetchStats();
-    refetchAppointments();
-    refetchPrescriptions();
+  // Extract appointments array from response
+  const todayAppointments = useMemo(() => {
+    if (!todayAppointmentsData) return [];
+    // Handle both array and object with appointments property
+    if (Array.isArray(todayAppointmentsData)) {
+      return todayAppointmentsData;
+    }
+    return todayAppointmentsData.appointments || [];
+  }, [todayAppointmentsData]);
+
+  // Calculate statistics from actual appointment data
+  const statistics = useMemo(() => {
+    const total = todayAppointments.length;
+    const completed = todayAppointments.filter(
+      (apt) => apt.status === 'completed'
+    ).length;
+    const inProgress = todayAppointments.filter(
+      (apt) => apt.status === 'in_progress'
+    ).length;
+    const scheduled = todayAppointments.filter(
+      (apt) => apt.status === 'scheduled'
+    ).length;
+    const cancelled = todayAppointments.filter(
+      (apt) => apt.status === 'cancelled' || apt.status === 'no_show'
+    ).length;
+
+    return {
+      total,
+      completed,
+      inProgress,
+      scheduled,
+      cancelled,
+      pending: scheduled + inProgress,
+    };
+  }, [todayAppointments]);
+
+  // Count today's prescriptions
+  const todayPrescriptionsCount = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return recentPrescriptions.filter((rx) => {
+      const rxDate = new Date(rx.created_at).toISOString().split('T')[0];
+      return rxDate === today;
+    }).length;
+  }, [recentPrescriptions]);
+
+  const handleRefreshAll = async () => {
+    try {
+      await Promise.all([
+        refetchAppointments(),
+        refetchPrescriptions(),
+      ]);
+      toast.success('Dashboard refreshed successfully');
+    } catch {
+      toast.error('Failed to refresh dashboard');
+    }
   };
 
   const handleAppointmentClick = (appointment: Appointment) => {
-    navigate(`/doctor/consultation/${appointment.id}`);
+    // Check if doctor has dental specialization
+    const isDentalDoctor = user?.specialization?.toLowerCase().includes('dental') ||
+                           user?.specialization?.toLowerCase().includes('dentist');
+
+    if (isDentalDoctor) {
+      navigate(`/appointments/${appointment.id}/dental`);
+    } else {
+      navigate(`/appointments/${appointment.id}/consultation`);
+    }
   };
 
   const handleStartConsultation = (appointment: Appointment) => {
-    navigate(`/doctor/consultation/${appointment.id}?start=true`);
+    // Check if doctor has dental specialization
+    const isDentalDoctor = user?.specialization?.toLowerCase().includes('dental') ||
+                           user?.specialization?.toLowerCase().includes('dentist');
+
+    if (isDentalDoctor) {
+      navigate(`/appointments/${appointment.id}/dental`);
+    } else {
+      navigate(`/appointments/${appointment.id}/consultation`);
+    }
   };
 
   const handlePrescriptionClick = (prescription: Prescription) => {
@@ -107,12 +169,13 @@ export const DoctorDashboard = () => {
   };
 
   const handlePrintPrescription = (prescription: Prescription) => {
-    // TODO: Implement prescription printing
-    console.log('Print prescription:', prescription.id);
+    // Open prescription in a new window for printing
+    window.open(`/prescriptions/${prescription.id}/print`, '_blank');
+    toast.info(`Opening prescription ${prescription.prescription_number} for printing`);
   };
 
   // Show loading backdrop for initial load
-  if (statsLoading && appointmentsLoading && prescriptionsLoading) {
+  if (appointmentsLoading && prescriptionsLoading) {
     return (
       <Backdrop open sx={{ zIndex: 1 }}>
         <CircularProgress color="primary" />
@@ -124,9 +187,19 @@ export const DoctorDashboard = () => {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Welcome, Dr. {user?.first_name}
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Welcome, Dr. {user?.first_name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {new Date().toLocaleDateString('en-IN', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="contained"
@@ -140,7 +213,7 @@ export const DoctorDashboard = () => {
             variant="outlined"
             startIcon={<Refresh />}
             onClick={handleRefreshAll}
-            disabled={statsLoading || appointmentsLoading || prescriptionsLoading}
+            disabled={appointmentsLoading || prescriptionsLoading}
           >
             Refresh
           </Button>
@@ -148,59 +221,59 @@ export const DoctorDashboard = () => {
       </Box>
 
       {/* Error Messages */}
-      {(statsError || appointmentsError || prescriptionsError) && (
+      {(appointmentsError || prescriptionsError) && (
         <Alert severity="error" sx={{ mb: 3 }}>
           There was an error loading some dashboard data. Please try refreshing.
         </Alert>
       )}
-      
+
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Today's Appointments"
-            value={statistics?.appointments_today || 0}
+            value={statistics.total}
             icon={<Today />}
-            loading={statsLoading}
+            loading={appointmentsLoading}
             color="primary"
-            subtitle="Scheduled for today"
+            subtitle={`${statistics.scheduled} scheduled, ${statistics.inProgress} in progress`}
           />
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Completed Today"
-            value={statistics?.completed_appointments_today || 0}
+            title="Completed"
+            value={statistics.completed}
             icon={<CheckCircle />}
-            loading={statsLoading}
+            loading={appointmentsLoading}
             color="success"
-            subtitle="Consultations done"
+            subtitle="Consultations done today"
           />
         </Grid>
-        
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Pending"
+            value={statistics.pending}
+            icon={<HourglassEmpty />}
+            loading={appointmentsLoading}
+            color="warning"
+            subtitle="Waiting to be seen"
+          />
+        </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Prescriptions Today"
-            value={statistics?.prescriptions_today || 0}
+            value={todayPrescriptionsCount}
             icon={<Assignment />}
-            loading={statsLoading}
+            loading={prescriptionsLoading}
             color="secondary"
             subtitle="Written today"
           />
         </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Patients"
-            value={statistics?.total_patients || 0}
-            icon={<People />}
-            loading={statsLoading}
-            color="warning"
-            subtitle="Under your care"
-          />
-        </Grid>
       </Grid>
-      
+
       {/* Main Content */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
@@ -211,7 +284,7 @@ export const DoctorDashboard = () => {
             onStartConsultation={handleStartConsultation}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <RecentPrescriptions
             prescriptions={recentPrescriptions}

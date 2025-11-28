@@ -45,6 +45,13 @@ interface ToothData {
   conditionType?: string;
   severity?: string;
   lastTreatmentDate?: string;
+  // New fields for better tracking
+  procedureStatus?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  observationCount?: number;
+  procedureCount?: number;
+  completedProcedureCount?: number;
+  hasPendingProcedure?: boolean;
+  hasCompletedProcedure?: boolean;
 }
 
 interface DentalChartProps {
@@ -77,43 +84,75 @@ const DentalChart: React.FC<DentalChartProps> = ({
   // Get teeth configuration based on dentition type
   const teethConfig = dentitionType === 'primary' ? PRIMARY_TEETH : PERMANENT_TEETH;
 
-  // Get tooth status color
+  // Get tooth status color - Priority: Completed > In Progress > Observation > Planned
   const getToothColor = (toothNumber: string) => {
     const tooth = teethDataMap[toothNumber];
 
     if (!tooth) {
-      return theme.palette.grey[200]; // Default/healthy
+      return theme.palette.grey[200]; // Default/healthy - no data
     }
 
+    // Priority 1: Check procedure status first (most important)
+    if (tooth.hasCompletedProcedure || tooth.procedureStatus === 'completed') {
+      return theme.palette.success.light; // Completed procedure - green
+    }
+
+    // Priority 2: Active/In-progress procedure
+    if (tooth.procedureStatus === 'in_progress') {
+      return theme.palette.info.light; // In progress - blue
+    }
+
+    // Priority 3: Has active issues (observation with treatment required but no procedure done)
     if (tooth.hasActiveIssue) {
       return theme.palette.error.light; // Active issue - red
     }
 
+    // Priority 4: Has planned procedure (pending treatment)
+    if (tooth.hasPendingProcedure || tooth.procedureStatus === 'planned') {
+      return theme.palette.warning.light; // Planned procedure - orange
+    }
+
+    // Priority 5: Has observation only (no procedure)
     if (tooth.hasObservation && !tooth.hasProcedure) {
       return theme.palette.warning.light; // Observation only - orange
     }
 
+    // Priority 6: Has procedure but no specific status (legacy support)
     if (tooth.hasProcedure) {
       return theme.palette.success.light; // Has treatment - green
     }
 
-    return theme.palette.info.light; // Has data but no issues - blue
+    // Has data but nothing specific
+    return theme.palette.info.light; // Has data - blue
   };
 
-  // Get tooth icon
+  // Get tooth icon - matches color logic priority
   const getToothIcon = (toothNumber: string) => {
     const tooth = teethDataMap[toothNumber];
 
     if (!tooth) return null;
 
+    // Priority 1: Completed procedure
+    if (tooth.hasCompletedProcedure || tooth.procedureStatus === 'completed') {
+      return <CheckCircleIcon sx={{ fontSize: 12, color: 'success.dark' }} />;
+    }
+
+    // Priority 2: In-progress procedure
+    if (tooth.procedureStatus === 'in_progress') {
+      return <PendingIcon sx={{ fontSize: 12, color: 'info.dark' }} />;
+    }
+
+    // Priority 3: Active issues
     if (tooth.hasActiveIssue) {
       return <ErrorIcon sx={{ fontSize: 12, color: 'error.dark' }} />;
     }
 
-    if (tooth.hasObservation && !tooth.hasProcedure) {
+    // Priority 4: Planned procedure or observation only
+    if (tooth.hasPendingProcedure || tooth.procedureStatus === 'planned' || (tooth.hasObservation && !tooth.hasProcedure)) {
       return <WarningIcon sx={{ fontSize: 12, color: 'warning.dark' }} />;
     }
 
+    // Priority 5: Has procedure (legacy)
     if (tooth.hasProcedure) {
       return <CheckCircleIcon sx={{ fontSize: 12, color: 'success.dark' }} />;
     }
@@ -134,6 +173,18 @@ const DentalChart: React.FC<DentalChartProps> = ({
         <Typography variant="caption" fontWeight="bold">
           Tooth #{toothNumber}
         </Typography>
+        {tooth.observationCount !== undefined && tooth.observationCount > 0 && (
+          <Typography variant="caption" display="block">
+            Observations: {tooth.observationCount}
+          </Typography>
+        )}
+        {tooth.procedureCount !== undefined && tooth.procedureCount > 0 && (
+          <Typography variant="caption" display="block">
+            Procedures: {tooth.procedureCount}
+            {tooth.completedProcedureCount !== undefined && tooth.completedProcedureCount > 0 &&
+              ` (${tooth.completedProcedureCount} completed)`}
+          </Typography>
+        )}
         {tooth.conditionType && (
           <Typography variant="caption" display="block">
             Condition: {tooth.conditionType}
@@ -142,6 +193,11 @@ const DentalChart: React.FC<DentalChartProps> = ({
         {tooth.severity && (
           <Typography variant="caption" display="block">
             Severity: {tooth.severity}
+          </Typography>
+        )}
+        {tooth.procedureStatus && (
+          <Typography variant="caption" display="block">
+            Status: {tooth.procedureStatus.replace('_', ' ')}
           </Typography>
         )}
         {tooth.lastTreatmentDate && (
@@ -154,9 +210,14 @@ const DentalChart: React.FC<DentalChartProps> = ({
             ⚠️ Active Issue
           </Typography>
         )}
+        {tooth.hasCompletedProcedure && (
+          <Typography variant="caption" display="block" color="success.main">
+            ✓ Treatment Completed
+          </Typography>
+        )}
       </Box>
     ) : (
-      <Typography variant="caption">Tooth #{toothNumber}</Typography>
+      <Typography variant="caption">Tooth #{toothNumber} - Healthy</Typography>
     );
 
     return (
@@ -242,17 +303,23 @@ const DentalChart: React.FC<DentalChartProps> = ({
         <Typography variant="h6">
           Dental Chart - {dentitionType === 'primary' ? 'Primary' : 'Permanent'} Dentition
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Chip
             size="small"
             icon={<CheckCircleIcon />}
-            label="Treated"
+            label="Completed"
             sx={{ bgcolor: theme.palette.success.light }}
           />
           <Chip
             size="small"
+            icon={<PendingIcon />}
+            label="In Progress"
+            sx={{ bgcolor: theme.palette.info.light }}
+          />
+          <Chip
+            size="small"
             icon={<WarningIcon />}
-            label="Observation"
+            label="Pending/Observation"
             sx={{ bgcolor: theme.palette.warning.light }}
           />
           <Chip

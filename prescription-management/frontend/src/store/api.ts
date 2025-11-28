@@ -363,6 +363,14 @@ export interface DoctorStats {
   experience_distribution: Record<string, number>;
 }
 
+export interface PatientStats {
+  total_patients: number;
+  total_families: number;
+  gender_distribution: Record<string, number>;
+  relationship_distribution: Record<string, number>;
+  age_groups: Record<string, number>;
+}
+
 export interface PatientCreate {
   mobile_number: string;
   first_name: string;
@@ -546,6 +554,28 @@ export const api = createApi({
       }),
     }),
 
+    // Admin Dashboard endpoints
+    getAdminDoctorStats: builder.query<DoctorStats, void>({
+      query: () => '/doctors/statistics/overview',
+      providesTags: ['Doctor'],
+    }),
+
+    getAdminPatientStats: builder.query<PatientStats, void>({
+      query: () => '/patients/statistics/overview',
+      providesTags: ['Patient'],
+    }),
+
+    getAdminTodayAppointments: builder.query<{ appointments: Appointment[]; total: number }, void>({
+      query: () => ({
+        url: '/appointments/',
+        params: {
+          appointment_date: new Date().toISOString().split('T')[0],
+          page_size: 100, // Get all today's appointments
+        },
+      }),
+      providesTags: ['Appointment'],
+    }),
+
     // Doctor Dashboard endpoints
     getDoctorStatistics: builder.query<DoctorStatistics, void>({
       query: () => '/doctors/statistics/overview',
@@ -557,12 +587,12 @@ export const api = createApi({
       providesTags: ['Doctor'],
     }),
 
-    getDoctorTodayAppointments: builder.query<Appointment[], string>({
+    getDoctorTodayAppointments: builder.query<{ appointments: Appointment[]; total: number }, string>({
       query: (doctorId) => ({
         url: `/appointments/doctor/${doctorId}`,
         params: {
           appointment_date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
-          status: 'scheduled',
+          // No status filter - get ALL appointments for today
         },
       }),
       providesTags: ['Appointment'],
@@ -1117,6 +1147,11 @@ export const {
   useRegisterMutation,
   useGetCurrentUserQuery,
   useRefreshTokenMutation,
+  // Admin Dashboard hooks
+  useGetAdminDoctorStatsQuery,
+  useGetAdminPatientStatsQuery,
+  useGetAdminTodayAppointmentsQuery,
+  // Doctor Dashboard hooks
   useGetDoctorStatisticsQuery,
   useGetDoctorProfileQuery,
   useGetDoctorTodayAppointmentsQuery,

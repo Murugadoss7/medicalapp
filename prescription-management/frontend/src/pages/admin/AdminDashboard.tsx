@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -9,11 +9,9 @@ import {
   CardActions,
   Button,
   Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
+  CircularProgress,
+  Alert,
+  Skeleton,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -21,45 +19,73 @@ import {
   LocalHospital as DoctorsIcon,
   CalendarToday as AppointmentsIcon,
   LocalPharmacy as MedicinesIcon,
-  Assessment as ReportsIcon,
-  Settings as SettingsIcon,
-  Security as SecurityIcon,
-  TrendingUp as TrendingUpIcon,
   PersonAdd as PersonAddIcon,
-  MedicalServices as MedicalIcon,
+  CheckCircle as CompletedIcon,
+  Schedule as ScheduledIcon,
+  PlayArrow as InProgressIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useGetCurrentUserQuery } from '../../store/api';
+import { useAppSelector } from '../../hooks';
 import { StatCard } from '../../components/dashboard/StatCard';
+import {
+  useGetAdminDoctorStatsQuery,
+  useGetAdminPatientStatsQuery,
+  useGetAdminTodayAppointmentsQuery,
+} from '../../store/api';
 
 export const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { data: currentUser } = useGetCurrentUserQuery();
+  const { user: currentUser, isAuthenticated } = useAppSelector((state) => state.auth);
+  const hasRedirected = useRef(false);
+
+  // Fetch real-time data
+  const {
+    data: doctorStats,
+    isLoading: doctorStatsLoading,
+    error: doctorStatsError
+  } = useGetAdminDoctorStatsQuery();
+
+  const {
+    data: patientStats,
+    isLoading: patientStatsLoading,
+    error: patientStatsError
+  } = useGetAdminPatientStatsQuery();
+
+  const {
+    data: todayAppointments,
+    isLoading: appointmentsLoading,
+    error: appointmentsError
+  } = useGetAdminTodayAppointmentsQuery();
 
   useEffect(() => {
+    // Only redirect once, and only if we have user data
+    if (hasRedirected.current || !isAuthenticated || !currentUser) {
+      return;
+    }
+
     // Redirect non-admin users
-    if (currentUser && currentUser.role !== 'admin') {
+    if (currentUser.role !== 'admin') {
+      hasRedirected.current = true;
       switch (currentUser.role) {
         case 'doctor':
-          navigate('/doctor/dashboard');
+          navigate('/doctor/dashboard', { replace: true });
           break;
         case 'patient':
-          navigate('/patient/dashboard');
+          navigate('/patient/dashboard', { replace: true });
           break;
         default:
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
       }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, isAuthenticated]);
 
-  // Mock statistics for admin dashboard
-  const adminStats = {
-    totalDoctors: 15,
-    totalPatients: 1250,
-    totalAppointments: 89,
-    totalPrescriptions: 156,
-    activeUsers: 1265,
-    pendingRegistrations: 8,
+  // Calculate appointment stats from real data
+  const appointmentStats = {
+    total: todayAppointments?.total || 0,
+    scheduled: todayAppointments?.appointments?.filter(a => a.status === 'scheduled').length || 0,
+    inProgress: todayAppointments?.appointments?.filter(a => a.status === 'in_progress').length || 0,
+    completed: todayAppointments?.appointments?.filter(a => a.status === 'completed').length || 0,
+    cancelled: todayAppointments?.appointments?.filter(a => a.status === 'cancelled').length || 0,
   };
 
   const quickActions = [
@@ -100,12 +126,25 @@ export const AdminDashboard = () => {
     },
   ];
 
-  const systemOverview = [
-    { label: 'System Status', value: 'Operational', status: 'success' },
-    { label: 'Database Health', value: 'Good', status: 'success' },
-    { label: 'Active Sessions', value: '47', status: 'info' },
-    { label: 'Last Backup', value: '2 hours ago', status: 'default' },
-  ];
+  // Show loading while checking auth
+  if (!isAuthenticated || !currentUser) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // If not admin, don't render (will redirect via useEffect)
+  if (currentUser.role !== 'admin') {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  const hasError = doctorStatsError || patientStatsError || appointmentsError;
 
   return (
     <Box>
@@ -115,59 +154,77 @@ export const AdminDashboard = () => {
           Admin Dashboard
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Welcome back, {currentUser?.first_name}! Here's an overview of your system.
+          Welcome back, {currentUser?.first_name}! Here's an overview of your clinic.
         </Typography>
       </Box>
 
+      {/* Error Alert */}
+      {hasError && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Some statistics could not be loaded. Showing available data.
+        </Alert>
+      )}
+
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Total Doctors"
-            value={adminStats.totalDoctors}
-            icon={<DoctorsIcon />}
-            color="primary"
-          />
+        {/* Doctors */}
+        <Grid item xs={12} sm={6} md={3}>
+          {doctorStatsLoading ? (
+            <Skeleton variant="rectangular" height={120} />
+          ) : (
+            <StatCard
+              title="Active Doctors"
+              value={doctorStats?.active_doctors || 0}
+              subtitle={`${doctorStats?.total_doctors || 0} total`}
+              icon={<DoctorsIcon />}
+              color="primary"
+            />
+          )}
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Total Patients"
-            value={adminStats.totalPatients}
-            icon={<PatientsIcon />}
-            color="success"
-          />
+
+        {/* Patients */}
+        <Grid item xs={12} sm={6} md={3}>
+          {patientStatsLoading ? (
+            <Skeleton variant="rectangular" height={120} />
+          ) : (
+            <StatCard
+              title="Total Patients"
+              value={patientStats?.total_patients || 0}
+              subtitle={`${patientStats?.total_families || 0} families`}
+              icon={<PatientsIcon />}
+              color="success"
+            />
+          )}
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Today's Appointments"
-            value={adminStats.totalAppointments}
-            icon={<AppointmentsIcon />}
-            color="info"
-          />
+
+        {/* Today's Appointments */}
+        <Grid item xs={12} sm={6} md={3}>
+          {appointmentsLoading ? (
+            <Skeleton variant="rectangular" height={120} />
+          ) : (
+            <StatCard
+              title="Today's Appointments"
+              value={appointmentStats.total}
+              subtitle={`${appointmentStats.completed} completed, ${appointmentStats.scheduled} pending`}
+              icon={<AppointmentsIcon />}
+              color="info"
+            />
+          )}
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Prescriptions"
-            value={adminStats.totalPrescriptions}
-            icon={<MedicalIcon />}
-            color="warning"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Active Users"
-            value={adminStats.activeUsers}
-            icon={<TrendingUpIcon />}
-            color="secondary"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <StatCard
-            title="Pending Approvals"
-            value={adminStats.pendingRegistrations}
-            icon={<SecurityIcon />}
-            color="error"
-          />
+
+        {/* In Progress */}
+        <Grid item xs={12} sm={6} md={3}>
+          {appointmentsLoading ? (
+            <Skeleton variant="rectangular" height={120} />
+          ) : (
+            <StatCard
+              title="In Progress"
+              value={appointmentStats.inProgress}
+              subtitle="Active consultations"
+              icon={<InProgressIcon />}
+              color="warning"
+            />
+          )}
         </Grid>
       </Grid>
 
@@ -182,15 +239,15 @@ export const AdminDashboard = () => {
             <Grid container spacing={2}>
               {quickActions.map((action, index) => (
                 <Grid item xs={12} sm={6} key={index}>
-                  <Card 
-                    sx={{ 
-                      height: '100%', 
+                  <Card
+                    sx={{
+                      height: '100%',
                       cursor: 'pointer',
-                      '&:hover': { 
+                      '&:hover': {
                         boxShadow: 3,
                         transform: 'translateY(-2px)',
                         transition: 'all 0.2s ease-in-out'
-                      } 
+                      }
                     }}
                     onClick={action.action}
                   >
@@ -219,37 +276,75 @@ export const AdminDashboard = () => {
           </Paper>
         </Grid>
 
-        {/* System Overview */}
+        {/* Today's Summary */}
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <ReportsIcon sx={{ mr: 1 }} />
-              System Overview
+              <AppointmentsIcon sx={{ mr: 1 }} />
+              Today's Summary
             </Typography>
-            <List dense>
-              {systemOverview.map((item, index) => (
-                <div key={index}>
-                  <ListItem>
-                    <ListItemIcon>
-                      <SettingsIcon color="action" />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={item.label}
-                      secondary={
-                        <Chip 
-                          label={item.value} 
-                          size="small" 
-                          color={item.status as any}
-                          variant="outlined"
-                        />
-                      }
-                    />
-                  </ListItem>
-                  {index < systemOverview.length - 1 && <Divider variant="inset" component="li" />}
-                </div>
-              ))}
-            </List>
+
+            {appointmentsLoading ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Skeleton variant="rectangular" height={40} />
+                <Skeleton variant="rectangular" height={40} />
+                <Skeleton variant="rectangular" height={40} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'primary.light', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ScheduledIcon color="primary" />
+                    <Typography variant="body2">Scheduled</Typography>
+                  </Box>
+                  <Chip label={appointmentStats.scheduled} color="primary" size="small" />
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'warning.light', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <InProgressIcon color="warning" />
+                    <Typography variant="body2">In Progress</Typography>
+                  </Box>
+                  <Chip label={appointmentStats.inProgress} color="warning" size="small" />
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'success.light', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CompletedIcon color="success" />
+                    <Typography variant="body2">Completed</Typography>
+                  </Box>
+                  <Chip label={appointmentStats.completed} color="success" size="small" />
+                </Box>
+
+                {appointmentStats.cancelled > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
+                    <Typography variant="body2">Cancelled</Typography>
+                    <Chip label={appointmentStats.cancelled} color="error" size="small" />
+                  </Box>
+                )}
+              </Box>
+            )}
           </Paper>
+
+          {/* Specialization Summary */}
+          {doctorStats?.specialization_counts && Object.keys(doctorStats.specialization_counts).length > 0 && (
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                <DoctorsIcon sx={{ mr: 1 }} />
+                Doctors by Specialty
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {Object.entries(doctorStats.specialization_counts).map(([specialty, count]) => (
+                  <Chip
+                    key={specialty}
+                    label={`${specialty}: ${count}`}
+                    variant="outlined"
+                    size="small"
+                  />
+                ))}
+              </Box>
+            </Paper>
+          )}
         </Grid>
       </Grid>
     </Box>

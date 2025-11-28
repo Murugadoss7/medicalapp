@@ -172,69 +172,153 @@ export const PatientSearch = () => {
 
         {patientsData && patientsData.patients.length > 0 && (
           <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Mobile Number</TableCell>
-                    <TableCell>Age</TableCell>
-                    <TableCell>Gender</TableCell>
-                    <TableCell>Relationship</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {patientsData.patients.map((patient) => (
-                    <TableRow key={`${patient.mobile_number}-${patient.first_name}`}>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body1" fontWeight="medium">
-                            {patient.full_name}
-                          </Typography>
-                          {patient.email && (
-                            <Typography variant="body2" color="text.secondary">
-                              {patient.email}
-                            </Typography>
-                          )}
-                        </Box>
-                      </TableCell>
-                      <TableCell>{patient.mobile_number}</TableCell>
-                      <TableCell>{formatAge(patient.date_of_birth)} years</TableCell>
-                      <TableCell sx={{ textTransform: 'capitalize' }}>{patient.gender}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={patient.relationship_to_primary}
-                          size="small"
-                          color={getRelationshipColor(patient.relationship_to_primary) as any}
-                          sx={{ textTransform: 'capitalize' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Tooltip title="View Details">
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/patients/family/${patient.mobile_number}`)}
-                            >
-                              <ViewIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="View Family">
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/patients/family/${patient.mobile_number}`)}
-                            >
-                              <FamilyIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              '& > *:not(:last-child)': {
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }
+            }}>
+              {patientsData.patients.map((patient) => (
+                <Box
+                  key={`${patient.mobile_number}-${patient.first_name}`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    py: 1.5,
+                    px: 2,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      transform: 'translateX(4px)',
+                    }
+                  }}
+                  onClick={() => navigate(`/patients/family/${patient.mobile_number}`)}
+                >
+                  {/* Left Section - Name and Email */}
+                  <Box sx={{ flex: '1 1 30%', minWidth: 0 }}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        lineHeight: 1.3,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {patient.full_name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        fontSize: '0.75rem',
+                        lineHeight: 1.3,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {patient.email || patient.mobile_number}
+                    </Typography>
+                  </Box>
+
+                  {/* Middle Section - Compact Info */}
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 2,
+                    flex: '0 0 auto',
+                    alignItems: 'center'
+                  }}>
+                    <Box sx={{ minWidth: 80 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                        Phone
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                        {patient.mobile_number}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ minWidth: 60 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                        Age
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                        {formatAge(patient.date_of_birth)}y
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ minWidth: 70 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                        Gender
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500, textTransform: 'capitalize' }}>
+                        {patient.gender}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ minWidth: 90 }}>
+                      <Chip
+                        label={patient.relationship_to_primary}
+                        size="small"
+                        color={getRelationshipColor(patient.relationship_to_primary) as any}
+                        sx={{
+                          textTransform: 'capitalize',
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 600
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  {/* Right Section - Actions */}
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 0.5,
+                    flex: '0 0 auto'
+                  }}>
+                    <Tooltip title="View Details">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/patients/family/${patient.mobile_number}`);
+                        }}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          '&:hover': { bgcolor: 'primary.light', color: 'primary.main' }
+                        }}
+                      >
+                        <ViewIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="View Family">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/patients/family/${patient.mobile_number}`);
+                        }}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          '&:hover': { bgcolor: 'info.light', color: 'info.main' }
+                        }}
+                      >
+                        <FamilyIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
 
             {/* Pagination */}
             {patientsData.total_pages > 1 && (

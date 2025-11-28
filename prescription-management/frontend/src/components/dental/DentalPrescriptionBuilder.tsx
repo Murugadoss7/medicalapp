@@ -27,6 +27,7 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
+import { useToast } from '../common/Toast';
 import {
   useSearchMedicinesQuery,
   useCreatePrescriptionMutation,
@@ -57,6 +58,9 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
   onSuccess,
   onCancel,
 }) => {
+  // Toast hook
+  const toast = useToast();
+
   // State
   const [medicineSearch, setMedicineSearch] = useState('');
   const [shortKeyCode, setShortKeyCode] = useState('');
@@ -114,7 +118,7 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
       setPrescriptionItems([...prescriptionItems, ...newItems]);
       setMedicineSearch('');
       setShortKeyCode('');
-      alert(`Loaded ${shortKeyData.medicines.length} medicines from shortcut "${shortKeyData.code}"`);
+      toast.success(`Loaded ${shortKeyData.medicines.length} medicines from shortcut "${shortKeyData.code}"`);
     }
   }, [shortKeyData]);
 
@@ -185,7 +189,7 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
 
   const handleCreatePrescription = async () => {
     if (prescriptionItems.length === 0) {
-      alert('Please add at least one medicine');
+      toast.warning('Please add at least one medicine');
       return;
     }
 
@@ -211,7 +215,7 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
       }
     } catch (error) {
       console.error('Failed to create prescription:', error);
-      alert('Failed to create prescription. Please try again.');
+      toast.error('Failed to create prescription. Please try again.');
     }
   };
 

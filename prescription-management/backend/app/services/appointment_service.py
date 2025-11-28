@@ -226,7 +226,7 @@ class AppointmentService:
         
         # Validate status transitions
         valid_transitions = {
-            'scheduled': ['confirmed', 'cancelled', 'no_show'],
+            'scheduled': ['confirmed', 'in_progress', 'cancelled', 'no_show'],  # Allow direct start of consultation
             'confirmed': ['in_progress', 'cancelled', 'no_show'],
             'in_progress': ['completed', 'cancelled'],
             'completed': [],  # Final state

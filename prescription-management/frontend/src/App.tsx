@@ -9,6 +9,7 @@ import { theme } from './theme';
 import { useAppDispatch } from './hooks';
 import { initializeAuth, setUser } from './store/slices/authSlice';
 import { useGetCurrentUserQuery } from './store/api';
+import { ToastProvider } from './components/common/Toast';
 
 const AppInitializer = () => {
   const dispatch = useAppDispatch();
@@ -39,7 +40,9 @@ function App() {
     <Provider store={store}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <AppInitializer />
+        <ToastProvider>
+          <AppInitializer />
+        </ToastProvider>
       </ThemeProvider>
     </Provider>
   );

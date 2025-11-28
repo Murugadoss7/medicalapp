@@ -40,6 +40,7 @@ import { DentalConsultation } from '../pages/dental';
 
 // Prescription pages
 import PrescriptionView from '../pages/prescriptions/PrescriptionView';
+import PrescriptionDetailView from '../pages/prescriptions/PrescriptionDetailView';
 
 // Test pages
 import { TestDashboard } from '../pages/TestDashboard';
@@ -193,7 +194,13 @@ export const router = createBrowserRouter([
         path: 'short-keys',
         element: <ShortKeyManagement />,
       },
-      
+
+      // Prescription routes
+      {
+        path: 'prescriptions/:prescriptionId',
+        element: <PrescriptionDetailView />,
+      },
+
       // Test routes (development only)
       {
         path: 'test',

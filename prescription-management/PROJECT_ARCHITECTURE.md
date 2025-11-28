@@ -3,10 +3,15 @@
 
 ---
 
-**📅 Last Updated**: November 26, 2025
+**📅 Last Updated**: November 28, 2025
 **🎯 Purpose**: Complete technical architecture and folder structure documentation
-**📋 Status**: Backend Complete (117+ endpoints across 9 modules), Frontend 95% Complete
+**📋 Status**: Backend Complete (117+ endpoints across 9 modules), Frontend 97% Complete
 **🚀 Recent Updates**:
+- **Toast Notification System**: ToastContext.tsx + ConfirmDialog.tsx replaces browser alerts
+- **Consultation Status Tracking**: DentalConsultation.tsx with status chip, Complete button, navigation guard
+- **Backend Status Transitions**: appointment_service.py allows `scheduled → in_progress` direct transition
+- **Dashboard Real-time Stats**: DoctorDashboard.tsx calculates statistics from actual appointment data
+- **TodaySchedule Enhancements**: Status-based styling, "Start"/"Continue"/"View" buttons
 - Short Key Management UI complete (702 lines, /shortcuts route)
 - Prescription items fully editable with inline editing
 - Backend error handling improved (404 for not found)
@@ -216,7 +221,11 @@ frontend/
 │   │   │   ├── 📄 Sidebar.tsx            # Collapsible sidebar navigation ✅ IMPLEMENTED
 │   │   │   ├── 📄 ProtectedRoute.tsx     # Route protection component ✅ IMPLEMENTED
 │   │   │   ├── 📄 LoadingSpinner.tsx     # Loading indicator ✅ IMPLEMENTED
-│   │   │   └── 📄 StandardDatePicker.tsx # Centralized date picker ✅ IMPLEMENTED
+│   │   │   ├── 📄 StandardDatePicker.tsx # Centralized date picker ✅ IMPLEMENTED
+│   │   │   ├── 📄 Toast.tsx              # Toast notification provider ⭐ NEW
+│   │   │   │   # ToastContext with success/error/warning/info methods
+│   │   │   │   # Replaces browser alerts throughout the application
+│   │   │   └── 📄 ConfirmDialog.tsx      # Confirmation dialog for navigation guards ⭐ NEW
 │   │   ├── 📁 forms/                     # Form components ✅ IMPLEMENTED
 │   │   │   ├── 📄 PatientForm.tsx        # Patient registration form ✅ IMPLEMENTED
 │   │   │   ├── 📄 DoctorForm.tsx         # Doctor registration form ✅ IMPLEMENTED
@@ -225,8 +234,19 @@ frontend/
 │   │   │   ├── 📄 DoctorCard.tsx         # Doctor profile display card ✅ IMPLEMENTED
 │   │   │   ├── 📄 PatientCard.tsx        # Patient profile display card ✅ IMPLEMENTED
 │   │   │   └── 📄 AppointmentCard.tsx    # Appointment summary card ✅ IMPLEMENTED
-│   │   └── 📁 modals/                    # Modal components
-│   │       └── 📄 ConfirmDialog.tsx      # Confirmation dialog
+│   │   ├── 📁 dashboard/                 # Dashboard components ⭐ NEW
+│   │   │   ├── 📄 TodaySchedule.tsx      # Today's appointments with status-based styling
+│   │   │   │   # "Start"/"Continue"/"View" buttons based on status
+│   │   │   │   # Time-sorted appointment list
+│   │   │   │   # Orange background for in_progress appointments
+│   │   │   ├── 📄 StatCard.tsx           # Statistics card with icon and subtitle
+│   │   │   └── 📄 RecentPrescriptions.tsx # Recent prescriptions list
+│   │   └── 📁 dental/                    # Dental-specific components
+│   │       ├── 📄 DentalChart.tsx        # Interactive FDI tooth chart
+│   │       ├── 📄 DentalObservationForm.tsx # Add/edit tooth observations
+│   │       ├── 📄 DentalProcedureForm.tsx # Manage dental procedures
+│   │       ├── 📄 ToothHistoryViewer.tsx # Timeline view of tooth history
+│   │       └── 📄 PrescriptionViewer.tsx # Prescription display with print
 │   │
 │   ├── 📁 pages/                         # Page components ✅ IMPLEMENTED
 │   │   ├── 📁 auth/                      # Authentication pages ✅ IMPLEMENTED
@@ -234,9 +254,21 @@ frontend/
 │   │   │   └── 📄 RegisterPage.tsx       # User registration ✅ IMPLEMENTED
 │   │   │
 │   │   ├── 📁 doctor/                    # Doctor role pages ✅ IMPLEMENTED
-│   │   │   ├── 📄 DoctorDashboard.tsx    # Doctor dashboard with stats ✅ IMPLEMENTED
+│   │   │   ├── 📄 DoctorDashboard.tsx    # Doctor dashboard with real-time stats ⭐ UPDATED
+│   │   │   │   # Statistics calculated from actual appointment data
+│   │   │   │   # "X scheduled, Y in progress" subtitle on stat cards
+│   │   │   │   # Book Appointment and Refresh buttons in header
 │   │   │   ├── 📄 DoctorAppointments.tsx # Doctor appointments view ✅ IMPLEMENTED
-│   │   │   └── 📄 PatientConsultation.tsx # Patient consultation ✅ IMPLEMENTED
+│   │   │   └── 📄 PatientConsultation.tsx # General patient consultation ✅ IMPLEMENTED
+│   │   │
+│   │   ├── 📁 dental/                    # Dental consultation pages ⭐ NEW
+│   │   │   └── 📄 DentalConsultation.tsx # Complete dental consultation workflow
+│   │   │       # ~800 lines with status tracking
+│   │   │       # Status chip (Scheduled/In Progress/Completed)
+│   │   │       # Complete Consultation button
+│   │   │       # Navigation guard with exit dialog
+│   │   │       # Auto-update to in_progress on entry
+│   │   │       # Route: /appointments/{appointmentId}/dental
 │   │   │
 │   │   ├── 📁 admin/                     # Admin role pages ✅ IMPLEMENTED
 │   │   │   └── 📄 AdminDashboard.tsx     # Admin dashboard with system stats ✅ IMPLEMENTED
@@ -333,17 +365,33 @@ frontend/
 - ✅ **Doctor Management**: Complete CRUD with search, registration, profiles
 - ✅ **Patient Management**: Complete CRUD with family support, composite keys
 - ✅ **Appointment System**: 3-step booking wizard, calendar view, dashboard integration
-- ✅ **Prescription Management**: Complete CRUD with printing, ownership validation ⭐ UPDATED
+- ✅ **Prescription Management**: Complete CRUD with printing, ownership validation
   - Prescription items fully editable (dosage, frequency, duration, quantity, instructions)
   - Soft delete filtering (is_active=false items excluded from display)
   - Doctor ownership validation on all operations
   - Cache invalidation with prescription-specific tags
-- ✅ **Short Key Management**: Complete CRUD UI at /shortcuts route ⭐ NEW
+- ✅ **Short Key Management**: Complete CRUD UI at /shortcuts route
   - 702-line ShortKeyManagement.tsx component
   - Inline editing for all medicine fields
   - Drag-and-drop reordering with sequence_order
   - RTK Query mutations for all operations
   - Usage: Type /CODE in prescription medicine search
+- ✅ **Toast Notification System**: Complete toast and dialog system ⭐ NEW
+  - ToastContext.tsx with success/error/warning/info methods
+  - ConfirmDialog.tsx for action confirmations and navigation guards
+  - Replaces all browser alerts throughout the application
+- ✅ **Dental Consultation Module**: Complete consultation workflow ⭐ NEW
+  - DentalConsultation.tsx (~800 lines) with full status tracking
+  - Status chip showing real-time appointment status (Scheduled/In Progress/Completed)
+  - "Complete Consultation" button for finalizing appointments
+  - Navigation guard with exit dialog for in-progress consultations
+  - Auto-update to "in_progress" when entering consultation
+  - Backend status transitions updated: `scheduled → in_progress` allowed
+- ✅ **Doctor Dashboard Enhancements**: Real-time statistics ⭐ NEW
+  - Statistics calculated from actual appointment data
+  - "X scheduled, Y in progress" subtitle on stat cards
+  - TodaySchedule with "Start"/"Continue"/"View" buttons
+  - Status-based styling (orange for in_progress)
 - ✅ **Date Standardization**: Centralized date handling with StandardDatePicker
 - ✅ **State Management**: Redux Toolkit + RTK Query with cache invalidation
 - ✅ **UI Framework**: Material-UI v5 with TypeScript

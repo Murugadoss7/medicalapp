@@ -3,11 +3,15 @@
 
 ---
 
-**📅 Last Updated**: November 26, 2025
+**📅 Last Updated**: November 28, 2025
 **🎯 Purpose**: Complete API endpoint reference with request/response formats
 **📋 Status**: All 117+ endpoints implemented and tested including dental module
 **🔗 Base URL**: `http://localhost:8000/api/v1`
 **🚀 Recent Updates**:
+- **Appointment Status Transitions Updated**: `scheduled → in_progress` now allowed for direct consultation start
+- **useUpdateAppointmentStatusMutation**: RTK Query hook for appointment status updates with cache invalidation
+- **Toast Notification System**: ToastContext replaces browser alerts throughout frontend
+- **Consultation Status Tracking**: DentalConsultation shows real-time status chip and Complete button
 - Short Key Management UI complete with 6 API mutations (create, update, delete, add medicine, remove medicine, list)
 - Prescription management fixes: DELETE operations filter soft-deleted items, cache invalidation improved
 - Doctor ownership validation enforced for prescriptions (backend validates doctor_id)
@@ -1032,12 +1036,49 @@ Authorization: Bearer <access_token>
 // Response (200) - Updated appointment object
 ```
 
-#### **6-15. Additional Appointment Endpoints**
+#### **6. PUT /appointments/{id}/status** - Update Appointment Status ⭐ UPDATED
+```javascript
+// Request
+{
+    "status": "in_progress"  // scheduled, confirmed, in_progress, completed, cancelled, no_show, rescheduled
+}
+
+// Response (200) - Updated appointment object
+{
+    "id": "uuid",
+    "appointment_number": "APT-20251128-001",
+    "status": "in_progress",
+    // ... other appointment fields
+}
+
+// Error Response (422)
+{
+    "detail": "Cannot transition from completed to in_progress"
+}
+
+// Valid Status Transitions:
+// scheduled    → confirmed, in_progress, cancelled, no_show  (⭐ in_progress added)
+// confirmed    → in_progress, cancelled, no_show
+// in_progress  → completed, cancelled
+// completed    → (no transitions - terminal state)
+// cancelled    → (no transitions - terminal state)
+// no_show      → (no transitions - terminal state)
+// rescheduled  → scheduled, confirmed, cancelled
+
+// Frontend Usage (RTK Query):
+// const [updateStatus] = useUpdateAppointmentStatusMutation();
+// await updateStatus({ appointmentId: id, status: 'in_progress' });
+```
+
+**⭐ Note**: The `scheduled → in_progress` transition was added to support direct consultation
+start from the doctor dashboard without requiring a separate "confirm" step. This allows
+doctors to click "Start" on scheduled appointments and immediately begin consultation.
+
+#### **7-15. Additional Appointment Endpoints**
 ```javascript
 // GET /appointments/{id} - Get appointment details
 // GET /appointments/number/{number} - Get by appointment number
 // PUT /appointments/{id} - Update appointment
-// PUT /appointments/{id}/status - Update status
 // DELETE /appointments/{id} - Cancel appointment
 // GET /appointments/doctor/{doctor_id} - Doctor's appointments
 // GET /appointments/patient/{mobile}/{name} - Patient's appointments

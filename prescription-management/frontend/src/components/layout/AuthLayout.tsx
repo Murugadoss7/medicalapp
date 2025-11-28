@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { Box, Container, Paper, Typography, Grid } from '@mui/material';
+import { Box, Container, Paper, Typography } from '@mui/material';
 import { LocalHospital, Healing, MedicalServices, Medication } from '@mui/icons-material';
 
 export const AuthLayout = () => {
@@ -7,26 +7,26 @@ export const AuthLayout = () => {
     <Box
       sx={{
         minHeight: '100vh',
+        width: '100vw',
         display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
         overflow: 'hidden',
       }}
     >
-      <Grid container sx={{ minHeight: '100vh' }}>
-        {/* Left Side - Login Form */}
-        <Grid
-          item
-          xs={12}
-          md={6}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            py: { xs: 3, sm: 4 },
-            px: { xs: 2, sm: 3 },
-            minHeight: { xs: '100vh', md: 'auto' },
-          }}
-        >
+      {/* Left Side - Login Form */}
+      <Box
+        sx={{
+          flex: { xs: 'none', md: 1 },
+          width: { xs: '100%', md: '50%' },
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          py: { xs: 3, sm: 4 },
+          px: { xs: 2, sm: 3 },
+          minHeight: { xs: '100vh', md: '100vh' },
+        }}
+      >
           <Container maxWidth="sm">
             <Paper
               elevation={24}
@@ -63,20 +63,20 @@ export const AuthLayout = () => {
               <Outlet />
             </Paper>
           </Container>
-        </Grid>
+        </Box>
 
         {/* Right Side - Medical Themed Image Section */}
-        <Grid
-          item
-          xs={12}
-          md={6}
+        <Box
           sx={{
+            flex: { xs: 'none', md: 1 },
+            width: { xs: '100%', md: '50%' },
             display: { xs: 'none', md: 'flex' },
             position: 'relative',
             background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
+            minHeight: '100vh',
           }}
         >
           {/* Background Pattern */}
@@ -242,8 +242,7 @@ export const AuthLayout = () => {
               </Box>
             </Box>
           </Box>
-        </Grid>
-      </Grid>
+        </Box>
     </Box>
   );
 };

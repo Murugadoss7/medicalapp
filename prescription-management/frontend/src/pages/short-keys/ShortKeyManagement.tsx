@@ -43,6 +43,9 @@ import {
   Close as CloseIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
+import { useToast } from '../../components/common/Toast';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import {
   useListShortKeysQuery,
   useCreateShortKeyMutation,
@@ -70,6 +73,10 @@ export const ShortKeyManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editingShortKey, setEditingShortKey] = useState<ShortKey | null>(null);
+
+  // Toast and confirm dialog hooks
+  const toast = useToast();
+  const { dialogProps, confirm } = useConfirmDialog();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -152,7 +159,7 @@ export const ShortKeyManagement = () => {
   const handleSubmit = async () => {
     // Validate code (uppercase, non-empty)
     if (!formData.code || !formData.name) {
-      alert('Code and Name are required');
+      toast.warning('Code and Name are required');
       return;
     }
 
@@ -177,12 +184,12 @@ export const ShortKeyManagement = () => {
           }
         }
 
-        alert('Short key updated successfully!');
+        toast.success('Short key updated successfully!');
       } else {
         // Create new short key
         const result = await createShortKey({ ...formData, code: upperCode }).unwrap();
         shortKeyId = result.id;
-        alert('Short key created successfully!');
+        toast.success('Short key created successfully!');
       }
 
       // Add/update medicines
@@ -202,31 +209,39 @@ export const ShortKeyManagement = () => {
       refetch();
     } catch (error: any) {
       console.error('Short key save error:', error);
-      alert(error?.data?.detail || 'Failed to save short key');
+      toast.error(error?.data?.detail || 'Failed to save short key');
     }
   };
 
   const handleDelete = async (id: string, code: string) => {
-    if (window.confirm(`Are you sure you want to delete shortcut "${code}"?`)) {
+    const confirmed = await confirm({
+      title: 'Delete Shortcut',
+      message: `Are you sure you want to delete shortcut "${code}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (confirmed) {
       try {
         await deleteShortKey(id).unwrap();
-        alert('Short key deleted successfully!');
+        toast.success('Short key deleted successfully!');
         refetch();
       } catch (error: any) {
-        alert(error?.data?.detail || 'Failed to delete short key');
+        toast.error(error?.data?.detail || 'Failed to delete short key');
       }
     }
   };
 
   const handleAddMedicine = () => {
     if (!selectedMedicine) {
-      alert('Please select a medicine');
+      toast.warning('Please select a medicine');
       return;
     }
 
     // Check if already added
     if (medicines.find(m => m.medicine_id === selectedMedicine.id)) {
-      alert('This medicine is already in the list');
+      toast.warning('This medicine is already in the list');
       return;
     }
 
@@ -696,6 +711,9 @@ export const ShortKeyManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog {...dialogProps} />
     </Box>
   );
 };

@@ -3,11 +3,16 @@
 
 ---
 
-**📅 Last Updated**: November 12, 2025
+**📅 Last Updated**: November 28, 2025
 **🎯 Purpose**: Detailed frontend development roadmap with page specifications and API mappings
 **📋 Based On**: WORKFLOW_SPECIFICATIONS.md, API_REFERENCE_GUIDE.md, ENTITY_RELATIONSHIP_DIAGRAM.md
-**🔗 Backend APIs**: 99+ endpoints ready for integration
-**🚀 Recent Updates**: Doctor registration flow updated to 5-step wizard with new user account creation
+**🔗 Backend APIs**: 117+ endpoints ready for integration
+**🚀 Recent Updates**:
+- **Toast Notification System**: ToastContext + ConfirmDialog replaces browser alerts
+- **Dental Consultation Status Tracking**: Status chip (Scheduled/In Progress/Completed), Complete Consultation button
+- **Navigation Guard**: Exit dialog when navigating away from in_progress consultations
+- **Dashboard Real-time Stats**: Statistics calculated from actual appointment data with status breakdown
+- **TodaySchedule Enhancements**: Status-based styling, "Start"/"Continue"/"View" buttons
 
 ## 📊 Implementation Status
 
@@ -29,7 +34,12 @@
   - Patient search and listing with pagination
   - Family view with edit functionality
   - Proper field mapping (relationship ↔ relationship_to_primary)
-- **Dashboard**: Doctor dashboard with statistics and appointments
+- **Doctor Dashboard**: Complete dashboard with real-time data ⭐ UPDATED
+  - Statistics calculated from actual appointment data
+  - "X scheduled, Y in progress" subtitle on stat cards
+  - TodaySchedule component with status-based styling
+  - "Start"/"Continue"/"View" buttons based on appointment status
+  - Book Appointment and Refresh buttons in header
 - **Navigation**: Main layout with protected routes and role-based redirects
 - **Appointment Management**: Complete appointment booking system with:
   - 3-step booking wizard (Patient → Doctor & Schedule → Confirmation)
@@ -41,9 +51,23 @@
   - Form validation with comprehensive error handling
   - Cache invalidation for real-time updates
   - Doctor ID consistency utilities
+- **Toast Notification System**: Complete toast and dialog system ⭐ NEW
+  - ToastContext with success/error/warning/info methods
+  - ConfirmDialog component for action confirmations
+  - Replaces all browser alerts throughout the application
+- **Dental Consultation Module**: Complete consultation workflow ⭐ NEW
+  - Interactive FDI tooth chart with 32/20 teeth display
+  - Dental observations with 14 condition types, 7 surfaces
+  - Dental procedures with 20+ CDT codes
+  - Consultation status tracking (Scheduled → In Progress → Completed)
+  - Status chip showing real-time appointment status
+  - "Complete Consultation" button for finalizing appointments
+  - Navigation guard with exit dialog for in-progress consultations
+  - Breadcrumb navigation with navigation state awareness
+  - Auto-update to "in_progress" when entering consultation
 
-### 🚧 **In Progress** 
-- **Prescription Management**: Consultation workflow partially implemented
+### 🚧 **In Progress**
+- **Prescription Management**: Viewing and printing complete, creation workflow in progress
 
 ### 📋 **Pending Implementation**
 - **Medicine Management**: Full medicine catalog and inventory
@@ -720,6 +744,181 @@ const validatePrescription = useMutation({
         <ValidationStatus errors={validation.errors} warnings={validation.warnings} />
     </PrescriptionSummary>
 </PrescriptionBuilder>
+```
+
+### **6.5. Dental Consultation** - `/appointments/{appointmentId}/dental` ⭐ NEW
+
+#### **Implementation Details**
+- **Status**: ✅ Fully implemented with consultation status tracking
+- **Component**: `DentalConsultation.tsx` (~800 lines)
+- **Access**: Visible only for doctors with dental specialization
+- **Features**: FDI tooth chart, observations, procedures, status tracking, navigation guard
+
+#### **Page Data & State**
+```typescript
+interface DentalConsultationState {
+    appointment: Appointment;              // Loaded from useGetAppointmentQuery
+    status: AppointmentStatus;             // 'scheduled' | 'in_progress' | 'completed'
+    selectedTooth: string | null;          // FDI number (e.g., "26")
+    showExitDialog: boolean;               // Navigation guard state
+
+    // Status chip colors
+    statusColors: {
+        scheduled: 'primary',
+        in_progress: 'warning',
+        completed: 'success'
+    };
+}
+
+// Key mutations used
+const [updateStatus] = useUpdateAppointmentStatusMutation();
+await updateStatus({ appointmentId: id, status: 'in_progress' });
+await updateStatus({ appointmentId: id, status: 'completed' });
+```
+
+#### **Page Layout**
+```jsx
+<DentalConsultationPage>
+    <Breadcrumb
+        items={[
+            { label: 'Dashboard', path: '/doctor/dashboard' },
+            { label: 'Appointments', path: '/appointments' },
+            { label: patient.full_name },
+            { label: 'Dental Consultation' }
+        ]}
+        onNavigate={handleNavigateAway}  // Opens exit dialog if in_progress
+    />
+
+    <PageHeader>
+        <Box display="flex" alignItems="center" gap={2}>
+            <Typography variant="h4">Dental Consultation</Typography>
+            <StatusChip
+                label={getStatusLabel(appointment.status)}
+                color={statusColors[appointment.status]}
+                icon={getStatusIcon(appointment.status)}
+            />
+        </Box>
+
+        <PatientInfo>
+            <Typography>{patient.full_name}</Typography>
+            <Typography>{patient.mobile_number}</Typography>
+        </PatientInfo>
+
+        {appointment.status !== 'completed' && (
+            <Button
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircle />}
+                onClick={handleCompleteConsultation}
+            >
+                Complete Consultation
+            </Button>
+        )}
+    </PageHeader>
+
+    <MainContent>
+        <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+                <DentalChart
+                    selectedTooth={selectedTooth}
+                    onToothSelect={setSelectedTooth}
+                    observations={observations}
+                    procedures={procedures}
+                />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+                <Tabs>
+                    <Tab label="Observations" />
+                    <Tab label="Procedures" />
+                    <Tab label="History" />
+                </Tabs>
+
+                <TabPanels>
+                    <DentalObservationForm />
+                    <DentalProcedureForm />
+                    <ToothHistoryViewer />
+                </TabPanels>
+            </Grid>
+        </Grid>
+    </MainContent>
+
+    {/* Exit Dialog - shown when navigating away from in_progress */}
+    <ConfirmDialog
+        open={showExitDialog}
+        title="Leave Consultation?"
+        message="This appointment is still in progress. Do you want to mark it as still in progress or complete it?"
+        onConfirm={() => navigateTo(pendingNavigation)}  // Leave as in_progress
+        onCancel={() => setShowExitDialog(false)}
+        confirmText="No, Still In Progress"
+        cancelText="Cancel"
+    />
+</DentalConsultationPage>
+```
+
+#### **Key Features**
+
+**1. Auto-start Consultation**
+```typescript
+// Automatically mark as in_progress when entering
+useEffect(() => {
+    if (appointment?.status === 'scheduled') {
+        updateStatus({ appointmentId, status: 'in_progress' });
+    }
+}, [appointment?.id]);
+```
+
+**2. Status Chip Display**
+```typescript
+const getStatusChip = (status: string) => {
+    const config = {
+        scheduled: { label: 'Scheduled', color: 'primary', icon: <AccessTime /> },
+        in_progress: { label: 'In Progress', color: 'warning', icon: <HourglassEmpty /> },
+        completed: { label: 'Completed', color: 'success', icon: <CheckCircle /> }
+    };
+    return <Chip {...config[status]} />;
+};
+```
+
+**3. Navigation Guard**
+```typescript
+const handleNavigateAway = (path: string) => {
+    if (appointment?.status === 'in_progress') {
+        setPendingNavigation(path);
+        setShowExitDialog(true);
+        return; // Don't navigate yet
+    }
+    navigate(path);
+};
+```
+
+**4. Complete Consultation**
+```typescript
+const handleCompleteConsultation = async () => {
+    await updateStatus({ appointmentId, status: 'completed' });
+    toast.success('Consultation completed successfully');
+    navigate('/doctor/dashboard');
+};
+```
+
+#### **Integration with TodaySchedule Component**
+```tsx
+// TodaySchedule shows different buttons based on status
+{appointment.status === 'scheduled' && (
+    <Button startIcon={<PlayArrow />} onClick={() => onStartConsultation(appointment)}>
+        Start
+    </Button>
+)}
+{appointment.status === 'in_progress' && (
+    <Button color="warning" startIcon={<PlayArrow />} onClick={() => onStartConsultation(appointment)}>
+        Continue
+    </Button>
+)}
+{appointment.status === 'completed' && (
+    <Button variant="outlined" startIcon={<CheckCircle />}>
+        View
+    </Button>
+)}
 ```
 
 ---

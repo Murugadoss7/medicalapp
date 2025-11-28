@@ -1,5 +1,5 @@
 # Claude Code Instructions
-# Update on: 18-Nov-2025
+# Update on: 28-Nov-2025
 ## Prescription Management System - Development Guidelines
 
 ### 🚨 CRITICAL RULES - ALWAYS FOLLOW
@@ -115,17 +115,68 @@ rg "mobile_number|first_name" backend/app/models/
 ### 🎯 CURRENT PROJECT STATUS
 
 - **Backend**: Complete (117+ endpoints implemented across 9 modules)
-- **Frontend**: 95% Complete (Patient + Appointment + Doctor + Dental + Prescription modules working)
+- **Frontend**: 97% Complete (Patient + Appointment + Doctor + Dental + Prescription modules working)
   - ✅ Authentication system (login, registration, role-based routing)
   - ✅ Admin dashboard (system overview, quick actions)
   - ✅ Doctor management (CRUD, search, profiles)
   - ✅ Patient management (CRUD, family support, composite keys)
   - ✅ Appointment system (3-step booking, calendar, real-time availability)
   - ✅ Dental module (FDI charts, observations, procedures, specialization-based access)
-  - ✅ Prescription module (create, view, print with doctor/clinic info, ownership validation) ⭐ NEW
+  - ✅ Prescription module (create, view, print with doctor/clinic info, ownership validation)
+  - ✅ Toast notification system (ToastContext, ConfirmDialog - replaces browser alerts) ⭐ NEW
+  - ✅ Consultation status tracking (status chip, Complete button, navigation guard) ⭐ NEW
+  - ✅ Dashboard real-time stats (calculated from actual appointment data) ⭐ NEW
   - 🔄 Medicine module (backend ready, frontend pending)
 - **Database**: ERD-compliant schema with proper date handling + dental tables
 - **Tests**: Comprehensive test suites available + real-world workflow tested
+
+### ⭐ RECENT CHANGES (November 28, 2025)
+
+#### **1. Toast Notification System**
+- **Component**: `frontend/src/components/common/Toast.tsx`
+- **Usage**:
+  ```typescript
+  const toast = useToast();
+  toast.success('Operation successful');
+  toast.error('An error occurred');
+  toast.warning('Please review your changes');
+  toast.info('New update available');
+  ```
+- **ConfirmDialog**: `frontend/src/components/common/Toast.tsx` (ConfirmDialog component)
+  - Used for navigation guards and action confirmations
+  - Shows when navigating away from in_progress consultations
+
+#### **2. Consultation Status Tracking**
+- **Component**: `frontend/src/pages/dental/DentalConsultation.tsx`
+- **Features**:
+  - Status chip showing Scheduled/In Progress/Completed
+  - Auto-update to "in_progress" when entering consultation
+  - "Complete Consultation" button for finalizing appointments
+  - Navigation guard with exit dialog for in_progress consultations
+
+#### **3. Backend Status Transitions**
+- **File**: `backend/app/services/appointment_service.py`
+- **Change**: Added `in_progress` to valid transitions from `scheduled` status
+- **Valid Transitions**:
+  ```python
+  valid_transitions = {
+      'scheduled': ['confirmed', 'in_progress', 'cancelled', 'no_show'],  # in_progress added
+      'confirmed': ['in_progress', 'cancelled', 'no_show'],
+      'in_progress': ['completed', 'cancelled'],
+      'completed': [],
+      'cancelled': [],
+      'no_show': [],
+      'rescheduled': ['scheduled', 'confirmed', 'cancelled']
+  }
+  ```
+
+#### **4. Dashboard Real-time Statistics**
+- **Component**: `frontend/src/pages/doctor/DoctorDashboard.tsx`
+- **Features**:
+  - Statistics calculated from actual appointment data
+  - Subtitle shows "X scheduled, Y in progress"
+  - TodaySchedule with "Start"/"Continue"/"View" buttons based on status
+  - Orange background for in_progress appointments
 
 ### 📋 WORKFLOW REMINDERS
 

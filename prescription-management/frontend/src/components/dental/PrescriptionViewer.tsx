@@ -37,6 +37,9 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
+import { useToast } from '../common/Toast';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import {
   useGetPrescriptionQuery,
   useDeletePrescriptionItemMutation,
@@ -69,6 +72,10 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   clinicPhone = '+91 1234567890',
   refetch: externalRefetch,
 }) => {
+  // Toast and confirm dialog hooks
+  const toast = useToast();
+  const { dialogProps, confirm } = useConfirmDialog();
+
   const { data: prescription, isLoading, error, refetch } = useGetPrescriptionQuery(prescriptionId);
   const [deleteItem] = useDeletePrescriptionItemMutation();
   const [addItem, { isLoading: addingItem }] = useAddPrescriptionItemMutation();
@@ -118,9 +125,17 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   const handleDeleteItem = async (itemId: string, medicineName: string) => {
     if (!prescription) return;
 
-    if (window.confirm(`Remove ${medicineName} from prescription?`)) {
+    const confirmed = await confirm({
+      title: 'Remove Medicine',
+      message: `Are you sure you want to remove "${medicineName}" from this prescription?`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (confirmed) {
       try {
-        console.log('🗑️ DELETE: Attempting to delete item:', {
+        console.log('DELETE: Attempting to delete item:', {
           itemId,
           prescriptionId: prescription.id,
           prescriptionNumber: prescription.prescription_number
@@ -128,7 +143,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
 
         await deleteItem({ itemId, prescriptionId: prescription.id }).unwrap();
 
-        console.log('✅ DELETE: Successfully deleted item', itemId);
+        console.log('DELETE: Successfully deleted item', itemId);
 
         // Wait a moment for cache invalidation to propagate
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -137,9 +152,9 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         await refetch();
         externalRefetch?.();
 
-        alert('Medicine removed successfully');
+        toast.success('Medicine removed successfully');
       } catch (error: any) {
-        console.error('❌ DELETE FAILED:', {
+        console.error('DELETE FAILED:', {
           itemId,
           prescriptionId: prescription.id,
           error,
@@ -147,7 +162,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
           detail: error?.data?.detail
         });
         const errorMessage = error?.data?.detail || error?.message || 'Failed to remove medicine';
-        alert(`Error: ${errorMessage}\n\nStatus: ${error?.status || 'Unknown'}\n\nPlease check console for details.`);
+        toast.error(errorMessage);
         // Force refetch in case of error
         refetch();
         externalRefetch?.();
@@ -182,7 +197,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
 
   const handleAddMedicine = async () => {
     if (!selectedMedicine) {
-      alert('Please select a medicine');
+      toast.warning('Please select a medicine');
       return;
     }
 
@@ -198,7 +213,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         unit_price: selectedMedicine.unit_price,
       }).unwrap();
 
-      alert('Medicine added successfully');
+      toast.success('Medicine added successfully');
 
       // Reset form
       setSelectedMedicine(null);
@@ -216,7 +231,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
       externalRefetch?.();
     } catch (error: any) {
       console.error('Failed to add medicine:', error);
-      alert(error?.data?.detail || 'Failed to add medicine. Please try again.');
+      toast.error(error?.data?.detail || 'Failed to add medicine. Please try again.');
     }
   };
 
@@ -263,7 +278,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
     const itemIds = Object.keys(editedItems);
 
     if (itemIds.length === 0) {
-      alert('No changes to save');
+      toast.info('No changes to save');
       return;
     }
 
@@ -279,7 +294,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
 
       await Promise.all(savePromises);
 
-      alert(`Successfully saved ${itemIds.length} medicine(s)`);
+      toast.success(`Successfully saved ${itemIds.length} medicine(s)`);
 
       // Clear edit state
       setEditedItems({});
@@ -290,7 +305,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
       externalRefetch?.();
     } catch (error: any) {
       console.error('Failed to save changes:', error);
-      alert(error?.data?.detail || 'Failed to save changes. Please try again.');
+      toast.error(error?.data?.detail || 'Failed to save changes. Please try again.');
     }
   };
 
@@ -299,7 +314,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
     setEditedItems({});
     setEditingItemId(null);
     setIsEditMode(false);
-    alert('Changes discarded');
+    toast.info('Changes discarded');
   };
 
   if (isLoading) {
@@ -353,38 +368,115 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
     <>
       <style>{`
         @media print {
-          /* Hide elements with no-print class */
-          .no-print {
-            display: none !important;
-          }
-
-          /* Remove shadows and borders for cleaner print */
+          /* STEP 1: Hide everything first */
           body * {
-            box-shadow: none !important;
+            visibility: hidden;
           }
 
-          /* Ensure clean page breaks */
-          .MuiPaper-root {
-            box-shadow: none !important;
-            page-break-inside: avoid;
+          /* STEP 2: Show prescription print area and ALL descendants */
+          .prescription-print-area,
+          .prescription-print-area *,
+          .prescription-print-area *::before,
+          .prescription-print-area *::after {
+            visibility: visible !important;
           }
 
-          /* Optimize table for printing */
-          table {
-            page-break-inside: auto;
-          }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+          /* STEP 3: Position prescription area at top of page */
+          .prescription-print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white;
+            padding: 20px;
           }
 
-          /* Hide dialogs and overlays */
-          .MuiDialog-root, .MuiBackdrop-root {
+          /* Hide no-print elements completely */
+          .no-print, .prescription-no-print,
+          .prescription-print-area .no-print,
+          .prescription-print-area .prescription-no-print {
             display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Hide sidebar and navigation */
+          .MuiDrawer-root,
+          .MuiDrawer-paper,
+          .MuiAppBar-root {
+            display: none !important;
+          }
+
+          /* Hide dialog backdrop */
+          .MuiBackdrop-root {
+            display: none !important;
+          }
+
+          /* Remove shadows for clean print */
+          .prescription-print-area .MuiPaper-root {
+            box-shadow: none !important;
+            border: none !important;
+          }
+
+          /* MUI Table specific styles */
+          .prescription-print-area .MuiTableContainer-root {
+            overflow: visible !important;
+          }
+
+          .prescription-print-area .MuiTable-root {
+            display: table !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+
+          .prescription-print-area .MuiTableHead-root {
+            display: table-header-group !important;
+          }
+
+          .prescription-print-area .MuiTableBody-root {
+            display: table-row-group !important;
+          }
+
+          .prescription-print-area .MuiTableRow-root {
+            display: table-row !important;
+            page-break-inside: avoid !important;
+          }
+
+          .prescription-print-area .MuiTableCell-root {
+            display: table-cell !important;
+            border: 1px solid #ccc !important;
+            padding: 8px 12px !important;
+            color: black !important;
+            background: white !important;
+          }
+
+          .prescription-print-area .MuiTableCell-head {
+            font-weight: bold !important;
+            background: #f5f5f5 !important;
+          }
+
+          /* Ensure text is visible */
+          .prescription-print-area .MuiTypography-root,
+          .prescription-print-area p,
+          .prescription-print-area span,
+          .prescription-print-area strong {
+            color: black !important;
+          }
+
+          /* Hide action column in print */
+          .prescription-print-area .MuiTableCell-root.no-print,
+          .prescription-print-area th.no-print,
+          .prescription-print-area td.no-print {
+            display: none !important;
+          }
+
+          /* Page setup */
+          @page {
+            size: A4;
+            margin: 15mm;
           }
         }
       `}</style>
-      <Box>
+      <Box className="prescription-print-area">
         {/* Doctor/Clinic Header - Prominent for printing */}
         <Paper elevation={1} sx={{ p: 3, mb: 2, borderBottom: 3, borderColor: 'primary.main' }}>
           <Box sx={{ textAlign: 'center', mb: 2 }}>
@@ -777,6 +869,9 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         </Box>
       </Paper>
       </Box>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog {...dialogProps} />
     </>
   );
 };

@@ -6,7 +6,7 @@ interface StatCardProps {
   value: number | string;
   icon?: ReactNode;
   loading?: boolean;
-  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error';
+  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
   subtitle?: string;
 }
 

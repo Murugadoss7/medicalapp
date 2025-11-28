@@ -21,11 +21,6 @@ import {
   Tooltip,
   MenuItem,
   Slider,
-  Card,
-  CardContent,
-  CardActions,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,11 +30,8 @@ import {
   Edit as EditIcon,
   LocalHospital as DoctorIcon,
   Schedule as ScheduleIcon,
-  GridView as GridViewIcon,
-  List as ListViewIcon,
   Phone as PhoneIcon,
-  LocationOn as LocationIcon,
-  School as QualificationIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useListDoctorsQuery, useGetCurrentUserQuery, type DoctorSearchParams } from '../../store/api';
@@ -84,8 +76,7 @@ export const DoctorSearch = () => {
   const [experienceRange, setExperienceRange] = useState<number[]>([0, 50]);
   const [isActiveOnly, setIsActiveOnly] = useState(true);
   const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const pageSize = 12;
+  const pageSize = 20;
 
   // Build search parameters
   const searchParams: DoctorSearchParams = {
@@ -128,12 +119,6 @@ export const DoctorSearch = () => {
 
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
-  };
-
-  const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newViewMode: 'grid' | 'list' | null) => {
-    if (newViewMode !== null) {
-      setViewMode(newViewMode);
-    }
   };
 
   const formatExperience = (years: number) => {
@@ -237,28 +222,13 @@ export const DoctorSearch = () => {
 
           {/* Clear Filters */}
           <Grid item xs={12} md={2}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Button
-                variant="outlined"
-                onClick={clearFilters}
-                size="small"
-              >
-                Clear Filters
-              </Button>
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={handleViewModeChange}
-                size="small"
-              >
-                <ToggleButton value="grid" aria-label="grid view">
-                  <GridViewIcon />
-                </ToggleButton>
-                <ToggleButton value="list" aria-label="list view">
-                  <ListViewIcon />
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
+            <Button
+              variant="outlined"
+              onClick={clearFilters}
+              fullWidth
+            >
+              Clear Filters
+            </Button>
           </Grid>
         </Grid>
 
@@ -303,29 +273,193 @@ export const DoctorSearch = () => {
 
         {doctorsData && doctorsData.doctors.length > 0 && (
           <>
-            {viewMode === 'grid' ? (
-              <Grid container spacing={3}>
-                {doctorsData.doctors.map((doctor) => (
-                  <Grid item xs={12} sm={6} md={4} key={doctor.id}>
-                    <DoctorCard
-                      doctor={doctor}
-                      onView={() => navigate(`/doctors/${doctor.id}`)}
-                      onEdit={canCreateDoctor ? () => navigate(`/doctors/${doctor.id}/edit`) : undefined}
-                      currentUserRole={currentUser?.role}
-                      currentUserId={currentUser?.id}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <DoctorTable
-                doctors={doctorsData.doctors}
-                onView={(doctorId) => navigate(`/doctors/${doctorId}`)}
-                onEdit={canCreateDoctor ? (doctorId) => navigate(`/doctors/${doctorId}/edit`) : undefined}
-                currentUserRole={currentUser?.role}
-                currentUserId={currentUser?.id}
-              />
-            )}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              '& > *:not(:last-child)': {
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }
+            }}>
+              {doctorsData.doctors.map((doctor) => {
+                const canEdit = currentUser?.role === 'admin' ||
+                  (currentUser?.role === 'doctor' && doctor.user_id === currentUser?.id);
+
+                return (
+                  <Box
+                    key={doctor.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      py: 1.5,
+                      px: 2,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        transform: 'translateX(4px)',
+                      }
+                    }}
+                    onClick={() => navigate(`/doctors/${doctor.id}`)}
+                  >
+                    {/* Left Section - Name and Specialization */}
+                    <Box sx={{ flex: '1 1 30%', minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            lineHeight: 1.3,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {doctor.full_name || `Dr. ${doctor.first_name} ${doctor.last_name}`}
+                        </Typography>
+                        {doctor.is_active && (
+                          <Chip
+                            label="Active"
+                            size="small"
+                            color="success"
+                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600 }}
+                          />
+                        )}
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: '0.75rem',
+                          lineHeight: 1.3,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {doctor.specialization || 'General Practice'} • {doctor.license_number}
+                      </Typography>
+                    </Box>
+
+                    {/* Middle Section - Compact Info */}
+                    <Box sx={{
+                      display: 'flex',
+                      gap: 2,
+                      flex: '0 0 auto',
+                      alignItems: 'center'
+                    }}>
+                      <Box sx={{ minWidth: 80 }}>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                          Experience
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                          {doctor.experience_years !== undefined
+                            ? `${doctor.experience_years}y`
+                            : 'N/A'}
+                        </Typography>
+                      </Box>
+
+                      {doctor.phone && (
+                        <Box sx={{ minWidth: 100 }}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                            Phone
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                            {doctor.phone}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {doctor.consultation_fee && (
+                        <Box sx={{ minWidth: 70 }}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                            Fee
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                            ₹{doctor.consultation_fee}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {doctor.specialization && (
+                        <Box sx={{ minWidth: 110 }}>
+                          <Chip
+                            label={doctor.specialization}
+                            size="small"
+                            color={getSpecializationColor(doctor.specialization) as any}
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}
+                          />
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Right Section - Actions */}
+                    <Box sx={{
+                      display: 'flex',
+                      gap: 0.5,
+                      flex: '0 0 auto'
+                    }}>
+                      <Tooltip title="View Profile">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/doctors/${doctor.id}`);
+                          }}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            '&:hover': { bgcolor: 'primary.light', color: 'primary.main' }
+                          }}
+                        >
+                          <ViewIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                      {canEdit && (
+                        <Tooltip title="Edit Profile">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/doctors/${doctor.id}/edit`);
+                            }}
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              '&:hover': { bgcolor: 'warning.light', color: 'warning.main' }
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="View Schedule">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/doctors/${doctor.id}`);
+                          }}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            '&:hover': { bgcolor: 'info.light', color: 'info.main' }
+                          }}
+                        >
+                          <ScheduleIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
 
             {/* Pagination */}
             {doctorsData.total_pages > 1 && (
@@ -344,204 +478,5 @@ export const DoctorSearch = () => {
         )}
       </Paper>
     </Box>
-  );
-};
-
-// Doctor Card Component for Grid View
-interface DoctorCardProps {
-  doctor: any;
-  onView: () => void;
-  onEdit?: () => void;
-  currentUserRole?: string;
-  currentUserId?: string;
-}
-
-const DoctorCard = ({ doctor, onView, onEdit, currentUserRole, currentUserId }: DoctorCardProps) => {
-  const canEdit = currentUserRole === 'admin' || 
-    (currentUserRole === 'doctor' && doctor.user_id === currentUserId);
-
-  return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <DoctorIcon sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6" component="div" noWrap>
-            {doctor.full_name || `Dr. ${doctor.first_name} ${doctor.last_name}`}
-          </Typography>
-        </Box>
-
-        {doctor.specialization && (
-          <Chip
-            label={doctor.specialization}
-            size="small"
-            color={getSpecializationColor(doctor.specialization) as any}
-            sx={{ mb: 1 }}
-          />
-        )}
-
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          License: {doctor.license_number}
-        </Typography>
-
-        {doctor.experience_years !== undefined && (
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Experience: {doctor.experience_years} years
-          </Typography>
-        )}
-
-        {doctor.consultation_fee && (
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Fee: ₹{doctor.consultation_fee}
-          </Typography>
-        )}
-
-        {doctor.phone && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-            <PhoneIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
-            <Typography variant="body2" color="text.secondary">
-              {doctor.phone}
-            </Typography>
-          </Box>
-        )}
-
-        {doctor.clinic_address && (
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', mt: 1 }}>
-            <LocationIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary', mt: 0.1 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
-              {doctor.clinic_address.length > 50 
-                ? `${doctor.clinic_address.substring(0, 50)}...` 
-                : doctor.clinic_address}
-            </Typography>
-          </Box>
-        )}
-
-        <Box sx={{ mt: 1 }}>
-          <Chip
-            label={doctor.is_active ? 'Active' : 'Inactive'}
-            size="small"
-            color={doctor.is_active ? 'success' : 'default'}
-          />
-        </Box>
-      </CardContent>
-
-      <CardActions>
-        <Button size="small" startIcon={<ViewIcon />} onClick={onView}>
-          View
-        </Button>
-        {canEdit && onEdit && (
-          <Button size="small" startIcon={<EditIcon />} onClick={onEdit}>
-            Edit
-          </Button>
-        )}
-        <Button size="small" startIcon={<ScheduleIcon />}>
-          Schedule
-        </Button>
-      </CardActions>
-    </Card>
-  );
-};
-
-// Doctor Table Component for List View
-interface DoctorTableProps {
-  doctors: any[];
-  onView: (doctorId: string) => void;
-  onEdit?: (doctorId: string) => void;
-  currentUserRole?: string;
-  currentUserId?: string;
-}
-
-const DoctorTable = ({ doctors, onView, onEdit, currentUserRole, currentUserId }: DoctorTableProps) => {
-  return (
-    <TableContainer>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>License Number</TableCell>
-            <TableCell>Specialization</TableCell>
-            <TableCell>Experience</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {doctors.map((doctor) => {
-            const canEdit = currentUserRole === 'admin' || 
-              (currentUserRole === 'doctor' && doctor.user_id === currentUserId);
-
-            return (
-              <TableRow key={doctor.id}>
-                <TableCell>
-                  <Box>
-                    <Typography variant="body1" fontWeight="medium">
-                      {doctor.full_name || `Dr. ${doctor.first_name} ${doctor.last_name}`}
-                    </Typography>
-                    {doctor.qualification && (
-                      <Typography variant="body2" color="text.secondary">
-                        {doctor.qualification.length > 50 
-                          ? `${doctor.qualification.substring(0, 50)}...` 
-                          : doctor.qualification}
-                      </Typography>
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell>{doctor.license_number}</TableCell>
-                <TableCell>
-                  {doctor.specialization && (
-                    <Chip
-                      label={doctor.specialization}
-                      size="small"
-                      color={getSpecializationColor(doctor.specialization) as any}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {doctor.experience_years !== undefined 
-                    ? `${doctor.experience_years} years` 
-                    : 'Not specified'}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={doctor.is_active ? 'Active' : 'Inactive'}
-                    size="small"
-                    color={doctor.is_active ? 'success' : 'default'}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Tooltip title="View Details">
-                      <IconButton
-                        size="small"
-                        onClick={() => onView(doctor.id)}
-                      >
-                        <ViewIcon />
-                      </IconButton>
-                    </Tooltip>
-                    {canEdit && onEdit && (
-                      <Tooltip title="Edit Profile">
-                        <IconButton
-                          size="small"
-                          onClick={() => onEdit(doctor.id)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="View Schedule">
-                      <IconButton
-                        size="small"
-                        onClick={() => onView(doctor.id)} // For now, view schedule goes to profile
-                      >
-                        <ScheduleIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
   );
 };

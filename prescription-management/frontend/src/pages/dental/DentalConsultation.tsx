@@ -4,7 +4,7 @@
  * Allows doctors to record observations, procedures, and view patient dental history
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -19,7 +19,6 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  Snackbar,
   IconButton,
   Breadcrumbs,
   Link,
@@ -31,8 +30,12 @@ import {
   Add as AddIcon,
   History as HistoryIcon,
   MedicalServices as ProcedureIcon,
+  CheckCircle,
+  PlayArrow,
+  Home,
+  TableChart as SummaryIcon,
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { type RootState } from '../../store';
 import {
@@ -41,36 +44,23 @@ import {
   DentalProcedureForm,
   ToothHistoryViewer,
   DentalPrescriptionBuilder,
+  DentalSummaryTable,
 } from '../../components/dental';
 import PrescriptionViewer from '../../components/dental/PrescriptionViewer';
 import dentalService, { type DentalChart as DentalChartType } from '../../services/dentalService';
-import { useGetAppointmentDetailsQuery, useGetPatientMedicalHistoryQuery, useGetCurrentUserQuery } from '../../store/api';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`dental-tabpanel-${index}`}
-      aria-labelledby={`dental-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+import {
+  useGetAppointmentDetailsQuery,
+  useGetPatientMedicalHistoryQuery,
+  useGetCurrentUserQuery,
+  useUpdateAppointmentStatusMutation,
+} from '../../store/api';
+import { useToast } from '../../components/common/Toast';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 const DentalConsultation: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Get logged-in user from Redux store
   const user = useSelector((state: RootState) => state.auth.user);
@@ -81,6 +71,9 @@ const DentalConsultation: React.FC = () => {
   // Get doctor_id from API response (preferred) or Redux fallback
   const doctorId = currentUserData?.doctor_id || user?.doctor_id;
 
+  // Status update mutation
+  const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateAppointmentStatusMutation();
+
   // Show warning if doctor_id is not available
   React.useEffect(() => {
     if (!isLoadingCurrentUser && !doctorId) {
@@ -89,14 +82,23 @@ const DentalConsultation: React.FC = () => {
   }, [isLoadingCurrentUser, doctorId]);
 
   // Fetch appointment details
-  const { data: appointmentDetails, isLoading: appointmentLoading, error: appointmentError } =
-    useGetAppointmentDetailsQuery(appointmentId || '', { skip: !appointmentId });
+  const {
+    data: appointmentDetails,
+    isLoading: appointmentLoading,
+    error: appointmentError,
+    refetch: refetchAppointment,
+  } = useGetAppointmentDetailsQuery(appointmentId || '', { skip: !appointmentId });
 
   // Patient info from appointment
   const [patientData, setPatientData] = useState({
     mobileNumber: '',
     firstName: '',
   });
+
+  // Navigation guard state
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Update patient data when appointment details are loaded
   useEffect(() => {
@@ -111,6 +113,11 @@ const DentalConsultation: React.FC = () => {
         mobileNumber,
         firstName,
       });
+
+      // Auto-update status to in_progress if scheduled
+      if (appointmentDetails.status === 'scheduled') {
+        handleUpdateStatus('in_progress');
+      }
     }
   }, [appointmentDetails]);
 
@@ -136,7 +143,6 @@ const DentalConsultation: React.FC = () => {
   }, [allPrescriptions, doctorId, appointmentDetails]);
 
   // State
-  const [activeTab, setActiveTab] = useState(0);
   const [dentalChart, setDentalChart] = useState<DentalChartType | null>(null);
   const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
   const [selectedToothData, setSelectedToothData] = useState<any>(null);
@@ -145,8 +151,9 @@ const DentalConsultation: React.FC = () => {
   const [showToothHistory, setShowToothHistory] = useState(false);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [createdPrescriptionId, setCreatedPrescriptionId] = useState<string | null>(null);
+  const [selectedPrescriptionIndex, setSelectedPrescriptionIndex] = useState(0); // For tabbed prescriptions
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false); // For holistic view
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   // Load dental chart data
   useEffect(() => {
@@ -164,11 +171,73 @@ const DentalConsultation: React.FC = () => {
       );
       setDentalChart(chart);
     } catch (error: any) {
-      showSnackbar(error.response?.data?.detail || 'Failed to load dental chart', 'error');
+      toast.error(error.response?.data?.detail || 'Failed to load dental chart');
     } finally {
       setLoading(false);
     }
   };
+
+  // Handle status update
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!appointmentId) return;
+
+    try {
+      await updateStatus({
+        appointmentId,
+        status: newStatus,
+      }).unwrap();
+
+      refetchAppointment();
+
+      if (newStatus === 'completed') {
+        toast.success('Consultation completed successfully!');
+      } else if (newStatus === 'in_progress') {
+        toast.info('Consultation started');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update appointment status');
+    }
+  };
+
+  // Handle complete consultation
+  const handleCompleteConsultation = async () => {
+    await handleUpdateStatus('completed');
+    navigate('/doctor/dashboard');
+  };
+
+  // Handle navigation with status check
+  const handleNavigateAway = useCallback((destination: string) => {
+    if (appointmentDetails?.status === 'in_progress') {
+      setPendingNavigation(() => () => navigate(destination));
+      setShowExitDialog(true);
+    } else {
+      navigate(destination);
+    }
+  }, [appointmentDetails?.status, navigate]);
+
+  // Handle exit dialog response
+  const handleExitDialogResponse = async (completed: boolean) => {
+    setShowExitDialog(false);
+
+    if (completed) {
+      await handleUpdateStatus('completed');
+      toast.success('Consultation marked as completed');
+    }
+    // Keep status as in_progress if not completed
+
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  // Update selectedToothData when dentalChart changes (for real-time updates)
+  useEffect(() => {
+    if (selectedTooth && dentalChart?.teeth) {
+      const toothData = dentalChart.teeth.find(t => t.tooth_number === selectedTooth);
+      setSelectedToothData(toothData || null);
+    }
+  }, [dentalChart, selectedTooth]);
 
   // Handle tooth click
   const handleToothClick = (toothNumber: string) => {
@@ -176,13 +245,13 @@ const DentalConsultation: React.FC = () => {
     // Find the tooth data from the chart
     const toothData = dentalChart?.teeth.find(t => t.tooth_number === toothNumber);
     setSelectedToothData(toothData || null);
-    setActiveTab(0); // Reset to first tab
+    setHasUnsavedChanges(true);
   };
 
   // Handle add observation
   const handleAddObservation = () => {
     if (!selectedTooth) {
-      showSnackbar('Please select a tooth first', 'error');
+      toast.warning('Please select a tooth first');
       return;
     }
     setShowObservationForm(true);
@@ -191,7 +260,7 @@ const DentalConsultation: React.FC = () => {
   // Handle add procedure
   const handleAddProcedure = () => {
     if (!selectedTooth) {
-      showSnackbar('Please select a tooth first', 'error');
+      toast.warning('Please select a tooth first');
       return;
     }
     setShowProcedureForm(true);
@@ -200,7 +269,7 @@ const DentalConsultation: React.FC = () => {
   // Handle view tooth history
   const handleViewHistory = () => {
     if (!selectedTooth) {
-      showSnackbar('Please select a tooth first', 'error');
+      toast.warning('Please select a tooth first');
       return;
     }
     setShowToothHistory(true);
@@ -225,11 +294,11 @@ const DentalConsultation: React.FC = () => {
         treatment_date: data.treatmentDate?.toISOString().split('T')[0],
       });
 
-      showSnackbar('Observation added successfully', 'success');
+      toast.success('Observation added successfully');
       setShowObservationForm(false);
       loadDentalChart(); // Reload chart
     } catch (error: any) {
-      showSnackbar(error.response?.data?.detail || 'Failed to add observation', 'error');
+      toast.error(error.response?.data?.detail || 'Failed to add observation');
     } finally {
       setLoading(false);
     }
@@ -256,35 +325,70 @@ const DentalConsultation: React.FC = () => {
         complications: data.complications,
       });
 
-      showSnackbar('Procedure added successfully', 'success');
+      toast.success('Procedure added successfully');
       setShowProcedureForm(false);
       loadDentalChart(); // Reload chart
     } catch (error: any) {
-      showSnackbar(error.response?.data?.detail || 'Failed to add procedure', 'error');
+      toast.error(error.response?.data?.detail || 'Failed to add procedure');
     } finally {
       setLoading(false);
     }
   };
 
-  // Show snackbar
-  const showSnackbar = (message: string, severity: 'success' | 'error') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
   // Convert dental chart data to tooth data for chart component
-  const toothData = dentalChart?.teeth.map(tooth => ({
-    toothNumber: tooth.tooth_number,
-    hasObservation: tooth.observations.length > 0,
-    hasProcedure: tooth.procedures.length > 0,
-    hasActiveIssue: tooth.has_active_issues,
-    conditionType: tooth.observations.length > 1
-      ? `${tooth.observations.length} observations`
-      : tooth.observations[0]?.condition_type,
-    severity: tooth.observations[0]?.severity,
-    lastTreatmentDate: tooth.last_treatment_date,
-    observationCount: tooth.observations.length,
-    procedureCount: tooth.procedures.length,
-  })) || [];
+  const toothData = dentalChart?.teeth.map(tooth => {
+    // Count completed procedures
+    const completedProcedures = tooth.procedures.filter(p => p.status === 'completed');
+    const inProgressProcedures = tooth.procedures.filter(p => p.status === 'in_progress');
+    const plannedProcedures = tooth.procedures.filter(p => p.status === 'planned');
+
+    // Determine overall procedure status for the tooth
+    let procedureStatus: 'planned' | 'in_progress' | 'completed' | undefined;
+    if (completedProcedures.length > 0 && completedProcedures.length === tooth.procedures.length) {
+      procedureStatus = 'completed'; // All procedures completed
+    } else if (completedProcedures.length > 0) {
+      procedureStatus = 'in_progress'; // Some completed, some pending
+    } else if (inProgressProcedures.length > 0) {
+      procedureStatus = 'in_progress';
+    } else if (plannedProcedures.length > 0) {
+      procedureStatus = 'planned';
+    }
+
+    return {
+      toothNumber: tooth.tooth_number,
+      hasObservation: tooth.observations.length > 0,
+      hasProcedure: tooth.procedures.length > 0,
+      hasActiveIssue: tooth.has_active_issues,
+      conditionType: tooth.observations.length > 1
+        ? `${tooth.observations.length} observations`
+        : tooth.observations[0]?.condition_type,
+      severity: tooth.observations[0]?.severity,
+      lastTreatmentDate: tooth.last_treatment_date,
+      observationCount: tooth.observations.length,
+      procedureCount: tooth.procedures.length,
+      // New fields for better status tracking
+      procedureStatus,
+      completedProcedureCount: completedProcedures.length,
+      hasPendingProcedure: plannedProcedures.length > 0 || inProgressProcedures.length > 0,
+      hasCompletedProcedure: completedProcedures.length > 0,
+    };
+  }) || [];
+
+  // Get status display info
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return { label: 'Scheduled', color: 'primary' as const };
+      case 'in_progress':
+        return { label: 'In Progress', color: 'warning' as const };
+      case 'completed':
+        return { label: 'Completed', color: 'success' as const };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'error' as const };
+      default:
+        return { label: status, color: 'default' as const };
+    }
+  };
 
   // Show loading state while fetching appointment
   if (appointmentLoading) {
@@ -318,8 +422,8 @@ const DentalConsultation: React.FC = () => {
           </Typography>
         </Alert>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={() => navigate('/appointments')}>
-            Back to Appointments
+          <Button variant="contained" onClick={() => navigate('/doctor/dashboard')}>
+            Back to Dashboard
           </Button>
           <Button variant="outlined" onClick={() => window.location.reload()}>
             Retry
@@ -329,11 +433,28 @@ const DentalConsultation: React.FC = () => {
     );
   }
 
+  const statusInfo = getStatusInfo(appointmentDetails.status);
+
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       {/* Breadcrumbs */}
       <Breadcrumbs sx={{ mb: 2 }}>
-        <Link underline="hover" color="inherit" onClick={() => navigate('/appointments')}>
+        <Link
+          component="button"
+          underline="hover"
+          color="inherit"
+          onClick={() => handleNavigateAway('/doctor/dashboard')}
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+        >
+          <Home fontSize="small" />
+          Dashboard
+        </Link>
+        <Link
+          component="button"
+          underline="hover"
+          color="inherit"
+          onClick={() => handleNavigateAway('/doctor/appointments')}
+        >
           Appointments
         </Link>
         <Typography color="text.primary">Dental Consultation</Typography>
@@ -341,13 +462,26 @@ const DentalConsultation: React.FC = () => {
 
       {/* Header */}
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="h4" gutterBottom>
-              Dental Consultation
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+              <Typography variant="h4">
+                Dental Consultation
+              </Typography>
+              <Chip
+                label={statusInfo.label}
+                color={statusInfo.color}
+                size="medium"
+                icon={statusInfo.color === 'warning' ? <PlayArrow /> : statusInfo.color === 'success' ? <CheckCircle /> : undefined}
+              />
+            </Box>
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              Patient: <strong>{patientData.firstName}</strong> ({patientData.mobileNumber})
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Patient: {patientData.firstName} ({patientData.mobileNumber})
+              Appointment: {appointmentDetails.appointment_number} •
+              Date: {new Date(appointmentDetails.appointment_date).toLocaleDateString()} •
+              Time: {appointmentDetails.appointment_time}
             </Typography>
             {dentalChart && (
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
@@ -359,17 +493,38 @@ const DentalConsultation: React.FC = () => {
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Complete Consultation Button */}
+            {appointmentDetails.status !== 'completed' && (
+              <Button
+                variant="contained"
+                color="success"
+                size="large"
+                startIcon={<CheckCircle />}
+                onClick={handleCompleteConsultation}
+                disabled={isUpdatingStatus}
+                sx={{ minWidth: 200 }}
+              >
+                {isUpdatingStatus ? 'Updating...' : 'Complete Consultation'}
+              </Button>
+            )}
+
+            {/* Prescription buttons */}
             {patientPrescriptions && patientPrescriptions.length > 0 && (
               <Button
                 variant="contained"
                 color="primary"
                 onClick={() => {
-                  // Navigate to the new PrescriptionView page instead of opening modal
-                  navigate(`/appointments/${appointmentId}/prescription`);
+                  // Show the most recent prescription in dialog with tabs
+                  const latestPrescription = patientPrescriptions[0];
+                  if (latestPrescription?.id) {
+                    setSelectedPrescriptionIndex(0); // Start with first (latest) prescription
+                    setCreatedPrescriptionId(latestPrescription.id);
+                    setShowPrescriptionDialog(true);
+                  }
                 }}
               >
-                View Prescription ({patientPrescriptions.length})
+                View Prescription{patientPrescriptions.length > 1 ? `s (${patientPrescriptions.length})` : ''}
               </Button>
             )}
             <Button
@@ -382,33 +537,49 @@ const DentalConsultation: React.FC = () => {
             >
               {patientPrescriptions && patientPrescriptions.length > 0 ? 'Create New' : 'Create Prescription'}
             </Button>
-            {selectedTooth && (
-              <>
-                <Button
-                  variant="outlined"
-                  startIcon={<HistoryIcon />}
-                  onClick={handleViewHistory}
-                >
-                  View History
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddObservation}
-                >
-                  Add Observation
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<ProcedureIcon />}
-                  onClick={handleAddProcedure}
-                >
-                  Add Procedure
-                </Button>
-              </>
-            )}
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<SummaryIcon />}
+              onClick={() => setShowSummaryDialog(true)}
+            >
+              Treatment Summary
+            </Button>
           </Box>
         </Box>
+
+        {/* Tooth action buttons - show when tooth is selected */}
+        {selectedTooth && (
+          <Box sx={{ display: 'flex', gap: 1, mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mr: 2, alignSelf: 'center' }}>
+              Tooth #{selectedTooth} selected:
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<HistoryIcon />}
+              onClick={handleViewHistory}
+            >
+              View History
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={handleAddObservation}
+            >
+              Add Observation
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<ProcedureIcon />}
+              onClick={handleAddProcedure}
+            >
+              Add Procedure
+            </Button>
+          </Box>
+        )}
       </Paper>
 
       {/* Main Content */}
@@ -423,195 +594,6 @@ const DentalConsultation: React.FC = () => {
           />
         </Grid>
 
-        {/* Tabs for additional info */}
-        {selectedTooth && (
-          <Grid item xs={12}>
-            <Paper elevation={2}>
-              <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-                <Tab label="Tooth Details" />
-                <Tab label="Observations" />
-                <Tab label="Procedures" />
-              </Tabs>
-
-              <TabPanel value={activeTab} index={0}>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Tooth #{selectedTooth} Summary
-                  </Typography>
-                  {selectedToothData ? (
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={4}>
-                        <Paper elevation={1} sx={{ p: 2, bgcolor: 'background.default' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Total Observations
-                          </Typography>
-                          <Typography variant="h4" color="primary">
-                            {selectedToothData.observations.length}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <Paper elevation={1} sx={{ p: 2, bgcolor: 'background.default' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Total Procedures
-                          </Typography>
-                          <Typography variant="h4" color="secondary">
-                            {selectedToothData.procedures.length}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <Paper elevation={1} sx={{ p: 2, bgcolor: 'background.default' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Status
-                          </Typography>
-                          <Typography variant="h6" color={selectedToothData.has_active_issues ? 'error' : 'success.main'}>
-                            {selectedToothData.has_active_issues ? 'Requires Treatment' : 'Healthy'}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      {selectedToothData.last_treatment_date && (
-                        <Grid item xs={12}>
-                          <Typography variant="body2" color="text.secondary">
-                            Last Treatment: {new Date(selectedToothData.last_treatment_date).toLocaleDateString()}
-                          </Typography>
-                        </Grid>
-                      )}
-                    </Grid>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No data available for this tooth.
-                    </Typography>
-                  )}
-                </Box>
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={1}>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Observations for Tooth #{selectedTooth}
-                  </Typography>
-                  {selectedToothData && selectedToothData.observations.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {selectedToothData.observations.map((obs: any, index: number) => (
-                        <Paper key={obs.id || index} elevation={1} sx={{ p: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight="bold">
-                                {obs.condition_type}
-                              </Typography>
-                              {obs.tooth_surface && (
-                                <Typography variant="body2" color="text.secondary">
-                                  Surface: {obs.tooth_surface}
-                                </Typography>
-                              )}
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              {obs.severity && (
-                                <Chip
-                                  label={obs.severity}
-                                  size="small"
-                                  color={
-                                    obs.severity === 'severe' ? 'error' :
-                                    obs.severity === 'moderate' ? 'warning' :
-                                    obs.severity === 'mild' ? 'info' : 'default'
-                                  }
-                                />
-                              )}
-                              <Chip
-                                label={obs.treatment_done ? 'Treated' : obs.treatment_required ? 'Treatment Required' : 'Observation'}
-                                size="small"
-                                color={obs.treatment_done ? 'success' : obs.treatment_required ? 'error' : 'default'}
-                              />
-                            </Box>
-                          </Box>
-                          {obs.observation_notes && (
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                              {obs.observation_notes}
-                            </Typography>
-                          )}
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                            Recorded: {new Date(obs.created_at).toLocaleDateString()}
-                            {obs.treatment_date && ` • Treated: ${new Date(obs.treatment_date).toLocaleDateString()}`}
-                          </Typography>
-                        </Paper>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Alert severity="info">
-                      No observations recorded for this tooth yet. Click "Add Observation" to record one.
-                    </Alert>
-                  )}
-                </Box>
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={2}>
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Procedures for Tooth #{selectedTooth}
-                  </Typography>
-                  {selectedToothData && selectedToothData.procedures.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {selectedToothData.procedures.map((proc: any, index: number) => (
-                        <Paper key={proc.id || index} elevation={1} sx={{ p: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight="bold">
-                                {proc.procedure_name}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Code: {proc.procedure_code}
-                              </Typography>
-                            </Box>
-                            <Chip
-                              label={proc.status}
-                              size="small"
-                              color={
-                                proc.status === 'completed' ? 'success' :
-                                proc.status === 'in_progress' ? 'warning' :
-                                proc.status === 'cancelled' ? 'error' : 'default'
-                              }
-                            />
-                          </Box>
-                          {proc.description && (
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                              {proc.description}
-                            </Typography>
-                          )}
-                          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                            {proc.estimated_cost && (
-                              <Typography variant="body2" color="text.secondary">
-                                Estimated: ₹{proc.estimated_cost}
-                              </Typography>
-                            )}
-                            {proc.actual_cost && (
-                              <Typography variant="body2" color="text.secondary">
-                                Actual: ₹{proc.actual_cost}
-                              </Typography>
-                            )}
-                            {proc.duration_minutes && (
-                              <Typography variant="body2" color="text.secondary">
-                                Duration: {proc.duration_minutes} min
-                              </Typography>
-                            )}
-                          </Box>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                            Recorded: {new Date(proc.created_at).toLocaleDateString()}
-                            {proc.completed_date && ` • Completed: ${new Date(proc.completed_date).toLocaleDateString()}`}
-                          </Typography>
-                        </Paper>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Alert severity="info">
-                      No procedures recorded for this tooth yet. Click "Add Procedure" to record one.
-                    </Alert>
-                  )}
-                </Box>
-              </TabPanel>
-            </Paper>
-          </Grid>
-        )}
       </Grid>
 
       {/* Observation Form Dialog */}
@@ -701,11 +683,12 @@ const DentalConsultation: React.FC = () => {
         onClose={() => {
           setShowPrescriptionDialog(false);
           setCreatedPrescriptionId(null);
+          setSelectedPrescriptionIndex(0);
         }}
         maxWidth="lg"
         fullWidth
       >
-        <DialogTitle>
+        <DialogTitle className="prescription-no-print">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography variant="h6">
@@ -718,6 +701,7 @@ const DentalConsultation: React.FC = () => {
             <IconButton onClick={() => {
               setShowPrescriptionDialog(false);
               setCreatedPrescriptionId(null);
+              setSelectedPrescriptionIndex(0);
             }}>
               <CloseIcon />
             </IconButton>
@@ -726,13 +710,48 @@ const DentalConsultation: React.FC = () => {
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             {createdPrescriptionId ? (
-              <PrescriptionViewer
-                prescriptionId={createdPrescriptionId}
-                onAddMore={() => setCreatedPrescriptionId(null)}
-                onEdit={() => {
-                  showSnackbar('Edit functionality coming soon', 'info');
-                }}
-              />
+              <>
+                {/* Tabs for multiple prescriptions */}
+                {patientPrescriptions && patientPrescriptions.length > 1 && (
+                  <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }} className="prescription-no-print">
+                    <Tabs
+                      value={selectedPrescriptionIndex}
+                      onChange={(_, newValue) => {
+                        setSelectedPrescriptionIndex(newValue);
+                        setCreatedPrescriptionId(patientPrescriptions[newValue]?.id || null);
+                      }}
+                      variant="scrollable"
+                      scrollButtons="auto"
+                    >
+                      {patientPrescriptions.map((prescription, index) => (
+                        <Tab
+                          key={prescription.id}
+                          label={
+                            <Box sx={{ textAlign: 'left' }}>
+                              <Typography variant="body2">
+                                {prescription.prescription_number}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(prescription.created_at).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          }
+                          id={`prescription-tab-${index}`}
+                          aria-controls={`prescription-tabpanel-${index}`}
+                        />
+                      ))}
+                    </Tabs>
+                  </Box>
+                )}
+                <PrescriptionViewer
+                  prescriptionId={createdPrescriptionId}
+                  onAddMore={() => setCreatedPrescriptionId(null)}
+                  onEdit={() => {
+                    toast.info('Edit functionality coming soon');
+                  }}
+                  refetch={refetchPrescriptions}
+                />
+              </>
             ) : (
               <>
                 {isLoadingCurrentUser ? (
@@ -755,7 +774,7 @@ const DentalConsultation: React.FC = () => {
                       dentalNotes={dentalChart ? `Dental Consultation Summary:\n- Total Observations: ${dentalChart.total_observations}\n- Total Procedures: ${dentalChart.total_procedures}\n- Active Treatments: ${dentalChart.active_treatments}` : ''}
                       onSuccess={(prescriptionId) => {
                         setCreatedPrescriptionId(prescriptionId);
-                        showSnackbar('Prescription created successfully!', 'success');
+                        toast.success('Prescription created successfully!');
                         loadDentalChart(); // Reload chart
                         refetchPrescriptions(); // Reload prescriptions list
                       }}
@@ -767,11 +786,12 @@ const DentalConsultation: React.FC = () => {
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions className="prescription-no-print">
           <Button
             onClick={() => {
               setShowPrescriptionDialog(false);
               setCreatedPrescriptionId(null);
+              setSelectedPrescriptionIndex(0);
             }}
           >
             Close
@@ -779,20 +799,76 @@ const DentalConsultation: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      {/* Treatment Summary Dialog */}
+      <Dialog
+        open={showSummaryDialog}
+        onClose={() => setShowSummaryDialog(false)}
+        maxWidth="lg"
+        fullWidth
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">Treatment Summary</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Patient: {patientData.firstName} ({patientData.mobileNumber})
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setShowSummaryDialog(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <DentalSummaryTable
+              patientMobileNumber={patientData.mobileNumber}
+              patientFirstName={patientData.firstName}
+              onRefresh={loadDentalChart}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSummaryDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Exit Confirmation Dialog */}
+      <Dialog
+        open={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">Consultation Status</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Is this consultation completed?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            If yes, the appointment will be marked as completed.
+            If no, it will remain in progress for you to continue later.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => handleExitDialogResponse(false)}
+          >
+            No, Still In Progress
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<CheckCircle />}
+            onClick={() => handleExitDialogResponse(true)}
+          >
+            Yes, Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
