@@ -12,6 +12,7 @@ import {
   FormControlLabel,
   Checkbox,
   Paper,
+  Container,
 } from '@mui/material';
 import StandardDatePicker from '../../components/common/StandardDatePicker';
 import { Person as PersonIcon } from '@mui/icons-material';
@@ -460,7 +461,7 @@ export const PatientRegistration = () => {
   }
 
   return (
-      <Box>
+      <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <PersonIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
           <Typography variant="h4" component="h1">
@@ -502,7 +503,7 @@ export const PatientRegistration = () => {
         >
           {renderStepContent()}
         </PatientRegistrationWizard>
-      </Box>
+      </Container>
   );
 };
 

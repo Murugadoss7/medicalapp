@@ -18,6 +18,7 @@ import {
   People as PatientsIcon,
   LocalHospital as DoctorsIcon,
   CalendarToday as AppointmentsIcon,
+  CalendarToday,
   LocalPharmacy as MedicinesIcon,
   PersonAdd as PersonAddIcon,
   CheckCircle as CompletedIcon,
@@ -90,11 +91,18 @@ export const AdminDashboard = () => {
 
   const quickActions = [
     {
+      title: 'View Appointments',
+      description: 'View and manage all appointments',
+      icon: <CalendarToday sx={{ fontSize: 40, color: 'primary.main' }} />,
+      action: () => navigate('/appointments'),
+      color: 'primary',
+    },
+    {
       title: 'Book Appointment',
       description: 'Schedule new patient appointment',
-      icon: <AppointmentsIcon sx={{ fontSize: 40, color: 'primary.main' }} />,
+      icon: <AppointmentsIcon sx={{ fontSize: 40, color: 'secondary.main' }} />,
       action: () => navigate('/appointments/book'),
-      color: 'primary',
+      color: 'secondary',
     },
     {
       title: 'Register New Doctor',

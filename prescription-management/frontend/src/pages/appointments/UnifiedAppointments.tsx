@@ -53,16 +53,19 @@ export const UnifiedAppointments = () => {
 
   // Determine if user is admin/receptionist
   const isAdmin = user?.role === 'admin' || user?.role === 'receptionist';
+  const isDoctor = user?.role === 'doctor';
 
   // For doctors, use their own ID. For admin, allow selection
-  const currentDoctorId = getCurrentDoctorId();
+  // Only call getCurrentDoctorId() for doctor users to avoid throwing errors
+  const currentDoctorId = isDoctor ? getCurrentDoctorId() : null;
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(
-    isAdmin ? '' : currentDoctorId || ''
+    isDoctor && currentDoctorId ? currentDoctorId : ''
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [specializationFilter, setSpecializationFilter] = useState<string>('all');
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -73,9 +76,9 @@ export const UnifiedAppointments = () => {
     severity: 'success',
   });
 
-  // Fetch doctors list (for admin)
+  // Fetch doctors list (for admin) - use per_page to get all doctors
   const { data: doctorsData, isLoading: loadingDoctors } = useListDoctorsQuery(
-    { page: 1, page_size: 100 },
+    { page: 1, per_page: 100 },
     { skip: !isAdmin }
   );
 
@@ -184,6 +187,20 @@ export const UnifiedAppointments = () => {
 
   const selectedDoctor = doctorsData?.doctors.find(d => d.id === selectedDoctorId);
 
+  // Get unique specializations for filter dropdown
+  const specializations = useMemo(() => {
+    if (!doctorsData?.doctors) return [];
+    const specs = [...new Set(doctorsData.doctors.map(d => d.specialization).filter(Boolean))];
+    return specs.sort();
+  }, [doctorsData]);
+
+  // Filter doctors by specialization
+  const filteredDoctors = useMemo(() => {
+    if (!doctorsData?.doctors) return [];
+    if (specializationFilter === 'all') return doctorsData.doctors;
+    return doctorsData.doctors.filter(d => d.specialization === specializationFilter);
+  }, [doctorsData, specializationFilter]);
+
   return (
     <Box>
       {/* Header */}
@@ -201,7 +218,7 @@ export const UnifiedAppointments = () => {
           fontWeight={600}
           sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
         >
-          My Appointments
+          {isAdmin ? 'Appointment Management' : 'My Appointments'}
         </Typography>
 
         <Box display="flex" gap={{ xs: 1, sm: 2 }} alignItems="center" flexWrap="wrap">
@@ -230,11 +247,37 @@ export const UnifiedAppointments = () => {
       {/* Doctor Selector (for admin/receptionist) */}
       {isAdmin && (
         <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            Select Doctor to View Appointments
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: { md: 'center' } }}>
+            {/* Specialization Filter */}
+            <Box sx={{ minWidth: { xs: '100%', md: 200 } }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Specialization</InputLabel>
+                <Select
+                  value={specializationFilter}
+                  label="Specialization"
+                  onChange={(e) => {
+                    setSpecializationFilter(e.target.value);
+                    setSelectedDoctorId(''); // Reset doctor when specialization changes
+                  }}
+                >
+                  <MenuItem value="all">All Specializations ({doctorsData?.doctors?.length || 0})</MenuItem>
+                  {specializations.map((spec) => (
+                    <MenuItem key={spec} value={spec}>
+                      {spec} ({doctorsData?.doctors?.filter(d => d.specialization === spec).length || 0})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Doctor Selector */}
+            <Box sx={{ flex: 1, minWidth: { xs: '100%', md: 300 } }}>
               <Autocomplete
-                options={doctorsData?.doctors || []}
-                getOptionLabel={(option) => `Dr. ${option.first_name} ${option.last_name} - ${option.specialization}`}
+                options={filteredDoctors}
+                getOptionLabel={(option) => `Dr. ${option.first_name} ${option.last_name}`}
                 value={selectedDoctor || null}
                 onChange={(_, newValue) => handleDoctorChange(newValue)}
                 loading={loadingDoctors}
@@ -242,12 +285,13 @@ export const UnifiedAppointments = () => {
                   <TextField
                     {...params}
                     label="Select Doctor"
-                    placeholder="Search by name or specialization..."
+                    placeholder="Search by name..."
                     variant="outlined"
+                    size="small"
                   />
                 )}
                 renderOption={(props, option) => (
-                  <li {...props}>
+                  <li {...props} key={option.id}>
                     <Box>
                       <Typography variant="body1">
                         Dr. {option.first_name} {option.last_name}
@@ -259,23 +303,23 @@ export const UnifiedAppointments = () => {
                   </li>
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              {selectedDoctor && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Selected Doctor
-                  </Typography>
-                  <Typography variant="h6">
-                    Dr. {selectedDoctor.first_name} {selectedDoctor.last_name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {selectedDoctor.specialization} • {selectedDoctor.phone}
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
-          </Grid>
+            </Box>
+
+            {/* Selected Doctor Info */}
+            {selectedDoctor && (
+              <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1, minWidth: { xs: '100%', md: 250 } }}>
+                <Typography variant="body2" color="text.secondary">
+                  Selected Doctor
+                </Typography>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Dr. {selectedDoctor.first_name} {selectedDoctor.last_name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {selectedDoctor.specialization} • {selectedDoctor.phone}
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Paper>
       )}
 

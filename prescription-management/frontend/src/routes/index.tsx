@@ -165,6 +165,10 @@ export const router = createBrowserRouter([
         path: 'appointments',
         children: [
           {
+            index: true,
+            element: <UnifiedAppointments />,
+          },
+          {
             path: 'book',
             element: <AppointmentBooking />,
           },
