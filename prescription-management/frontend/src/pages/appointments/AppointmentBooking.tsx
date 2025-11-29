@@ -22,6 +22,7 @@ import {
   Slide,
   IconButton,
   Pagination,
+  Container,
 } from '@mui/material';
 import {
   Person,
@@ -827,7 +828,7 @@ export const AppointmentBooking = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, sm: 3, md: 4 }, py: 4 }}>
+    <Container maxWidth="lg" disableGutters sx={{ mx: 'auto' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -856,6 +857,6 @@ export const AppointmentBooking = () => {
       <Paper elevation={0} sx={{ p: { xs: 3, sm: 4, md: 5 }, border: '1px solid', borderColor: 'divider' }}>
         {renderStep()}
       </Paper>
-    </Box>
+    </Container>
   );
 };

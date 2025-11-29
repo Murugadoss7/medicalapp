@@ -21,6 +21,7 @@ import {
   Tooltip,
   MenuItem,
   Slider,
+  Container,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -132,7 +133,7 @@ export const DoctorSearch = () => {
   const canCreateDoctor = currentUser?.role === 'admin';
 
   return (
-    <Box>
+    <Container maxWidth="lg" disableGutters sx={{ mx: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <DoctorIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
@@ -477,6 +478,6 @@ export const DoctorSearch = () => {
           </>
         )}
       </Paper>
-    </Box>
+    </Container>
   );
 };

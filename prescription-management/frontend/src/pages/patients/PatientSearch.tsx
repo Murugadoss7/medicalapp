@@ -19,6 +19,7 @@ import {
   Pagination,
   IconButton,
   Tooltip,
+  Container,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -93,7 +94,7 @@ export const PatientSearch = () => {
   };
 
   return (
-    <Box>
+    <Container maxWidth="lg" disableGutters sx={{ mx: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Patient Management
@@ -336,6 +337,6 @@ export const PatientSearch = () => {
           </>
         )}
       </Paper>
-    </Box>
+    </Container>
   );
 };

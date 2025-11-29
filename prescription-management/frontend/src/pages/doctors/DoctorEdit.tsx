@@ -14,6 +14,7 @@ import {
   StepLabel,
   Card,
   CardContent,
+  Container,
 } from '@mui/material';
 import { LocalHospital as DoctorIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -413,7 +414,7 @@ export const DoctorEdit = () => {
   const isLoading = isUpdating || isUpdatingSchedule;
 
   return (
-    <Box>
+    <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Button
           startIcon={<BackIcon />}
@@ -488,7 +489,7 @@ export const DoctorEdit = () => {
           )}
         </Box>
       </Box>
-    </Box>
+    </Container>
   );
 };
 

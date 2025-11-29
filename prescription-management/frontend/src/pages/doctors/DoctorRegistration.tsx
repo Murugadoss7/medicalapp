@@ -15,6 +15,7 @@ import {
   StepLabel,
   Card,
   CardContent,
+  Container,
 } from '@mui/material';
 import { LocalHospital as DoctorIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -340,7 +341,7 @@ export const DoctorRegistration = () => {
   };
 
   return (
-    <Box>
+    <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <DoctorIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
         <Typography variant="h4" component="h1">
@@ -408,7 +409,7 @@ export const DoctorRegistration = () => {
           )}
         </Box>
       </Box>
-    </Box>
+    </Container>
   );
 };
 

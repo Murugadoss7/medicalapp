@@ -72,8 +72,8 @@ export const MainLayout = () => {
     {
       text: 'Appointments',
       icon: <CalendarToday />,
-      path: '/doctor/appointments',
-      roles: ['doctor'],
+      path: '/appointments',
+      roles: ['doctor', 'admin', 'receptionist'],
     },
     {
       text: 'Patients',
