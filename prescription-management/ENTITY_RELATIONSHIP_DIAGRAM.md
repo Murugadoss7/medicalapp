@@ -3,11 +3,16 @@
 
 ---
 
-**📅 Last Updated**: November 28, 2025
+**📅 Last Updated**: December 2, 2025
 **🎯 Purpose**: Single source of truth for database schema, field mappings, and relationships
 **📋 Status**: Production Implementation Complete - All 9 modules implemented including dental consultation
 **📅 Date Standardization**: Standardized date handling implemented across all modules
 **🚀 Recent Updates**:
+- **iPad Performance Optimizations** ⭐ NEW: useTransition + module-level Set guards prevent page freeze on tablet
+- **Dental Consultation Layout** ⭐ NEW: Side-by-side layout (55% chart / 45% observations) replaces tabs
+- **ObservationRow Component** ⭐ NEW: Inline observation form with collapsible procedure expansion
+- **DentalSummaryTable** ⭐ NEW: Holistic treatment summary showing all teeth and conditions
+- **TodayAppointmentsSidebar** ⭐ NEW: Persistent right sidebar showing today's appointments for doctors
 - **Appointment Status Transitions**: Backend now allows direct `scheduled → in_progress` transition for consultation workflow
 - **Consultation Status Tracking**: Frontend DentalConsultation.tsx shows real-time status chip (Scheduled/In Progress/Completed)
 - **Complete Consultation Button**: Added for marking appointments as completed from consultation page
@@ -134,7 +139,12 @@ CREATE TABLE doctors (
     phone               VARCHAR(20),
     emergency_contact   VARCHAR(20),
     address             TEXT,
-    
+    clinic_address      TEXT,                    -- Deprecated: Use offices instead
+
+    -- Multiple Office Locations (JSONB array) ⭐ NEW
+    offices             JSONB DEFAULT '[]',      -- Array of office locations
+    -- Structure: [{"id": "uuid-string", "name": "Main Clinic", "address": "123 Main St", "is_primary": true}]
+
     -- Professional Details
     consultation_fee    DECIMAL(10,2),
     available_days      VARCHAR(20) DEFAULT 'MON,TUE,WED,THU,FRI',
@@ -165,8 +175,17 @@ CREATE TABLE doctors (
     "qualification": "string",
     "experience_years": number,
     "phone": "string",
-    "emergency_contact": "string", 
+    "emergency_contact": "string",
     "address": "string",
+    "clinic_address": "string",    // Deprecated: Use offices instead
+    "offices": [                   // ⭐ NEW: Multiple office locations
+        {
+            "id": "uuid-string",   // Unique office ID
+            "name": "string",      // Office name (e.g., "Main Clinic")
+            "address": "string",   // Full address
+            "is_primary": boolean  // Primary office flag
+        }
+    ],
     "consultation_fee": number,
     "available_days": "string", // "MON,TUE,WED,THU,FRI"
     "start_time": "time",       // "09:00:00"
@@ -497,7 +516,8 @@ CREATE TABLE appointments (
     
     -- Doctor Reference
     doctor_id           UUID NOT NULL REFERENCES doctors(id),
-    
+    office_id           VARCHAR(50),             -- ⭐ NEW: Office ID from doctor's offices JSONB array
+
     -- Appointment Scheduling
     appointment_date    DATE NOT NULL,
     appointment_time    TIME NOT NULL,
@@ -533,7 +553,8 @@ CREATE TABLE appointments (
     
     // Doctor
     "doctor_id": "uuid",
-    
+    "office_id": "string",               // ⭐ NEW: Office ID from doctor's offices array
+
     // Scheduling
     "appointment_date": "date",         // "2025-10-31"
     "appointment_time": "time",         // "09:30:00"

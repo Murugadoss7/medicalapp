@@ -64,7 +64,14 @@ class Appointment(BaseModel):
         nullable=False,
         comment="Assigned doctor"
     )
-    
+
+    # Office location reference (ID from doctor's offices JSONB array)
+    office_id = Column(
+        String(50),
+        nullable=True,
+        comment="Office ID from doctor's offices array"
+    )
+
     # Appointment scheduling
     appointment_date = Column(
         Date, 

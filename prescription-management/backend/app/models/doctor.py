@@ -57,11 +57,20 @@ class Doctor(BaseModel):
     
     # Practice information
     clinic_address = Column(
-        Text, 
+        Text,
         nullable=True,
-        comment="Clinic or hospital address"
+        comment="Clinic or hospital address (deprecated - use offices)"
     )
-    
+
+    # Multiple office locations (JSONB array)
+    # Structure: [{"id": "uuid", "name": "Main Clinic", "address": "123 Main St", "is_primary": true}]
+    offices = Column(
+        JSONB,
+        nullable=True,
+        default=list,
+        comment="List of office locations with name and address"
+    )
+
     phone = Column(
         String(20), 
         nullable=True,

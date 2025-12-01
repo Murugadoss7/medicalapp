@@ -16,6 +16,8 @@ import {
   ListItemText,
   ListItemButton,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,21 +30,32 @@ import {
   Logout,
   Settings,
   LocalHospital,
+  EventNote,
 } from '@mui/icons-material';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../hooks';
 import { logout } from '../../store/slices/authSlice';
-import { toggleSidebar } from '../../store/slices/uiSlice';
+import { toggleSidebar, toggleAppointmentsSidebar } from '../../store/slices/uiSlice';
+import { TodayAppointmentsSidebar } from '../dashboard/TodayAppointmentsSidebar';
 
 const drawerWidth = 240;
 
 export const MainLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
+  const theme = useTheme();
+  const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'));
   const { user } = useAppSelector((state) => state.auth);
-  const { sidebarOpen } = useAppSelector((state) => state.ui);
+  const { sidebarOpen, appointmentsSidebarOpen } = useAppSelector((state) => state.ui);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const isDoctor = user?.role === 'doctor';
+
+  // Dashboard always shows persistent sidebar, other pages only on large screens
+  const isDashboard = location.pathname === '/doctor/dashboard';
+  const shouldShowPersistentSidebar = isDoctor && appointmentsSidebarOpen && (isLargeScreen || isDashboard);
+  const rightSidebarWidth = shouldShowPersistentSidebar ? 320 : 0;
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -60,6 +73,10 @@ export const MainLayout = () => {
 
   const handleSidebarToggle = () => {
     dispatch(toggleSidebar());
+  };
+
+  const handleAppointmentsSidebarToggle = () => {
+    dispatch(toggleAppointmentsSidebar());
   };
 
   const menuItems = [
@@ -156,6 +173,21 @@ export const MainLayout = () => {
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+            {/* Today's Appointments Toggle - Doctors Only */}
+            {isDoctor && (
+              <IconButton
+                color="inherit"
+                onClick={handleAppointmentsSidebarToggle}
+                sx={{
+                  bgcolor: appointmentsSidebarOpen ? 'rgba(255,255,255,0.2)' : 'transparent',
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                  },
+                }}
+              >
+                <EventNote />
+              </IconButton>
+            )}
             <Typography
               variant="body2"
               sx={{ display: { xs: 'none', md: 'block' } }}
@@ -296,23 +328,38 @@ export const MainLayout = () => {
         sx={{
           flexGrow: 1,
           bgcolor: 'background.default',
-          width: {
-            xs: '100%',
-            md: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
-          },
           ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
-          transition: 'margin-left 0.3s, width 0.3s',
+          mr: rightSidebarWidth > 0 ? `${rightSidebarWidth}px` : 0,
+          transition: 'margin-left 0.3s, margin-right 0.3s',
           height: '100vh',
-          overflow: 'auto',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0, // Prevent flex item from overflowing
         }}
       >
         <Toolbar />
-        <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, overflow: 'auto' }}>
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: { xs: 1.5, sm: 2, md: 2.5 },
+            overflow: 'auto', // Enable scrolling
+            // On iPad/tablet (md), allow horizontal scroll when both sidebars are open
+            overflowX: { xs: 'auto', md: 'auto', lg: 'hidden' },
+            display: 'flex',
+            flexDirection: 'column',
+            // Minimum width to prevent content from being too squeezed on tablet
+            '& > *': {
+              minWidth: { xs: 'auto', md: 500, lg: 'auto' },
+            },
+          }}
+        >
           <Outlet />
         </Box>
       </Box>
+
+      {/* Today's Appointments Sidebar - Doctors Only */}
+      {isDoctor && <TodayAppointmentsSidebar />}
     </Box>
   );
 };

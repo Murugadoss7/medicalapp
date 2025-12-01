@@ -9,3 +9,5 @@ export { default as DentalProcedureForm } from './DentalProcedureForm';
 export { default as ToothHistoryViewer } from './ToothHistoryViewer';
 export { default as DentalPrescriptionBuilder } from './DentalPrescriptionBuilder';
 export { default as DentalSummaryTable } from './DentalSummaryTable';
+export { default as ObservationRow } from './ObservationRow';
+export type { ObservationData } from './ObservationRow';

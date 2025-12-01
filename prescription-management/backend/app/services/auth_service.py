@@ -278,7 +278,8 @@ class AuthService:
                     phone=register_request.phone,
                     consultation_fee=register_request.consultation_fee,
                     consultation_duration=register_request.consultation_duration or 30,
-                    availability_schedule=register_request.availability_schedule
+                    availability_schedule=register_request.availability_schedule,
+                    offices=register_request.offices
                 )
 
                 # Don't auto-commit - we'll commit after all operations succeed

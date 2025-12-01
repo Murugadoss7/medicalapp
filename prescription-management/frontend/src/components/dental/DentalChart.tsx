@@ -4,15 +4,15 @@
  * Supports permanent (32 teeth) and primary (20 teeth) dentition
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Paper,
   Typography,
   Tooltip,
   Chip,
-  Grid,
   useTheme,
+  useMediaQuery,
   alpha,
 } from '@mui/material';
 import {
@@ -60,6 +60,10 @@ interface DentalChartProps {
   onToothClick?: (toothNumber: string) => void;
   selectedTooth?: string | null;
   readOnly?: boolean;
+  // Multi-select support
+  multiSelect?: boolean;
+  selectedTeeth?: string[];
+  onTeethSelect?: (toothNumbers: string[]) => void;
 }
 
 const DentalChart: React.FC<DentalChartProps> = ({
@@ -68,9 +72,23 @@ const DentalChart: React.FC<DentalChartProps> = ({
   onToothClick,
   selectedTooth,
   readOnly = false,
+  // Multi-select props with defaults
+  multiSelect = false,
+  selectedTeeth = [],
+  onTeethSelect,
 }) => {
   const theme = useTheme();
-  const [hoveredTooth, setHoveredTooth] = useState<string | null>(null);
+
+  // Responsive breakpoints
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
+
+  // Responsive tooth sizes - much smaller on tablet for side-by-side layout
+  const toothWidth = isMobile ? 28 : isTablet ? 28 : 42;
+  const toothHeight = isMobile ? 36 : isTablet ? 36 : 50;
+  const toothFontSize = isMobile ? '0.7rem' : isTablet ? '0.7rem' : '0.9rem';
+  const iconSize = isMobile ? 10 : isTablet ? 10 : 12;
+  const toothGap = isMobile ? 0.25 : isTablet ? 0.25 : 0.5;
 
   // Convert teeth data array to map for quick lookup
   const teethDataMap = React.useMemo(() => {
@@ -134,38 +152,56 @@ const DentalChart: React.FC<DentalChartProps> = ({
 
     // Priority 1: Completed procedure
     if (tooth.hasCompletedProcedure || tooth.procedureStatus === 'completed') {
-      return <CheckCircleIcon sx={{ fontSize: 12, color: 'success.dark' }} />;
+      return <CheckCircleIcon sx={{ fontSize: iconSize, color: 'success.dark' }} />;
     }
 
     // Priority 2: In-progress procedure
     if (tooth.procedureStatus === 'in_progress') {
-      return <PendingIcon sx={{ fontSize: 12, color: 'info.dark' }} />;
+      return <PendingIcon sx={{ fontSize: iconSize, color: 'info.dark' }} />;
     }
 
     // Priority 3: Active issues
     if (tooth.hasActiveIssue) {
-      return <ErrorIcon sx={{ fontSize: 12, color: 'error.dark' }} />;
+      return <ErrorIcon sx={{ fontSize: iconSize, color: 'error.dark' }} />;
     }
 
     // Priority 4: Planned procedure or observation only
     if (tooth.hasPendingProcedure || tooth.procedureStatus === 'planned' || (tooth.hasObservation && !tooth.hasProcedure)) {
-      return <WarningIcon sx={{ fontSize: 12, color: 'warning.dark' }} />;
+      return <WarningIcon sx={{ fontSize: iconSize, color: 'warning.dark' }} />;
     }
 
     // Priority 5: Has procedure (legacy)
     if (tooth.hasProcedure) {
-      return <CheckCircleIcon sx={{ fontSize: 12, color: 'success.dark' }} />;
+      return <CheckCircleIcon sx={{ fontSize: iconSize, color: 'success.dark' }} />;
     }
 
-    return <PendingIcon sx={{ fontSize: 12, color: 'info.dark' }} />;
+    return <PendingIcon sx={{ fontSize: iconSize, color: 'info.dark' }} />;
+  };
+
+  // Handle tooth click for multi-select mode
+  const handleToothClick = (toothStr: string) => {
+    if (readOnly) return;
+
+    if (multiSelect && onTeethSelect) {
+      // Multi-select mode: toggle selection in array
+      const newSelection = selectedTeeth.includes(toothStr)
+        ? selectedTeeth.filter(t => t !== toothStr)  // Remove if already selected
+        : [...selectedTeeth, toothStr];               // Add if not selected
+      onTeethSelect(newSelection);
+    } else if (onToothClick) {
+      // Single-select mode: use existing callback
+      onToothClick(toothStr);
+    }
   };
 
   // Render individual tooth
   const renderTooth = (toothNumber: number) => {
     const toothStr = toothNumber.toString();
     const tooth = teethDataMap[toothStr];
-    const isSelected = selectedTooth === toothStr;
-    const isHovered = hoveredTooth === toothStr;
+    // Support both single and multi-select modes
+    const isSelected = multiSelect
+      ? selectedTeeth.includes(toothStr)
+      : selectedTooth === toothStr;
     const toothColor = getToothColor(toothStr);
 
     const toothTooltip = tooth ? (
@@ -221,52 +257,70 @@ const DentalChart: React.FC<DentalChartProps> = ({
     );
 
     return (
-      <Tooltip key={toothNumber} title={toothTooltip} arrow>
+      <Tooltip key={toothNumber} title={toothTooltip} arrow enterDelay={500} enterTouchDelay={700}>
         <Box
-          onClick={() => !readOnly && onToothClick?.(toothStr)}
-          onMouseEnter={() => setHoveredTooth(toothStr)}
-          onMouseLeave={() => setHoveredTooth(null)}
+          onClick={() => handleToothClick(toothStr)}
           sx={{
-            width: 50,
-            height: 60,
+            width: toothWidth,
+            height: toothHeight,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            border: 2,
+            border: isSelected ? 3 : 2,
             borderColor: isSelected
               ? theme.palette.primary.main
-              : isHovered
-              ? theme.palette.primary.light
               : toothColor,
-            borderRadius: '8px 8px 4px 4px',
-            bgcolor: toothColor,
+            borderRadius: '4px 4px 2px 2px',
+            bgcolor: isSelected
+              ? alpha(theme.palette.primary.main, 0.2)
+              : toothColor,
             cursor: readOnly ? 'default' : 'pointer',
-            transition: 'all 0.2s ease',
-            transform: isSelected ? 'scale(1.1)' : isHovered ? 'scale(1.05)' : 'scale(1)',
+            // Simplified transitions for better iPad performance
+            transition: 'border-color 0.15s, background-color 0.15s',
             boxShadow: isSelected
-              ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`
-              : isHovered
-              ? `0 2px 8px ${alpha(theme.palette.grey[500], 0.3)}`
+              ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.4)}`
               : 'none',
             position: 'relative',
-            '&:hover': !readOnly && {
-              borderColor: theme.palette.primary.main,
+            '&:active': !readOnly && {
+              bgcolor: alpha(theme.palette.primary.main, 0.15),
             },
           }}
         >
-          {/* Tooth icon */}
+          {/* Multi-select checkmark badge */}
+          {multiSelect && isSelected && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -6,
+                left: -6,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                bgcolor: theme.palette.primary.main,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid white',
+                zIndex: 1,
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 14, color: 'white' }} />
+            </Box>
+          )}
+
+          {/* Tooth status icon (top-right) */}
           <Box sx={{ position: 'absolute', top: 2, right: 2 }}>
             {getToothIcon(toothStr)}
           </Box>
 
           {/* Tooth number */}
           <Typography
-            variant="caption"
+            variant="body2"
             fontWeight="bold"
             sx={{
               color: theme.palette.text.primary,
-              fontSize: '0.75rem',
+              fontSize: toothFontSize,
             }}
           >
             {toothNumber}
@@ -280,13 +334,21 @@ const DentalChart: React.FC<DentalChartProps> = ({
   const renderQuadrant = (teeth: number[], label: string) => {
     return (
       <Box sx={{ textAlign: 'center' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            mb: 0.5,
+            display: 'block',
+            fontSize: isMobile ? '0.65rem' : isTablet ? '0.7rem' : '0.75rem',
+          }}
+        >
           {label}
         </Typography>
         <Box
           sx={{
             display: 'flex',
-            gap: 0.5,
+            gap: toothGap,
             justifyContent: 'center',
           }}
         >
@@ -296,108 +358,170 @@ const DentalChart: React.FC<DentalChartProps> = ({
     );
   };
 
+  // Responsive gap between quadrants
+  const quadrantGap = isMobile ? 1 : isTablet ? 1 : 4;
+
   return (
-    <Paper elevation={2} sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">
-          Dental Chart - {dentitionType === 'primary' ? 'Primary' : 'Permanent'} Dentition
+    <Paper elevation={2} sx={{ p: isMobile ? 1 : isTablet ? 1.5 : 3 }}>
+      {/* Header - compact on tablet */}
+      <Box
+        sx={{
+          mb: isMobile ? 1 : isTablet ? 1 : 3,
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 0.5,
+        }}
+      >
+        <Typography
+          variant="h6"
+          sx={{ fontSize: isMobile ? '0.85rem' : isTablet ? '0.9rem' : '1.25rem' }}
+        >
+          Dental Chart
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
           <Chip
             size="small"
-            icon={<CheckCircleIcon />}
-            label="Completed"
-            sx={{ bgcolor: theme.palette.success.light }}
+            icon={<CheckCircleIcon sx={{ fontSize: 12 }} />}
+            label="Done"
+            sx={{
+              bgcolor: theme.palette.success.light,
+              fontSize: '0.6rem',
+              height: 20,
+              '& .MuiChip-icon': { ml: 0.5 },
+            }}
           />
           <Chip
             size="small"
-            icon={<PendingIcon />}
-            label="In Progress"
-            sx={{ bgcolor: theme.palette.info.light }}
+            icon={<PendingIcon sx={{ fontSize: 12 }} />}
+            label="WIP"
+            sx={{
+              bgcolor: theme.palette.info.light,
+              fontSize: '0.6rem',
+              height: 20,
+              '& .MuiChip-icon': { ml: 0.5 },
+            }}
           />
           <Chip
             size="small"
-            icon={<WarningIcon />}
-            label="Pending/Observation"
-            sx={{ bgcolor: theme.palette.warning.light }}
+            icon={<WarningIcon sx={{ fontSize: 12 }} />}
+            label="Pending"
+            sx={{
+              bgcolor: theme.palette.warning.light,
+              fontSize: '0.6rem',
+              height: 20,
+              '& .MuiChip-icon': { ml: 0.5 },
+            }}
           />
           <Chip
             size="small"
-            icon={<ErrorIcon />}
-            label="Active Issue"
-            sx={{ bgcolor: theme.palette.error.light }}
+            icon={<ErrorIcon sx={{ fontSize: 12 }} />}
+            label="Issue"
+            sx={{
+              bgcolor: theme.palette.error.light,
+              fontSize: '0.6rem',
+              height: 20,
+              '& .MuiChip-icon': { ml: 0.5 },
+            }}
           />
         </Box>
       </Box>
 
-      {/* Dental Chart */}
-      <Grid container spacing={3}>
+      {/* Dental Chart - Use flexbox column for reliable stacking */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 1.5 : isTablet ? 2 : 3 }}>
         {/* Upper Jaw */}
-        <Grid item xs={12}>
+        <Box
+          sx={{
+            border: 2,
+            borderColor: 'divider',
+            borderRadius: 2,
+            p: isMobile ? 1 : isTablet ? 1.5 : 2,
+            bgcolor: alpha(theme.palette.primary.main, 0.02),
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            align="center"
+            sx={{
+              mb: isMobile ? 1 : 2,
+              fontSize: isMobile ? '0.75rem' : isTablet ? '0.8rem' : '0.875rem',
+            }}
+            color="primary"
+          >
+            Upper Jaw (Maxillary)
+          </Typography>
           <Box
             sx={{
-              border: 2,
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 2,
-              bgcolor: alpha(theme.palette.primary.main, 0.02),
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: quadrantGap,
             }}
           >
-            <Typography variant="subtitle2" align="center" sx={{ mb: 2 }} color="primary">
-              Upper Jaw (Maxillary)
-            </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 4,
-              }}
-            >
-              {renderQuadrant(teethConfig.upperRight, 'Upper Right (Q1)')}
-              {renderQuadrant(teethConfig.upperLeft, 'Upper Left (Q2)')}
-            </Box>
+            {renderQuadrant(teethConfig.upperRight, isMobile ? 'Q1' : 'Upper Right (Q1)')}
+            {renderQuadrant(teethConfig.upperLeft, isMobile ? 'Q2' : 'Upper Left (Q2)')}
           </Box>
-        </Grid>
+        </Box>
 
         {/* Lower Jaw */}
-        <Grid item xs={12}>
+        <Box
+          sx={{
+            border: 2,
+            borderColor: 'divider',
+            borderRadius: 2,
+            p: isMobile ? 1 : isTablet ? 1.5 : 2,
+            bgcolor: alpha(theme.palette.primary.main, 0.02),
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            align="center"
+            sx={{
+              mb: isMobile ? 1 : 2,
+              fontSize: isMobile ? '0.75rem' : isTablet ? '0.8rem' : '0.875rem',
+            }}
+            color="primary"
+          >
+            Lower Jaw (Mandibular)
+          </Typography>
           <Box
             sx={{
-              border: 2,
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 2,
-              bgcolor: alpha(theme.palette.primary.main, 0.02),
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: quadrantGap,
             }}
           >
-            <Typography variant="subtitle2" align="center" sx={{ mb: 2 }} color="primary">
-              Lower Jaw (Mandibular)
-            </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 4,
-              }}
-            >
-              {renderQuadrant(teethConfig.lowerLeft, 'Lower Left (Q3)')}
-              {renderQuadrant(teethConfig.lowerRight, 'Lower Right (Q4)')}
-            </Box>
+            {renderQuadrant(teethConfig.lowerLeft, isMobile ? 'Q3' : 'Lower Left (Q3)')}
+            {renderQuadrant(teethConfig.lowerRight, isMobile ? 'Q4' : 'Lower Right (Q4)')}
           </Box>
-        </Grid>
-      </Grid>
-
-      {/* Legend */}
-      <Box sx={{ mt: 3, p: 2, bgcolor: alpha(theme.palette.grey[500], 0.05), borderRadius: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          <strong>FDI Notation System:</strong> International standard for tooth numbering.
-          Permanent teeth: 11-48 (32 teeth), Primary teeth: 51-85 (20 teeth).
-          Click on a tooth to view details or add observations.
-        </Typography>
+        </Box>
       </Box>
+
+      {/* Legend - hide on mobile */}
+      {!isMobile && (
+        <Box
+          sx={{
+            mt: isTablet ? 2 : 3,
+            p: isTablet ? 1.5 : 2,
+            bgcolor: alpha(theme.palette.grey[500], 0.05),
+            borderRadius: 1,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: isTablet ? '0.7rem' : '0.75rem' }}
+          >
+            <strong>FDI Notation System:</strong> International standard for tooth numbering.
+            Permanent teeth: 11-48 (32 teeth), Primary teeth: 51-85 (20 teeth).
+            Click on a tooth to view details or add observations.
+          </Typography>
+        </Box>
+      )}
     </Paper>
   );
 };
 
-export default DentalChart;
+// Memoize to prevent unnecessary re-renders
+export default React.memo(DentalChart);

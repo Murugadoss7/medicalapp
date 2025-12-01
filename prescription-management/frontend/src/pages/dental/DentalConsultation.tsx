@@ -4,11 +4,10 @@
  * Allows doctors to record observations, procedures, and view patient dental history
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
 import {
   Box,
   Container,
-  Grid,
   Paper,
   Typography,
   Tabs,
@@ -24,29 +23,41 @@ import {
   Link,
   Chip,
   CircularProgress,
+  Divider,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Add as AddIcon,
   History as HistoryIcon,
-  MedicalServices as ProcedureIcon,
   CheckCircle,
   PlayArrow,
   Home,
   TableChart as SummaryIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { setSidebarOpen, setAppointmentsSidebarOpen } from '../../store/slices/uiSlice';
 import { type RootState } from '../../store';
 import {
   DentalChart,
-  DentalObservationForm,
-  DentalProcedureForm,
   ToothHistoryViewer,
   DentalPrescriptionBuilder,
   DentalSummaryTable,
+  ObservationRow,
+  type ObservationData,
 } from '../../components/dental';
 import PrescriptionViewer from '../../components/dental/PrescriptionViewer';
+
+// Simple ID generator (replaces uuid)
+const generateId = () => `obs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// MODULE-LEVEL guard to prevent double API calls from React Strict Mode
+// This persists outside the component and is not affected by React's double-invocation
+const loadedAppointments = new Set<string>();
+const loadingAppointments = new Set<string>();
 import dentalService, { type DentalChart as DentalChartType } from '../../services/dentalService';
 import {
   useGetAppointmentDetailsQuery,
@@ -55,15 +66,34 @@ import {
   useUpdateAppointmentStatusMutation,
 } from '../../store/api';
 import { useToast } from '../../components/common/Toast';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 const DentalConsultation: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const dispatch = useDispatch();
+  const theme = useTheme();
+
+  // Responsive breakpoint for tablet optimizations
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
+
+  // useTransition for non-blocking state updates on tablet (prevents UI freeze)
+  const [, startTransition] = useTransition();
+
+  // Track if initial data load is complete (controls loading screen)
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
+
+  // Auto-close sidebars on mount for more screen space
+  useEffect(() => {
+    dispatch(setSidebarOpen(false));
+    dispatch(setAppointmentsSidebarOpen(false));
+  }, [dispatch]);
 
   // Get logged-in user from Redux store
   const user = useSelector((state: RootState) => state.auth.user);
+
+  // Get sidebar state to adjust layout
+  const isSidebarOpen = useSelector((state: RootState) => state.ui.sidebarOpen);
 
   // Fetch current user info to get doctor_id
   const { data: currentUserData, isLoading: isLoadingCurrentUser } = useGetCurrentUserQuery();
@@ -98,7 +128,11 @@ const DentalConsultation: React.FC = () => {
   // Navigation guard state
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Track if we've already auto-started the consultation
+  const hasAutoStartedRef = useRef(false);
 
   // Update patient data when appointment details are loaded
   useEffect(() => {
@@ -114,8 +148,9 @@ const DentalConsultation: React.FC = () => {
         firstName,
       });
 
-      // Auto-update status to in_progress if scheduled
-      if (appointmentDetails.status === 'scheduled') {
+      // Auto-update status to in_progress if scheduled (only once)
+      if (appointmentDetails.status === 'scheduled' && !hasAutoStartedRef.current) {
+        hasAutoStartedRef.current = true;
         handleUpdateStatus('in_progress');
       }
     }
@@ -144,16 +179,239 @@ const DentalConsultation: React.FC = () => {
 
   // State
   const [dentalChart, setDentalChart] = useState<DentalChartType | null>(null);
-  const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
+  const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
   const [selectedToothData, setSelectedToothData] = useState<any>(null);
-  const [showObservationForm, setShowObservationForm] = useState(false);
-  const [showProcedureForm, setShowProcedureForm] = useState(false);
-  const [showToothHistory, setShowToothHistory] = useState(false);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [createdPrescriptionId, setCreatedPrescriptionId] = useState<string | null>(null);
   const [selectedPrescriptionIndex, setSelectedPrescriptionIndex] = useState(0); // For tabbed prescriptions
   const [showSummaryDialog, setShowSummaryDialog] = useState(false); // For holistic view
   const [loading, setLoading] = useState(false);
+
+  // Observation rows state (fixed panel with multiple observations)
+  const [observations, setObservations] = useState<ObservationData[]>([]);
+  const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [savingObservations, setSavingObservations] = useState(false);
+
+  // Refs for scrolling observations into view
+  const observationContainerRef = useRef<HTMLDivElement>(null);
+  const observationRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Helper to create a new observation
+  const createNewObservation = (teeth: string[] = []): ObservationData => ({
+    id: generateId(),
+    selectedTeeth: teeth,
+    toothSurface: '',
+    conditionType: '',
+    severity: '',
+    observationNotes: '',
+    treatmentRequired: true,
+    hasProcedure: false,
+    procedureCode: '',
+    procedureName: '',
+    customProcedureName: '',
+    procedureDate: new Date(),
+    procedureNotes: '',
+  });
+
+  // Load saved observations and procedures from backend for this appointment
+  const loadSavedObservations = async () => {
+    // Guard: Prevent double API calls using MODULE-LEVEL Sets
+    // This handles React Strict Mode double-invocation
+    if (!appointmentId || loadingAppointments.has(appointmentId) || loadedAppointments.has(appointmentId)) {
+      return;
+    }
+
+    // Set guard IMMEDIATELY (synchronous, before any async work)
+    loadingAppointments.add(appointmentId);
+
+    try {
+      // Fetch both observations and procedures for this appointment
+      const [obsResponse, procResponse] = await Promise.all([
+        dentalService.observations.getByAppointment(appointmentId),
+        dentalService.procedures.getByAppointment(appointmentId),
+      ]);
+
+      const fetchedObservations = obsResponse.observations || [];
+      const procedures = procResponse.procedures || [];
+
+      // Process data outside of state update for better performance
+      const processObservationsData = () => {
+        if (fetchedObservations.length > 0 || procedures.length > 0) {
+          // Group observations by condition and surface to create observation rows
+          const groupedObs: Record<string, ObservationData> = {};
+
+          fetchedObservations.forEach(obs => {
+            // Create a key based on condition and surface to group related observations
+            const key = `${obs.condition_type}_${obs.tooth_surface || 'none'}_${obs.severity || 'none'}`;
+
+            if (groupedObs[key]) {
+              // Add tooth to existing group
+              if (!groupedObs[key].selectedTeeth.includes(obs.tooth_number)) {
+                groupedObs[key].selectedTeeth.push(obs.tooth_number);
+              }
+            } else {
+              // Create new observation group
+              groupedObs[key] = {
+                id: `saved_${obs.id}`,
+                selectedTeeth: [obs.tooth_number],
+                toothSurface: obs.tooth_surface || '',
+                conditionType: obs.condition_type,
+                severity: obs.severity || '',
+                observationNotes: obs.observation_notes || '',
+                treatmentRequired: obs.treatment_required,
+                hasProcedure: false,
+                procedureCode: '',
+                procedureName: '',
+                customProcedureName: '',
+                procedureDate: new Date(),
+                procedureNotes: '',
+                isSaved: true,
+              };
+            }
+          });
+
+          // Match procedures to observations based on tooth numbers
+          procedures.forEach(proc => {
+            const procTeeth = proc.tooth_numbers?.split(',') || [];
+
+            // Find matching observation group by teeth
+            for (const key of Object.keys(groupedObs)) {
+              const obsGroup = groupedObs[key];
+              const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
+
+              if (hasMatchingTeeth && !obsGroup.hasProcedure) {
+                obsGroup.hasProcedure = true;
+                obsGroup.procedureCode = proc.procedure_code;
+                obsGroup.procedureName = proc.procedure_name;
+                obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
+                obsGroup.procedureNotes = proc.procedure_notes || '';
+                if (proc.procedure_code === 'CUSTOM') {
+                  obsGroup.customProcedureName = proc.procedure_name;
+                }
+                break;
+              }
+            }
+          });
+
+          // Handle procedures without matching observations (standalone procedures)
+          procedures.forEach((proc, index) => {
+            const procTeeth = proc.tooth_numbers?.split(',') || [];
+            const hasMatchingObs = Object.values(groupedObs).some(obs =>
+              obs.hasProcedure && obs.procedureCode === proc.procedure_code
+            );
+
+            if (!hasMatchingObs) {
+              // Create a standalone observation row for this procedure
+              const key = `proc_${proc.id}`;
+              groupedObs[key] = {
+                id: `saved_proc_${proc.id}`,
+                selectedTeeth: procTeeth,
+                toothSurface: '',
+                conditionType: '',
+                severity: '',
+                observationNotes: '',
+                treatmentRequired: true,
+                hasProcedure: true,
+                procedureCode: proc.procedure_code,
+                procedureName: proc.procedure_name,
+                customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : '',
+                procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                procedureNotes: proc.procedure_notes || '',
+                isSaved: true,
+              };
+            }
+          });
+
+          const savedObservations = Object.values(groupedObs);
+          const newObs = createNewObservation();
+          return { observations: [...savedObservations, newObs], activeId: newObs.id };
+        } else {
+          const newObs = createNewObservation();
+          return { observations: [newObs], activeId: newObs.id };
+        }
+      };
+
+      const result = processObservationsData();
+
+      // Mark as loaded using MODULE-LEVEL Sets
+      if (appointmentId) {
+        loadedAppointments.add(appointmentId);
+        loadingAppointments.delete(appointmentId);
+      }
+
+      // IMPORTANT: Set isInitialLoadComplete OUTSIDE of startTransition
+      // startTransition can be interrupted/rolled back by React, causing state to flicker
+      setIsInitialLoadComplete(true);
+
+      // Use startTransition on tablet to prevent UI freeze during heavy state update
+      if (isTablet) {
+        startTransition(() => {
+          setObservations(result.observations);
+          setActiveObservationId(result.activeId);
+        });
+      } else {
+        setObservations(result.observations);
+        setActiveObservationId(result.activeId);
+      }
+    } catch (error) {
+      console.error('Failed to load dental observations:', error);
+
+      // Mark as loaded even on error to prevent retry loops
+      if (appointmentId) {
+        loadedAppointments.add(appointmentId);
+        loadingAppointments.delete(appointmentId);
+      }
+
+      // On error, show empty observation form
+      const newObs = createNewObservation();
+      setIsInitialLoadComplete(true);
+
+      if (isTablet) {
+        startTransition(() => {
+          setObservations([newObs]);
+          setActiveObservationId(newObs.id);
+        });
+      } else {
+        setObservations([newObs]);
+        setActiveObservationId(newObs.id);
+      }
+    }
+  };
+
+  // Load saved observations when appointment is available
+  useEffect(() => {
+    if (!appointmentId) return;
+
+    // Check MODULE-LEVEL guard (persists across React Strict Mode remounts)
+    if (loadedAppointments.has(appointmentId) || loadingAppointments.has(appointmentId)) {
+      // If already loaded, ensure isInitialLoadComplete is true
+      if (loadedAppointments.has(appointmentId) && !isInitialLoadComplete) {
+        setIsInitialLoadComplete(true);
+      }
+      return;
+    }
+
+    loadSavedObservations();
+
+    // Tablet safety fallback: Force complete after 3 seconds if still loading
+    let fallbackTimer: NodeJS.Timeout | null = null;
+    if (isTablet) {
+      fallbackTimer = setTimeout(() => {
+        if (!loadedAppointments.has(appointmentId)) {
+          loadedAppointments.add(appointmentId);
+          loadingAppointments.delete(appointmentId);
+          setIsInitialLoadComplete(true);
+        }
+      }, 3000);
+    }
+
+    return () => {
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
+    };
+  }, [appointmentId, isTablet]);
 
   // Load dental chart data
   useEffect(() => {
@@ -233,74 +491,219 @@ const DentalConsultation: React.FC = () => {
 
   // Update selectedToothData when dentalChart changes (for real-time updates)
   useEffect(() => {
-    if (selectedTooth && dentalChart?.teeth) {
-      const toothData = dentalChart.teeth.find(t => t.tooth_number === selectedTooth);
+    if (selectedTeeth.length === 1 && dentalChart?.teeth) {
+      const toothData = dentalChart.teeth.find(t => t.tooth_number === selectedTeeth[0]);
       setSelectedToothData(toothData || null);
+    } else {
+      setSelectedToothData(null);
     }
-  }, [dentalChart, selectedTooth]);
+  }, [dentalChart, selectedTeeth]);
 
-  // Handle tooth click
+  // Handle tooth click - add to active observation (only if not saved)
   const handleToothClick = (toothNumber: string) => {
-    setSelectedTooth(toothNumber);
-    // Find the tooth data from the chart
-    const toothData = dentalChart?.teeth.find(t => t.tooth_number === toothNumber);
-    setSelectedToothData(toothData || null);
+    // Check if active observation is saved (read-only)
+    const activeObs = observations.find(o => o.id === activeObservationId);
+
+    if (!activeObservationId || activeObs?.isSaved) {
+      // Create new observation if none active OR active is saved (read-only)
+      const newObs = createNewObservation([toothNumber]);
+      setObservations([...observations, newObs]);
+      setActiveObservationId(newObs.id);
+    } else {
+      // Add/remove tooth from active observation (only if not saved)
+      setObservations(prev => prev.map(obs => {
+        if (obs.id === activeObservationId && !obs.isSaved) {
+          const hasToothAlready = obs.selectedTeeth.includes(toothNumber);
+          return {
+            ...obs,
+            selectedTeeth: hasToothAlready
+              ? obs.selectedTeeth.filter(t => t !== toothNumber)
+              : [...obs.selectedTeeth, toothNumber],
+          };
+        }
+        return obs;
+      }));
+    }
     setHasUnsavedChanges(true);
   };
 
-  // Handle add observation
-  const handleAddObservation = () => {
-    if (!selectedTooth) {
-      toast.warning('Please select a tooth first');
-      return;
+  // Handle multi-tooth selection (from DentalChart) - only if not saved
+  const handleTeethSelect = (toothNumbers: string[]) => {
+    if (activeObservationId) {
+      const activeObs = observations.find(o => o.id === activeObservationId);
+
+      // Don't modify saved observations
+      if (activeObs?.isSaved) {
+        toast.info('This observation is saved. Create a new observation to add more teeth.');
+        return;
+      }
+
+      setObservations(prev => prev.map(obs => {
+        if (obs.id === activeObservationId && !obs.isSaved) {
+          return { ...obs, selectedTeeth: toothNumbers };
+        }
+        return obs;
+      }));
     }
-    setShowObservationForm(true);
+    setHasUnsavedChanges(true);
   };
 
-  // Handle add procedure
-  const handleAddProcedure = () => {
-    if (!selectedTooth) {
-      toast.warning('Please select a tooth first');
-      return;
-    }
-    setShowProcedureForm(true);
+  // Get selected teeth from active observation
+  const activeObservation = observations.find(o => o.id === activeObservationId);
+  const selectedTeethForChart = activeObservation?.selectedTeeth || [];
+
+  // Scroll observation into view - disable smooth scroll on tablet to prevent jank
+  const scrollToObservation = useCallback((id: string) => {
+    // Longer delay on tablet to ensure render is complete before scrolling
+    const delay = isTablet ? 200 : 100;
+    setTimeout(() => {
+      const element = observationRefs.current[id];
+      if (element) {
+        // Use instant scroll on tablet to prevent animation-related freezes
+        element.scrollIntoView({ behavior: isTablet ? 'auto' : 'smooth', block: 'center' });
+      }
+    }, delay);
+  }, [isTablet]);
+
+  // Add new observation row
+  const handleAddObservationRow = () => {
+    const newObs = createNewObservation();
+    setObservations([...observations, newObs]);
+    setActiveObservationId(newObs.id);
+    setHasUnsavedChanges(true);
+    // Scroll to the new observation
+    scrollToObservation(newObs.id);
   };
 
-  // Handle view tooth history
+  // Update observation - use transition on tablet to prevent freeze during rapid updates
+  const handleUpdateObservation = useCallback((id: string, data: Partial<ObservationData>) => {
+    const updateFn = () => {
+      setObservations(prev => prev.map(obs =>
+        obs.id === id ? { ...obs, ...data } : obs
+      ));
+      setHasUnsavedChanges(true);
+    };
+
+    // On tablet, use startTransition for non-urgent updates to prevent UI blocking
+    if (isTablet) {
+      startTransition(updateFn);
+    } else {
+      updateFn();
+    }
+  }, [isTablet]);
+
+  // Delete observation
+  const handleDeleteObservation = (id: string) => {
+    setObservations(prev => prev.filter(obs => obs.id !== id));
+    if (activeObservationId === id) {
+      setActiveObservationId(observations.length > 1 ? observations[0]?.id : null);
+    }
+    setHasUnsavedChanges(true);
+  };
+
+  // Set active observation and scroll into view
+  const handleSetActiveObservation = (id: string) => {
+    setActiveObservationId(id);
+    scrollToObservation(id);
+  };
+
+  // Enable edit mode for a saved observation
+  const handleEditObservation = (id: string) => {
+    setObservations(prev => prev.map(obs => {
+      if (obs.id === id) {
+        return { ...obs, isSaved: false };  // Remove saved flag to enable editing
+      }
+      return obs;
+    }));
+    setActiveObservationId(id);
+    toast.info('Edit mode enabled. Make changes and click Save All when done.');
+  };
+
+  // Handle view tooth history - only for single tooth
   const handleViewHistory = () => {
-    if (!selectedTooth) {
-      toast.warning('Please select a tooth first');
+    const teeth = activeObservation?.selectedTeeth || [];
+    if (teeth.length !== 1) {
+      toast.warning('Please select exactly one tooth to view history');
       return;
     }
-    setShowToothHistory(true);
+    setShowHistoryDialog(true);
   };
 
-  // Handle observation form submit
-  const handleObservationSubmit = async (data: any) => {
+  // Save all observations and their procedures
+  const handleSaveAllObservations = async () => {
     try {
-      setLoading(true);
+      setSavingObservations(true);
 
-      await dentalService.observations.create({
-        ...data,
-        appointment_id: appointmentId,
-        patient_mobile_number: patientData.mobileNumber,
-        patient_first_name: patientData.firstName,
-        tooth_number: data.toothNumber,
-        tooth_surface: data.toothSurface,
-        condition_type: data.conditionType,
-        observation_notes: data.observationNotes,
-        treatment_required: data.treatmentRequired,
-        treatment_done: data.treatmentDone,
-        treatment_date: data.treatmentDate?.toISOString().split('T')[0],
+      // Filter observations that have teeth selected, condition filled, AND are NOT already saved
+      const validObservations = observations.filter(
+        obs => obs.selectedTeeth.length > 0 && obs.conditionType && !obs.isSaved
+      );
+
+      if (validObservations.length === 0) {
+        toast.warning('No new observations to save. Add new observations first.');
+        return;
+      }
+
+      let savedObservations = 0;
+      let savedProcedures = 0;
+
+      for (const obs of validObservations) {
+        // Save observations for each tooth
+        for (const toothNumber of obs.selectedTeeth) {
+          await dentalService.observations.create({
+            appointment_id: appointmentId,
+            patient_mobile_number: patientData.mobileNumber,
+            patient_first_name: patientData.firstName,
+            tooth_number: toothNumber,
+            tooth_surface: obs.toothSurface || undefined,
+            condition_type: obs.conditionType,
+            severity: obs.severity || undefined,
+            observation_notes: obs.observationNotes || undefined,
+            treatment_required: obs.treatmentRequired,
+            treatment_done: false,
+          });
+          savedObservations++;
+        }
+
+        // Save procedure if added
+        if (obs.hasProcedure && obs.procedureCode) {
+          const procedureName = obs.procedureCode === 'CUSTOM'
+            ? obs.customProcedureName
+            : obs.procedureName;
+
+          await dentalService.procedures.create({
+            appointment_id: appointmentId,
+            procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
+            procedure_name: procedureName,
+            tooth_numbers: obs.selectedTeeth.join(','),
+            procedure_date: obs.procedureDate?.toISOString().split('T')[0],
+            procedure_notes: obs.procedureNotes || undefined,
+            status: 'planned',  // Procedures start as planned, doctor marks completed later
+          });
+          savedProcedures++;
+        }
+      }
+
+      toast.success(`Saved ${savedObservations} observations${savedProcedures > 0 ? ` and ${savedProcedures} procedures` : ''}`);
+
+      // Mark saved observations as saved (keep them visible)
+      const updatedObservations = observations.map(obs => {
+        if (validObservations.find(vo => vo.id === obs.id)) {
+          return { ...obs, isSaved: true };
+        }
+        return obs;
       });
 
-      toast.success('Observation added successfully');
-      setShowObservationForm(false);
-      loadDentalChart(); // Reload chart
+      // Keep observations visible, don't auto-add new one - let doctor click "Add Observation"
+      setObservations(updatedObservations);
+      setActiveObservationId(null);
+      setHasUnsavedChanges(false);
+      loadDentalChart();
+
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to add observation');
+      toast.error(error.response?.data?.detail || 'Failed to save observations');
     } finally {
-      setLoading(false);
+      setSavingObservations(false);
     }
   };
 
@@ -318,7 +721,7 @@ const DentalConsultation: React.FC = () => {
         estimated_cost: data.estimatedCost,
         actual_cost: data.actualCost,
         duration_minutes: data.durationMinutes,
-        status: data.status,
+        status: data.status || 'completed', // Default to completed for simplified form
         procedure_date: data.procedureDate?.toISOString().split('T')[0],
         completed_date: data.completedDate?.toISOString().split('T')[0],
         procedure_notes: data.procedureNotes,
@@ -326,7 +729,6 @@ const DentalConsultation: React.FC = () => {
       });
 
       toast.success('Procedure added successfully');
-      setShowProcedureForm(false);
       loadDentalChart(); // Reload chart
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to add procedure');
@@ -335,44 +737,48 @@ const DentalConsultation: React.FC = () => {
     }
   };
 
-  // Convert dental chart data to tooth data for chart component
-  const toothData = dentalChart?.teeth.map(tooth => {
-    // Count completed procedures
-    const completedProcedures = tooth.procedures.filter(p => p.status === 'completed');
-    const inProgressProcedures = tooth.procedures.filter(p => p.status === 'in_progress');
-    const plannedProcedures = tooth.procedures.filter(p => p.status === 'planned');
+  // Convert dental chart data to tooth data for chart component - MEMOIZED for iPad performance
+  const toothData = useMemo(() => {
+    if (!dentalChart?.teeth) return [];
 
-    // Determine overall procedure status for the tooth
-    let procedureStatus: 'planned' | 'in_progress' | 'completed' | undefined;
-    if (completedProcedures.length > 0 && completedProcedures.length === tooth.procedures.length) {
-      procedureStatus = 'completed'; // All procedures completed
-    } else if (completedProcedures.length > 0) {
-      procedureStatus = 'in_progress'; // Some completed, some pending
-    } else if (inProgressProcedures.length > 0) {
-      procedureStatus = 'in_progress';
-    } else if (plannedProcedures.length > 0) {
-      procedureStatus = 'planned';
-    }
+    return dentalChart.teeth.map(tooth => {
+      // Count completed procedures
+      const completedProcedures = tooth.procedures.filter(p => p.status === 'completed');
+      const inProgressProcedures = tooth.procedures.filter(p => p.status === 'in_progress');
+      const plannedProcedures = tooth.procedures.filter(p => p.status === 'planned');
 
-    return {
-      toothNumber: tooth.tooth_number,
-      hasObservation: tooth.observations.length > 0,
-      hasProcedure: tooth.procedures.length > 0,
-      hasActiveIssue: tooth.has_active_issues,
-      conditionType: tooth.observations.length > 1
-        ? `${tooth.observations.length} observations`
-        : tooth.observations[0]?.condition_type,
-      severity: tooth.observations[0]?.severity,
-      lastTreatmentDate: tooth.last_treatment_date,
-      observationCount: tooth.observations.length,
-      procedureCount: tooth.procedures.length,
-      // New fields for better status tracking
-      procedureStatus,
-      completedProcedureCount: completedProcedures.length,
-      hasPendingProcedure: plannedProcedures.length > 0 || inProgressProcedures.length > 0,
-      hasCompletedProcedure: completedProcedures.length > 0,
-    };
-  }) || [];
+      // Determine overall procedure status for the tooth
+      let procedureStatus: 'planned' | 'in_progress' | 'completed' | undefined;
+      if (completedProcedures.length > 0 && completedProcedures.length === tooth.procedures.length) {
+        procedureStatus = 'completed'; // All procedures completed
+      } else if (completedProcedures.length > 0) {
+        procedureStatus = 'in_progress'; // Some completed, some pending
+      } else if (inProgressProcedures.length > 0) {
+        procedureStatus = 'in_progress';
+      } else if (plannedProcedures.length > 0) {
+        procedureStatus = 'planned';
+      }
+
+      return {
+        toothNumber: tooth.tooth_number,
+        hasObservation: tooth.observations.length > 0,
+        hasProcedure: tooth.procedures.length > 0,
+        hasActiveIssue: tooth.has_active_issues,
+        conditionType: tooth.observations.length > 1
+          ? `${tooth.observations.length} observations`
+          : tooth.observations[0]?.condition_type,
+        severity: tooth.observations[0]?.severity,
+        lastTreatmentDate: tooth.last_treatment_date,
+        observationCount: tooth.observations.length,
+        procedureCount: tooth.procedures.length,
+        // New fields for better status tracking
+        procedureStatus,
+        completedProcedureCount: completedProcedures.length,
+        hasPendingProcedure: plannedProcedures.length > 0 || inProgressProcedures.length > 0,
+        hasCompletedProcedure: completedProcedures.length > 0,
+      };
+    });
+  }, [dentalChart]);
 
   // Get status display info
   const getStatusInfo = (status: string) => {
@@ -398,6 +804,21 @@ const DentalConsultation: React.FC = () => {
           <CircularProgress size={60} />
           <Typography variant="body1" sx={{ mt: 2 }}>
             Loading appointment details...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Tablet-specific: Show loading until initial data processing is complete
+  // This prevents the freeze caused by rendering heavy components before data is ready
+  if (isTablet && !isInitialLoadComplete && appointmentDetails) {
+    return (
+      <Container maxWidth="xl" sx={{ py: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={60} />
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Preparing consultation...
           </Typography>
         </Box>
       </Container>
@@ -436,9 +857,9 @@ const DentalConsultation: React.FC = () => {
   const statusInfo = getStatusInfo(appointmentDetails.status);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Container maxWidth="xl" sx={{ py: 1.5 }}>
       {/* Breadcrumbs */}
-      <Breadcrumbs sx={{ mb: 2 }}>
+      <Breadcrumbs sx={{ mb: 1 }}>
         <Link
           component="button"
           underline="hover"
@@ -460,35 +881,29 @@ const DentalConsultation: React.FC = () => {
         <Typography color="text.primary">Dental Consultation</Typography>
       </Breadcrumbs>
 
-      {/* Header */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-              <Typography variant="h4">
-                Dental Consultation
-              </Typography>
-              <Chip
-                label={statusInfo.label}
-                color={statusInfo.color}
-                size="medium"
-                icon={statusInfo.color === 'warning' ? <PlayArrow /> : statusInfo.color === 'success' ? <CheckCircle /> : undefined}
-              />
-            </Box>
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              Patient: <strong>{patientData.firstName}</strong> ({patientData.mobileNumber})
+      {/* Compact Header */}
+      <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {/* Patient Name - Main Heading */}
+            <Typography variant="h5" fontWeight="bold">
+              {patientData.firstName}
+            </Typography>
+            <Chip
+              label={statusInfo.label}
+              color={statusInfo.color}
+              size="small"
+              icon={statusInfo.color === 'warning' ? <PlayArrow /> : statusInfo.color === 'success' ? <CheckCircle /> : undefined}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {patientData.mobileNumber}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Appointment: {appointmentDetails.appointment_number} •
-              Date: {new Date(appointmentDetails.appointment_date).toLocaleDateString()} •
-              Time: {appointmentDetails.appointment_time}
+              {new Date(appointmentDetails.appointment_date).toLocaleDateString()} • {appointmentDetails.appointment_time}
             </Typography>
             {dentalChart && (
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                Dentition Type: {dentalChart.dentition_type.toUpperCase()} •
-                Total Observations: {dentalChart.total_observations} •
-                Total Procedures: {dentalChart.total_procedures} •
-                Active Treatments: {dentalChart.active_treatments}
+              <Typography variant="caption" color="text.secondary">
+                {dentalChart.dentition_type.toUpperCase()} | Obs: {dentalChart.total_observations} | Proc: {dentalChart.total_procedures}
               </Typography>
             )}
           </Box>
@@ -548,132 +963,168 @@ const DentalConsultation: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Tooth action buttons - show when tooth is selected */}
-        {selectedTooth && (
-          <Box sx={{ display: 'flex', gap: 1, mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mr: 2, alignSelf: 'center' }}>
-              Tooth #{selectedTooth} selected:
-            </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<HistoryIcon />}
-              onClick={handleViewHistory}
-            >
-              View History
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={handleAddObservation}
-            >
-              Add Observation
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<ProcedureIcon />}
-              onClick={handleAddProcedure}
-            >
-              Add Procedure
-            </Button>
-          </Box>
-        )}
       </Paper>
 
-      {/* Main Content */}
-      <Grid container spacing={3}>
-        {/* Dental Chart */}
-        <Grid item xs={12}>
+      {/* Main Content - Side-by-side layout optimized for iPad */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: { xs: 1, sm: 1 },
+          // Row layout on tablet and above, column only on mobile
+          flexDirection: { xs: 'column', sm: 'row' },
+          minHeight: { xs: 'auto', sm: 'calc(100vh - 240px)' },
+          overflow: 'visible',
+        }}
+      >
+        {/* Left Side: Dental Chart - 55% on tablet, 60-65% on desktop */}
+        <Box
+          sx={{
+            flex: { xs: '1 1 auto', sm: '0 0 55%', lg: isSidebarOpen ? '0 0 60%' : '0 0 65%' },
+            minWidth: 0,
+            overflow: 'visible',
+            transition: 'flex 0.3s ease',
+          }}
+        >
           <DentalChart
             dentitionType={dentalChart?.dentition_type || 'permanent'}
             teethData={toothData}
+            multiSelect={true}
+            selectedTeeth={selectedTeethForChart}
+            onTeethSelect={handleTeethSelect}
             onToothClick={handleToothClick}
-            selectedTooth={selectedTooth}
           />
-        </Grid>
 
-      </Grid>
+          {/* View History Button - below chart */}
+          {activeObservation && activeObservation.selectedTeeth.length === 1 && (
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                startIcon={<HistoryIcon />}
+                onClick={handleViewHistory}
+                size="small"
+              >
+                View Tooth #{activeObservation.selectedTeeth[0]} History
+              </Button>
+            </Box>
+          )}
+        </Box>
 
-      {/* Observation Form Dialog */}
-      <Dialog
-        open={showObservationForm}
-        onClose={() => setShowObservationForm(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Add Dental Observation</Typography>
-            <IconButton onClick={() => setShowObservationForm(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <DentalObservationForm
-              selectedTooth={selectedTooth || undefined}
-              onSubmit={handleObservationSubmit}
-              onCancel={() => setShowObservationForm(false)}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
+        {/* Right Side: Observation Panel - 45% on tablet, 35-40% on desktop */}
+        <Box
+          sx={{
+            flex: { xs: '1 1 auto', sm: '1 1 45%', lg: isSidebarOpen ? '1 1 40%' : '1 1 35%' },
+            minWidth: 0,
+            transition: 'flex 0.3s ease',
+          }}
+        >
+          <Paper
+            elevation={2}
+            sx={{
+              p: { xs: 1, sm: 1.5 },
+              height: { xs: 'auto', sm: 'calc(100vh - 240px)' },
+              maxHeight: { xs: 400, sm: 'none' },
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'sticky',
+              top: 8,
+            }}
+          >
+            {/* Panel Header with Actions */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6">
+                  Observations
+                </Typography>
+                <Chip
+                  label={`${observations.length} ${activeObservationId ? '▼' : '▶'}`}
+                  size="small"
+                  color={activeObservationId ? 'primary' : 'default'}
+                  variant={activeObservationId ? 'filled' : 'outlined'}
+                  onClick={() => setActiveObservationId(activeObservationId ? null : observations[0]?.id || null)}
+                  title={activeObservationId ? 'Click to collapse all' : 'Click to expand first'}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: activeObservationId ? 'primary.dark' : 'action.hover',
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddObservationRow}
+                  size="small"
+                >
+                  Add
+                </Button>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveAllObservations}
+                  disabled={savingObservations || observations.every(o => o.selectedTeeth.length === 0)}
+                  size="small"
+                >
+                  {savingObservations ? 'Saving...' : 'Save All'}
+                </Button>
+              </Box>
+            </Box>
 
-      {/* Procedure Form Dialog */}
-      <Dialog
-        open={showProcedureForm}
-        onClose={() => setShowProcedureForm(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Add Dental Procedure</Typography>
-            <IconButton onClick={() => setShowProcedureForm(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <DentalProcedureForm
-              selectedTooth={selectedTooth || undefined}
-              onSubmit={handleProcedureSubmit}
-              onCancel={() => setShowProcedureForm(false)}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
+            <Divider sx={{ mb: 1 }} />
+
+            {/* Observation Rows - Scrollable with fixed height */}
+            <Box ref={observationContainerRef} sx={{ flex: 1, overflow: 'auto', pr: 0.5 }}>
+              {observations.map((obs, index) => (
+                <div
+                  key={obs.id}
+                  ref={(el) => { observationRefs.current[obs.id] = el; }}
+                >
+                  <ObservationRow
+                    observation={obs}
+                    index={index}
+                    isActive={obs.id === activeObservationId}
+                    onUpdate={handleUpdateObservation}
+                    onDelete={handleDeleteObservation}
+                    onSetActive={handleSetActiveObservation}
+                    onEdit={handleEditObservation}
+                  />
+                </div>
+              ))}
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
 
       {/* Tooth History Dialog */}
       <Dialog
-        open={showToothHistory}
-        onClose={() => setShowToothHistory(false)}
+        open={showHistoryDialog}
+        onClose={() => setShowHistoryDialog(false)}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Tooth #{selectedTooth} History</Typography>
-            <IconButton onClick={() => setShowToothHistory(false)}>
+            <Typography variant="h6">
+              Tooth #{activeObservation?.selectedTeeth[0]} History
+            </Typography>
+            <IconButton onClick={() => setShowHistoryDialog(false)}>
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
         <DialogContent>
-          {selectedTooth && (
+          {activeObservation?.selectedTeeth[0] && (
             <ToothHistoryViewer
               patientMobileNumber={patientData.mobileNumber}
               patientFirstName={patientData.firstName}
-              toothNumber={selectedTooth}
+              toothNumber={activeObservation.selectedTeeth[0]}
             />
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowToothHistory(false)}>Close</Button>
+          <Button onClick={() => setShowHistoryDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 

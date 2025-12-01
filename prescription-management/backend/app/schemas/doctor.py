@@ -9,13 +9,32 @@ from uuid import UUID
 from datetime import datetime
 
 
+class OfficeLocation(BaseModel):
+    """Schema for office location"""
+    id: str = Field(..., description="Unique office ID (UUID string)")
+    name: str = Field(..., max_length=200, description="Office name (e.g., 'Main Clinic')")
+    address: str = Field(..., description="Full office address")
+    is_primary: bool = Field(False, description="Whether this is the primary office")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "office-123",
+                "name": "Main Clinic",
+                "address": "123 Medical Center, Chrompet, Chennai",
+                "is_primary": True
+            }
+        }
+
+
 class DoctorBase(BaseModel):
     """Base doctor schema with common fields"""
     license_number: str = Field(..., min_length=5, max_length=100, description="Medical license number")
     specialization: Optional[str] = Field(None, max_length=255, description="Medical specialization")
     qualification: Optional[str] = Field(None, description="Educational qualifications and certifications")
     experience_years: Optional[int] = Field(None, ge=0, le=70, description="Years of medical experience")
-    clinic_address: Optional[str] = Field(None, description="Clinic or hospital address")
+    clinic_address: Optional[str] = Field(None, description="Clinic or hospital address (deprecated - use offices)")
+    offices: Optional[List[OfficeLocation]] = Field(None, description="List of office locations")
     phone: Optional[str] = Field(None, max_length=20, description="Professional contact number")
     consultation_fee: Optional[str] = Field(None, max_length=20, description="Consultation fee")
     consultation_duration: Optional[int] = Field(30, ge=10, le=240, description="Default consultation duration in minutes")
@@ -100,6 +119,7 @@ class DoctorUpdate(BaseModel):
     qualification: Optional[str] = Field(None)
     experience_years: Optional[int] = Field(None, ge=0, le=70)
     clinic_address: Optional[str] = Field(None)
+    offices: Optional[List[OfficeLocation]] = Field(None, description="List of office locations")
     phone: Optional[str] = Field(None, max_length=20)
     consultation_fee: Optional[str] = Field(None, max_length=20)
     consultation_duration: Optional[int] = Field(None, ge=10, le=240)

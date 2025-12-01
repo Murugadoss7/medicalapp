@@ -37,6 +37,7 @@ import {
   ArrowBack,
   ArrowForward,
   Close,
+  LocationOn,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -52,6 +53,7 @@ import {
   type Patient,
   type Doctor,
   type AppointmentCreateRequest,
+  type OfficeLocation,
 } from '../../store/api';
 import StandardDatePicker from '../../components/common/StandardDatePicker';
 import { formatDateForAPI } from '../../components/common/StandardDatePicker';
@@ -63,6 +65,7 @@ interface BookingFormData {
   patient_first_name: string;
   patient_uuid: string;
   doctor_id: string;
+  office_id: string;
   appointment_date: Date | null;
   appointment_time: string;
   reason_for_visit: string;
@@ -100,6 +103,7 @@ export const AppointmentBooking = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedOffice, setSelectedOffice] = useState<OfficeLocation | null>(null);
   const [patientSearch, setPatientSearch] = useState('');
   const [doctorSearch, setDoctorSearch] = useState('');
   const [patientPage, setPatientPage] = useState(1);
@@ -120,6 +124,7 @@ export const AppointmentBooking = () => {
       patient_first_name: '',
       patient_uuid: '',
       doctor_id: '',
+      office_id: '',
       appointment_date: null,
       appointment_time: '',
       reason_for_visit: '',
@@ -192,6 +197,21 @@ export const AppointmentBooking = () => {
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setValue('doctor_id', doctor.id);
+
+    // Auto-select primary office or first office if available
+    if (doctor.offices && doctor.offices.length > 0) {
+      const primaryOffice = doctor.offices.find(o => o.is_primary) || doctor.offices[0];
+      setSelectedOffice(primaryOffice);
+      setValue('office_id', primaryOffice.id);
+    } else {
+      setSelectedOffice(null);
+      setValue('office_id', '');
+    }
+  };
+
+  const handleOfficeSelect = (office: OfficeLocation) => {
+    setSelectedOffice(office);
+    setValue('office_id', office.id);
   };
 
   const handleTimeSelect = (time: string) => {
@@ -224,6 +244,7 @@ export const AppointmentBooking = () => {
         patient_first_name: data.patient_first_name,
         patient_uuid: data.patient_uuid,
         doctor_id: data.doctor_id,
+        office_id: data.office_id || undefined,
         appointment_date: formatDateForAPI(data.appointment_date) || '',
         appointment_time: data.appointment_time,
         duration_minutes: 30,
@@ -547,6 +568,70 @@ export const AppointmentBooking = () => {
           </Box>
         </Box>
 
+        {/* Office Selection - only show if doctor has multiple offices */}
+        {selectedDoctor && selectedDoctor.offices && selectedDoctor.offices.length > 1 && (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Select Office Location
+            </Typography>
+            <Grid container spacing={2}>
+              {selectedDoctor.offices.map((office) => (
+                <Grid item xs={12} sm={6} key={office.id}>
+                  <Card
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      border: '2px solid',
+                      borderColor: selectedOffice?.id === office.id ? 'primary.main' : 'divider',
+                      bgcolor: selectedOffice?.id === office.id ? 'primary.lighter' : 'background.paper',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        transform: 'translateY(-2px)',
+                        boxShadow: 2,
+                      }
+                    }}
+                    onClick={() => handleOfficeSelect(office)}
+                    elevation={0}
+                  >
+                    <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                        <LocationOn sx={{ color: selectedOffice?.id === office.id ? 'primary.main' : 'text.secondary', mt: 0.5 }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                              {office.name}
+                            </Typography>
+                            {office.is_primary && (
+                              <Chip label="Primary" size="small" color="primary" />
+                            )}
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {office.address}
+                          </Typography>
+                        </Box>
+                        {selectedOffice?.id === office.id && (
+                          <CheckCircle sx={{ color: 'primary.main' }} />
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
+
+        {/* Show single office info if doctor has only one office */}
+        {selectedDoctor && selectedDoctor.offices && selectedDoctor.offices.length === 1 && (
+          <Box sx={{ mb: 4 }}>
+            <Alert severity="info" icon={<LocationOn />}>
+              <Typography variant="body2">
+                <strong>Office:</strong> {selectedDoctor.offices[0].name} - {selectedDoctor.offices[0].address}
+              </Typography>
+            </Alert>
+          </Box>
+        )}
+
         {/* Date & Time Selection */}
         {selectedDoctor && (
           <Slide direction="up" in mountOnEnter unmountOnExit>
@@ -729,6 +814,25 @@ export const AppointmentBooking = () => {
                 </Typography>
               </Box>
             </Grid>
+
+            {selectedOffice && (
+              <Grid item xs={12}>
+                <Typography variant="overline" color="text.secondary">
+                  Office Location
+                </Typography>
+                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationOn color="primary" />
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {selectedOffice.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedOffice.address}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            )}
 
             <Grid item xs={12} md={6}>
               <Typography variant="overline" color="text.secondary">

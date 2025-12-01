@@ -663,6 +663,82 @@ async def get_doctor_schedule(
         )
 
 
+@router.get("/doctor/{doctor_id}/office-stats", response_model=Dict[str, Any])
+async def get_doctor_office_stats(
+    doctor_id: UUID,
+    stats_date: Optional[date] = Query(None, description="Date to get stats for (default: today)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Get appointment counts by office for a doctor on a specific date.
+
+    **Staff access required.**
+
+    Returns:
+    - office_stats: List of {office_id, office_name, appointment_count}
+    - total: Total appointments for the day
+    """
+    try:
+        from app.models.appointment import Appointment
+        from app.models.doctor import Doctor
+        from sqlalchemy import func
+
+        target_date = stats_date or date.today()
+
+        # Get doctor to access offices data
+        doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+        if not doctor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Doctor not found"
+            )
+
+        # Get appointments for the date grouped by office_id
+        office_counts = db.query(
+            Appointment.office_id,
+            func.count(Appointment.id).label('count')
+        ).filter(
+            Appointment.doctor_id == doctor_id,
+            Appointment.appointment_date == target_date,
+            Appointment.is_active == True,
+            Appointment.status.notin_(['cancelled', 'no_show'])
+        ).group_by(Appointment.office_id).all()
+
+        # Build response with office names
+        offices_map = {}
+        if doctor.offices:
+            for office in doctor.offices:
+                offices_map[office.get('id')] = office.get('name', 'Unknown Office')
+
+        office_stats = []
+        total = 0
+        for office_id, count in office_counts:
+            office_name = offices_map.get(office_id, 'No Office Assigned') if office_id else 'No Office Assigned'
+            office_stats.append({
+                'office_id': office_id,
+                'office_name': office_name,
+                'appointment_count': count
+            })
+            total += count
+
+        return {
+            'doctor_id': str(doctor_id),
+            'date': target_date.isoformat(),
+            'office_stats': office_stats,
+            'total': total
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving office stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve office statistics"
+        )
+
+
 @router.get("/availability/{doctor_id}/{schedule_date}", response_model=AvailableTimeSlotsResponse)
 async def get_available_time_slots(
     doctor_id: UUID,

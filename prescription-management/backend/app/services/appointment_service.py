@@ -93,6 +93,7 @@ class AppointmentService:
             patient_first_name=appointment_data.patient_first_name,
             patient_uuid=appointment_data.patient_uuid,
             doctor_id=appointment_data.doctor_id,
+            office_id=appointment_data.office_id,
             appointment_date=appointment_data.appointment_date,
             appointment_time=appointment_data.appointment_time,
             reason_for_visit=appointment_data.reason_for_visit,
