@@ -3,11 +3,20 @@
 
 ---
 
-**📅 Last Updated**: November 28, 2025
+**📅 Last Updated**: December 2, 2025
 **🎯 Purpose**: Complete API endpoint reference with request/response formats
-**📋 Status**: All 117+ endpoints implemented and tested including dental module
+**📋 Status**: All 118+ endpoints implemented and tested including dental module
 **🔗 Base URL**: `http://localhost:8000/api/v1`
 **🚀 Recent Updates**:
+- **iPad Performance Optimizations** ⭐ NEW: Module-level guards prevent duplicate API calls, useTransition for non-blocking UI
+- **Dental Consultation Side-by-Side Layout**: Chart (55%) + Observation Panel (45%) on tablet/desktop
+- **ObservationRow Component**: Inline observation form with collapsible procedure section
+- **DentalSummaryTable**: Holistic treatment summary view for all observations
+- **TodayAppointmentsSidebar**: Persistent right sidebar for doctor dashboard
+- **Procedures Sidebar Feature**: Click "Today's Procedures" card to view scheduled procedures in sidebar
+- **GET /dental/procedures/doctor/{id}/today**: Returns today's procedures with `patient_name` field
+- **DentalProcedureResponse**: Added optional `patient_name` field for sidebar display
+- **uiSlice sidebarMode**: Toggle between 'appointments' and 'procedures' views
 - **Appointment Status Transitions Updated**: `scheduled → in_progress` now allowed for direct consultation start
 - **useUpdateAppointmentStatusMutation**: RTK Query hook for appointment status updates with cache invalidation
 - **Toast Notification System**: ToastContext replaces browser alerts throughout frontend
@@ -17,7 +26,7 @@
 - Doctor ownership validation enforced for prescriptions (backend validates doctor_id)
 - Prescription items now fully editable (dosage, frequency, duration, quantity, instructions)
 - Short key error handling improved (404 instead of 500 for not found)
-- Dental module complete (18 endpoints)
+- Dental module complete (19 endpoints)
 - Login and /auth/me return `specialization` and `doctor_id` fields for doctors
 
 ## ⚠️ Important Field Mapping Notes
@@ -314,7 +323,21 @@ Authorization: Bearer <access_token>
     "consultation_fee": 500.00,
     "available_days": "MON,TUE,WED,THU,FRI",
     "start_time": "09:00:00",
-    "end_time": "22:00:00"
+    "end_time": "22:00:00",
+    "offices": [                          // ⭐ Multiple office locations
+        {
+            "id": "office-uuid-1",        // Unique office ID (auto-generated if not provided)
+            "name": "Main Clinic",
+            "address": "123 Main St, City",
+            "is_primary": true
+        },
+        {
+            "id": "office-uuid-2",
+            "name": "Branch Office",
+            "address": "456 Branch Ave, City",
+            "is_primary": false
+        }
+    ]
 }
 
 // Response (201)
@@ -329,7 +352,11 @@ Authorization: Bearer <access_token>
     "available_days": "MON,TUE,WED,THU,FRI",
     "full_name": "Dr. John Doe",
     "is_available_today": true,
-    "available_days_list": ["MON", "TUE", "WED", "THU", "FRI"]
+    "available_days_list": ["MON", "TUE", "WED", "THU", "FRI"],
+    "offices": [                          // ⭐ Office locations
+        {"id": "office-uuid-1", "name": "Main Clinic", "address": "123 Main St", "is_primary": true},
+        {"id": "office-uuid-2", "name": "Branch Office", "address": "456 Branch Ave", "is_primary": false}
+    ]
 }
 ```
 
@@ -886,6 +913,7 @@ Authorization: Bearer <access_token>
     "patient_first_name": "Raj",
     "patient_uuid": "uuid",
     "doctor_id": "uuid",
+    "office_id": "office-uuid-1",          // ⭐ Office ID from doctor's offices array (optional)
     "appointment_date": "2025-11-01",
     "appointment_time": "09:30:00",
     "duration_minutes": 30,
@@ -901,6 +929,7 @@ Authorization: Bearer <access_token>
     "patient_mobile_number": "9876543210",
     "patient_first_name": "Raj",
     "doctor_id": "uuid",
+    "office_id": "office-uuid-1",          // ⭐ Office ID where appointment is scheduled
     "appointment_date": "2025-11-01",
     "appointment_time": "09:30:00",
     "duration_minutes": 30,
@@ -1887,7 +1916,7 @@ cancelled ← cancelled ← cancelled
 
 ---
 
-## 🦷 Dental Management (18 endpoints) ⭐ NEW
+## 🦷 Dental Management (19 endpoints) ⭐ NEW
 
 ### **Dental Observations & Procedures**
 
@@ -2062,7 +2091,7 @@ cancelled ← cancelled ← cancelled
 
 ---
 
-### **Dental Procedures (7 endpoints)**
+### **Dental Procedures (8 endpoints)**
 
 #### **1. POST /dental/procedures** - Create Dental Procedure
 ```javascript
@@ -2182,6 +2211,55 @@ cancelled ← cancelled ← cancelled
     "failed": 0,
     "procedures": [ /* created procedure objects */ ]
 }
+```
+
+#### **8. GET /dental/procedures/doctor/{doctor_id}/today** - Get Today's Procedures ⭐ NEW
+```javascript
+// Example: GET /dental/procedures/doctor/47206507-7c49-4be9-bbde-873db6dac204/today
+// Returns procedures scheduled for today for a specific doctor
+// Used by: Doctor Dashboard sidebar procedures view
+
+// Response (200)
+{
+    "procedures": [
+        {
+            "id": "uuid",
+            "procedure_code": "D2740",
+            "procedure_name": "Crown - Porcelain",
+            "tooth_numbers": "14",
+            "description": null,
+            "estimated_cost": 15000.00,
+            "actual_cost": null,
+            "duration_minutes": null,
+            "status": "planned",              // planned, in_progress
+            "procedure_date": "2025-11-30",
+            "completed_date": null,
+            "procedure_notes": null,
+            "complications": null,
+            "observation_id": null,
+            "prescription_id": null,
+            "appointment_id": "uuid",
+            "created_at": "2025-11-30T10:00:00Z",
+            "updated_at": "2025-11-30T10:00:00Z",
+            "patient_name": "Mohan"           // ⭐ NEW: Patient name from appointment
+        },
+        {
+            "id": "uuid",
+            "procedure_code": "D2150",
+            "procedure_name": "Amalgam - Two Surfaces",
+            "tooth_numbers": "36",
+            "status": "in_progress",
+            "patient_name": "Karthick"
+            // ... other fields
+        }
+    ],
+    "total": 2
+}
+
+// Notes:
+// - Filters by procedure_date = today AND status IN ('planned', 'in_progress')
+// - Links procedures to doctor via appointment.doctor_id
+// - patient_name is extracted from appointment.patient_first_name
 ```
 
 ---

@@ -96,6 +96,7 @@ class RegisterRequest(BaseModel):
     consultation_fee: Optional[str] = Field(None, description="Consultation fee amount")
     consultation_duration: Optional[int] = Field(30, ge=10, le=240, description="Consultation duration in minutes")
     availability_schedule: Optional[dict] = Field(None, description="Weekly availability schedule")
+    offices: Optional[list] = Field(None, description="List of office locations")
     
     @validator('confirm_password')
     def passwords_match(cls, v, values, **kwargs):

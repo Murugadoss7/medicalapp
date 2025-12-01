@@ -375,6 +375,25 @@ class DentalService:
             DentalProcedure.appointment_id == appointment_id,
         ).order_by(DentalProcedure.created_at).all()
 
+    def get_doctor_today_procedures(
+        self,
+        doctor_id: UUID
+    ) -> List[DentalProcedure]:
+        """
+        Get today's dental procedures for a specific doctor.
+        Procedures are linked to doctor via appointments.
+        Returns all active procedures for today (planned, in_progress, and completed).
+        """
+        today = date.today()
+        return self.db.query(DentalProcedure).join(
+            Appointment,
+            DentalProcedure.appointment_id == Appointment.id
+        ).filter(
+            Appointment.doctor_id == doctor_id,
+            DentalProcedure.procedure_date == today,
+            DentalProcedure.status.in_(['planned', 'in_progress', 'completed'])
+        ).order_by(DentalProcedure.created_at).all()
+
     def update_procedure_status(
         self,
         procedure_id: UUID,

@@ -3,11 +3,19 @@
 
 ---
 
-**📅 Last Updated**: November 28, 2025
+**📅 Last Updated**: December 2, 2025
 **🎯 Purpose**: Detailed frontend development roadmap with page specifications and API mappings
 **📋 Based On**: WORKFLOW_SPECIFICATIONS.md, API_REFERENCE_GUIDE.md, ENTITY_RELATIONSHIP_DIAGRAM.md
 **🔗 Backend APIs**: 117+ endpoints ready for integration
 **🚀 Recent Updates**:
+- **iPad UI Optimizations**: Fixed page freeze with useTransition and module-level guards ⭐ NEW
+- **Side-by-Side Layout**: Chart (55%) | Observations (45%) on tablet, responsive on mobile ⭐ NEW
+- **ObservationRow Component**: Inline forms with collapsible procedure section ⭐ NEW
+- **TodayAppointmentsSidebar**: Persistent right sidebar for today's appointments ⭐ NEW
+- **Treatment Summary Dialog**: DentalSummaryTable in modal for holistic view ⭐ NEW
+- **Procedures Sidebar View**: Click "Today's Procedures" card to view procedures in right sidebar
+- **Clickable StatCards**: StatCard component now supports onClick for interactive dashboards
+- **Sidebar Mode Toggle**: Switch between appointments and procedures views in sidebar
 - **Toast Notification System**: ToastContext + ConfirmDialog replaces browser alerts
 - **Dental Consultation Status Tracking**: Status chip (Scheduled/In Progress/Completed), Complete Consultation button
 - **Navigation Guard**: Exit dialog when navigating away from in_progress consultations
@@ -40,6 +48,9 @@
   - TodaySchedule component with status-based styling
   - "Start"/"Continue"/"View" buttons based on appointment status
   - Book Appointment and Refresh buttons in header
+  - **Procedures Sidebar View**: Click "Today's Procedures" card to view procedures ⭐ NEW
+  - **Sidebar Mode Toggle**: Switch between appointments and procedures views ⭐ NEW
+  - Office location click returns to appointments view
 - **Navigation**: Main layout with protected routes and role-based redirects
 - **Appointment Management**: Complete appointment booking system with:
   - 3-step booking wizard (Patient → Doctor & Schedule → Confirmation)
@@ -55,8 +66,12 @@
   - ToastContext with success/error/warning/info methods
   - ConfirmDialog component for action confirmations
   - Replaces all browser alerts throughout the application
-- **Dental Consultation Module**: Complete consultation workflow ⭐ NEW
-  - Interactive FDI tooth chart with 32/20 teeth display
+- **Dental Consultation Module**: Complete consultation workflow ⭐ UPDATED
+  - Interactive FDI tooth chart with 32/20 teeth display (iPad optimized)
+  - **Side-by-Side Layout**: Chart (55%) | Observations (45%) on tablet ⭐ NEW
+  - **ObservationRow Component**: Inline forms with collapsible procedures ⭐ NEW
+  - **Treatment Summary Dialog**: DentalSummaryTable in modal ⭐ NEW
+  - **iPad Optimizations**: useTransition + module-level guards prevent freeze ⭐ NEW
   - Dental observations with 14 condition types, 7 surfaces
   - Dental procedures with 20+ CDT codes
   - Consultation status tracking (Scheduled → In Progress → Completed)
@@ -65,6 +80,11 @@
   - Navigation guard with exit dialog for in-progress consultations
   - Breadcrumb navigation with navigation state awareness
   - Auto-update to "in_progress" when entering consultation
+- **TodayAppointmentsSidebar**: Right sidebar for doctors ⭐ NEW
+  - Persistent sidebar showing today's appointments
+  - Toggle button in AppBar
+  - 320px width, visible on dashboard + large screens
+  - Click to navigate to consultation page
 
 ### 🚧 **In Progress**
 - **Prescription Management**: Viewing and printing complete, creation workflow in progress
@@ -393,11 +413,26 @@ interface ProfessionalCredentials {
 #### **Step 2: Clinic Details**
 ```typescript
 interface ClinicDetails {
-    clinic_address: string;     // optional
+    clinic_address: string;     // optional (deprecated - use offices)
     consultation_fee: string;   // optional
     consultation_duration: number; // default 30 minutes
+    offices: OfficeLocation[];  // ⭐ Multiple office locations
+}
+
+interface OfficeLocation {
+    id: string;                 // Unique office ID (auto-generated UUID)
+    name: string;               // Office name (e.g., "Main Clinic")
+    address: string;            // Full address
+    is_primary: boolean;        // Primary office flag (first office is primary)
 }
 ```
+
+**Office Management UI Features:**
+- Add multiple clinic/hospital locations
+- Set primary office (first office added is primary by default)
+- Edit office name and address
+- Remove offices (except primary if others exist)
+- Review offices in Step 4 summary
 
 #### **Step 3: Availability Schedule**
 ```typescript
@@ -512,18 +547,106 @@ const { data: prescriptionStats } = useQuery({
         <StatCard title="Today's Appointments" value={todayStats.total_appointments} />
         <StatCard title="Prescriptions Written" value={todayStats.prescriptions_written} />
         <StatCard title="Pending Appointments" value={todayStats.pending_appointments} />
+        {/* Clickable procedures card - opens procedures sidebar */}
+        <StatCard
+            title="Today's Procedures"
+            value={todayStats.procedures_count}
+            onClick={handleProceduresClick}  // ⭐ NEW: Clickable card
+            subtitle="Click to view procedures"
+        />
     </StatsCards>
-    
+
     <MainContent>
         <LeftPanel>
             <TodaySchedule appointments={todayAppointments} />
         </LeftPanel>
         <RightPanel>
-            <RecentPrescriptions prescriptions={recentPrescriptions} />
-            <UpcomingAppointments appointments={upcomingAppointments} />
+            {/* Sidebar shows appointments or procedures based on sidebarMode */}
+            <TodayAppointmentsSidebar
+                mode={sidebarMode}  // 'appointments' | 'procedures'
+                appointments={todayAppointments}
+                procedures={todayProcedures}
+            />
         </RightPanel>
     </MainContent>
 </DoctorDashboard>
+```
+
+#### **Procedures Sidebar Feature** ⭐ NEW (November 30, 2025)
+
+**State Management** (`frontend/src/store/slices/uiSlice.ts`):
+```typescript
+type SidebarMode = 'appointments' | 'procedures';
+
+interface UIState {
+    sidebarMode: SidebarMode;      // Controls sidebar content
+    appointmentsSidebarOpen: boolean;
+    selectedOfficeId: string | null;
+    // ... other fields
+}
+
+// Actions
+setSidebarMode: (state, action: PayloadAction<SidebarMode>) => {
+    state.sidebarMode = action.payload;
+}
+```
+
+**Click Handlers** (`frontend/src/pages/doctor/DoctorDashboard.tsx`):
+```typescript
+// Procedures card click - show procedures in sidebar
+const handleProceduresClick = () => {
+    dispatch(setSidebarMode('procedures'));
+    dispatch(setAppointmentsSidebarOpen(true));
+};
+
+// Office location click - show appointments in sidebar
+const handleOfficeClick = (officeId: string) => {
+    dispatch(setSelectedOfficeId(officeId));
+    dispatch(setSidebarMode('appointments'));
+    dispatch(setAppointmentsSidebarOpen(true));
+};
+```
+
+**Sidebar Component** (`frontend/src/components/dashboard/TodayAppointmentsSidebar.tsx`):
+```typescript
+// Conditional rendering based on mode
+{sidebarMode === 'procedures' ? (
+    <ProceduresView>
+        {procedures.map(procedure => (
+            <ProcedureCard key={procedure.id}>
+                <ProcedureName>{procedure.procedure_name}</ProcedureName>
+                <PatientName>{procedure.patient_name}</PatientName>
+                <ToothNumbers>Teeth: {procedure.tooth_numbers}</ToothNumbers>
+                <ProcedureCode>{procedure.procedure_code}</ProcedureCode>
+                <StatusChip status={procedure.status} />
+            </ProcedureCard>
+        ))}
+    </ProceduresView>
+) : (
+    <AppointmentsView>
+        {appointments.map(apt => (
+            <AppointmentCard key={apt.id} />
+        ))}
+    </AppointmentsView>
+)}
+```
+
+**API Integration**:
+```typescript
+// GET /api/v1/dental/procedures/doctor/{doctor_id}/today
+const { data: todayProcedures } = useGetDoctorTodayProceduresQuery(doctorId);
+
+// Response includes patient_name from linked appointment
+interface ProcedureResponse {
+    id: string;
+    procedure_name: string;
+    procedure_code: string;
+    tooth_numbers: string;
+    status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+    patient_name: string;  // Populated from appointment.patient_first_name
+    procedure_date: string;
+    estimated_cost?: number;
+}
 ```
 
 ### **4. Doctor Appointments** - `/doctor/appointments`
@@ -746,13 +869,14 @@ const validatePrescription = useMutation({
 </PrescriptionBuilder>
 ```
 
-### **6.5. Dental Consultation** - `/appointments/{appointmentId}/dental` ⭐ NEW
+### **6.5. Dental Consultation** - `/appointments/{appointmentId}/dental` ⭐ UPDATED
 
 #### **Implementation Details**
-- **Status**: ✅ Fully implemented with consultation status tracking
-- **Component**: `DentalConsultation.tsx` (~800 lines)
+- **Status**: ✅ Fully implemented with iPad optimizations
+- **Component**: `DentalConsultation.tsx` (~1350 lines)
 - **Access**: Visible only for doctors with dental specialization
-- **Features**: FDI tooth chart, observations, procedures, status tracking, navigation guard
+- **Features**: FDI tooth chart, side panel observations, treatment summary, status tracking
+- **iPad Optimizations**: useTransition + module-level guards prevent page freeze
 
 #### **Page Data & State**
 ```typescript
@@ -776,84 +900,167 @@ await updateStatus({ appointmentId: id, status: 'in_progress' });
 await updateStatus({ appointmentId: id, status: 'completed' });
 ```
 
-#### **Page Layout**
+#### **Page Layout** ⭐ UPDATED - Side-by-Side with ObservationRow
 ```jsx
 <DentalConsultationPage>
-    <Breadcrumb
-        items={[
-            { label: 'Dashboard', path: '/doctor/dashboard' },
-            { label: 'Appointments', path: '/appointments' },
-            { label: patient.full_name },
-            { label: 'Dental Consultation' }
-        ]}
-        onNavigate={handleNavigateAway}  // Opens exit dialog if in_progress
-    />
+    {/* Header: Patient Info + Status Chip + Complete Button */}
+    <Paper sx={{ p: 2, mb: 2 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box>
+                <Typography variant="h5">{patient.full_name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {patient.mobile_number}
+                </Typography>
+            </Box>
+            <Box display="flex" gap={1}>
+                <StatusChip status={appointment.status} />
+                {appointment.status !== 'completed' && (
+                    <Button variant="contained" color="success" onClick={handleComplete}>
+                        Complete Consultation
+                    </Button>
+                )}
+            </Box>
+        </Box>
+    </Paper>
 
-    <PageHeader>
-        <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="h4">Dental Consultation</Typography>
-            <StatusChip
-                label={getStatusLabel(appointment.status)}
-                color={statusColors[appointment.status]}
-                icon={getStatusIcon(appointment.status)}
+    {/* Main Content: Side-by-Side Layout (Tablet/Desktop) */}
+    <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },  // Stack on mobile, side-by-side on tablet+
+        gap: 2,
+        height: 'calc(100vh - 200px)'
+    }}>
+        {/* Left: Dental Chart (55% width on tablet) */}
+        <Box sx={{
+            flex: { xs: '1 1 auto', md: '0 0 55%' },
+            minWidth: 0,
+            overflow: 'auto'
+        }}>
+            <DentalChart
+                selectedTeeth={activeObservation?.selectedTeeth || []}
+                onToothSelect={handleToothSelect}
+                observations={observations}
+                highlightedTeeth={activeObservation?.selectedTeeth || []}
+            />
+
+            {/* Treatment Summary Table - Shows holistic view */}
+            <DentalSummaryTable
+                observations={observations}
+                onToothClick={handleToothClick}
             />
         </Box>
 
-        <PatientInfo>
-            <Typography>{patient.full_name}</Typography>
-            <Typography>{patient.mobile_number}</Typography>
-        </PatientInfo>
+        {/* Right: Observation Side Panel (45% width on tablet) */}
+        <Box sx={{
+            flex: { xs: '1 1 auto', md: '0 0 45%' },
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+        }}>
+            {/* Panel Header */}
+            <Paper sx={{ p: 1.5, mb: 1, display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="h6">Observations ({observations.length})</Typography>
+                <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleAddObservation}
+                    disabled={appointment?.status === 'completed'}
+                >
+                    + Add Observation
+                </Button>
+            </Paper>
 
-        {appointment.status !== 'completed' && (
-            <Button
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircle />}
-                onClick={handleCompleteConsultation}
-            >
-                Complete Consultation
-            </Button>
-        )}
-    </PageHeader>
+            {/* Scrollable Observation List */}
+            <Box sx={{ flex: 1, overflow: 'auto', pr: 1 }}>
+                {observations.map((obs, index) => (
+                    <ObservationRow
+                        key={obs.id}
+                        observation={obs}
+                        index={index}
+                        isActive={activeObservationId === obs.id}
+                        onUpdate={handleUpdateObservation}
+                        onDelete={handleDeleteObservation}
+                        onSetActive={setActiveObservationId}
+                        onEdit={handleEditSavedObservation}
+                    />
+                ))}
+            </Box>
 
-    <MainContent>
-        <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-                <DentalChart
-                    selectedTooth={selectedTooth}
-                    onToothSelect={setSelectedTooth}
-                    observations={observations}
-                    procedures={procedures}
-                />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-                <Tabs>
-                    <Tab label="Observations" />
-                    <Tab label="Procedures" />
-                    <Tab label="History" />
-                </Tabs>
-
-                <TabPanels>
-                    <DentalObservationForm />
-                    <DentalProcedureForm />
-                    <ToothHistoryViewer />
-                </TabPanels>
-            </Grid>
-        </Grid>
-    </MainContent>
-
-    {/* Exit Dialog - shown when navigating away from in_progress */}
-    <ConfirmDialog
-        open={showExitDialog}
-        title="Leave Consultation?"
-        message="This appointment is still in progress. Do you want to mark it as still in progress or complete it?"
-        onConfirm={() => navigateTo(pendingNavigation)}  // Leave as in_progress
-        onCancel={() => setShowExitDialog(false)}
-        confirmText="No, Still In Progress"
-        cancelText="Cancel"
-    />
+            {/* Save Button - Fixed at bottom */}
+            {hasUnsavedChanges && (
+                <Paper sx={{ p: 1.5, mt: 1 }}>
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        color="primary"
+                        onClick={handleSaveAllObservations}
+                    >
+                        Save All Observations
+                    </Button>
+                </Paper>
+            )}
+        </Box>
+    </Box>
 </DentalConsultationPage>
+```
+
+#### **iPad Performance Optimizations** ⭐ NEW
+```typescript
+// 1. Module-level guards prevent duplicate API calls (React Strict Mode safe)
+const loadedAppointments = new Set<string>();
+const loadingAppointments = new Set<string>();
+
+// 2. useTransition for non-blocking state updates
+const [, startTransition] = useTransition();
+
+// 3. Load observations with guards
+useEffect(() => {
+    if (!appointmentId) return;
+    if (loadedAppointments.has(appointmentId) || loadingAppointments.has(appointmentId)) {
+        return; // Already loaded or loading
+    }
+    loadSavedObservations();
+}, [appointmentId]);
+
+// 4. Non-blocking state updates
+const loadSavedObservations = async () => {
+    loadingAppointments.add(appointmentId);
+    const data = await fetchObservations(appointmentId);
+
+    startTransition(() => {
+        setObservations(data);  // Non-blocking
+    });
+
+    loadedAppointments.add(appointmentId);
+    loadingAppointments.delete(appointmentId);
+    setIsInitialLoadComplete(true);  // Outside startTransition - critical!
+};
+```
+
+#### **ObservationRow Component Features** ⭐ NEW
+```typescript
+// Inline observation form with collapsible procedure section
+interface ObservationData {
+    id: string;
+    selectedTeeth: string[];      // FDI notation: ['11', '12', '21']
+    toothSurface: string;         // Occlusal, Mesial, Distal, etc.
+    conditionType: string;        // Cavity, Decay, Fracture, Missing, etc.
+    severity: string;             // Mild, Moderate, Severe
+    observationNotes: string;
+    treatmentRequired: boolean;
+    // Optional procedure data
+    hasProcedure: boolean;
+    procedureCode: string;        // D0120, D1110, D2140, CUSTOM, etc.
+    procedureName: string;
+    customProcedureName: string;
+    procedureDate: Date | null;
+    procedureNotes: string;
+    isSaved?: boolean;            // Read-only when saved
+}
+
+// Collapsed view shows tags: teeth chips, condition, severity, procedure
+// Expanded view shows full form with all fields
+// "+ Procedure" button expands inline procedure form
 ```
 
 #### **Key Features**
@@ -1258,13 +1465,14 @@ interface AppointmentBookingForm {
     patient_mobile_number: string;  // required
     patient_first_name: string;     // required, from family member selection
     patient_uuid: string;           // required, from patient data
-    
+
     // Doctor & Scheduling
     doctor_id: string;              // required, from doctor selection
+    office_id: string;              // ⭐ Office ID from doctor's offices (auto-selected or user-selected)
     appointment_date: Date;         // required, future date only
     appointment_time: string;       // required, available slot only
     duration_minutes: number;       // default 30, based on doctor settings
-    
+
     // Appointment Details
     reason_for_visit: string;       // required, min 10 chars
     notes: string;                  // optional
@@ -1282,12 +1490,19 @@ const PatientSelectionStep = {
     showFamilyMembers: boolean
 };
 
-// Step 2: Doctor Selection  
+// Step 2: Doctor Selection & Office Selection ⭐ UPDATED
 const DoctorSelectionStep = {
     specialization: string,
     selectedDoctor: Doctor | null,
-    availableDoctors: Doctor[]
+    availableDoctors: Doctor[],
+    selectedOffice: OfficeLocation | null,  // ⭐ Office selection
+    showOfficeSelection: boolean            // Show only when doctor has multiple offices
 };
+
+// Office selection behavior:
+// - Auto-select primary office or first office when doctor is selected
+// - Show office selection cards only when doctor has > 1 office
+// - office_id is included in appointment creation request
 
 // Step 3: Date & Time Selection
 const SchedulingStep = {

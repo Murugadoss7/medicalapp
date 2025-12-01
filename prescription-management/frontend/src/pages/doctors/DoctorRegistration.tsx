@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,7 +8,6 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  Divider,
   Paper,
   Step,
   Stepper,
@@ -16,9 +15,23 @@ import {
   Card,
   CardContent,
   Container,
+  IconButton,
+  Checkbox,
+  FormControlLabel,
+  Chip,
 } from '@mui/material';
-import { LocalHospital as DoctorIcon } from '@mui/icons-material';
+import {
+  LocalHospital as DoctorIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  LocationOn as LocationIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+
+// Simple UUID generator using crypto API
+const generateUUID = (): string => {
+  return crypto.randomUUID();
+};
 import {
   useRegisterMutation,
   type RegisterRequest,
@@ -33,6 +46,13 @@ interface UserAccountData {
   phone: string;
 }
 
+interface OfficeLocation {
+  id: string;
+  name: string;
+  address: string;
+  is_primary: boolean;
+}
+
 interface DoctorFormData {
   user_id: string;
   license_number: string;
@@ -44,6 +64,7 @@ interface DoctorFormData {
   consultation_fee: string;
   consultation_duration: number;
   availability_schedule: WeeklySchedule;
+  offices: OfficeLocation[];
 }
 
 interface WeeklySchedule {
@@ -147,6 +168,7 @@ export const DoctorRegistration = () => {
       consultation_fee: '',
       consultation_duration: 30,
       availability_schedule: defaultSchedule,
+      offices: [],
     },
     createdUserId: null,
   });
@@ -264,6 +286,9 @@ export const DoctorRegistration = () => {
         consultation_fee: registrationState.doctorInfo.consultation_fee || undefined,
         consultation_duration: registrationState.doctorInfo.consultation_duration || 30,
         availability_schedule: registrationState.doctorInfo.availability_schedule,
+        offices: registrationState.doctorInfo.offices.length > 0
+          ? registrationState.doctorInfo.offices
+          : undefined,
       };
 
       await registerUser(registerData).unwrap();
@@ -609,25 +634,158 @@ const ClinicDetailsStep = ({ formData, onChange }: ClinicDetailsStepProps) => {
     onChange(field, event.target.value);
   };
 
+  const addOffice = () => {
+    const newOffice: OfficeLocation = {
+      id: generateUUID(),
+      name: '',
+      address: '',
+      is_primary: formData.offices.length === 0, // First office is primary by default
+    };
+    onChange('offices', [...formData.offices, newOffice]);
+  };
+
+  const removeOffice = (index: number) => {
+    const updatedOffices = formData.offices.filter((_, i) => i !== index);
+    // If removed office was primary, make first remaining office primary
+    if (formData.offices[index].is_primary && updatedOffices.length > 0) {
+      updatedOffices[0].is_primary = true;
+    }
+    onChange('offices', updatedOffices);
+  };
+
+  const updateOffice = (index: number, field: keyof OfficeLocation, value: any) => {
+    const updatedOffices = [...formData.offices];
+
+    if (field === 'is_primary' && value === true) {
+      // If setting as primary, unset all others
+      updatedOffices.forEach((office, i) => {
+        office.is_primary = i === index;
+      });
+    } else {
+      updatedOffices[index] = { ...updatedOffices[index], [field]: value };
+    }
+
+    onChange('offices', updatedOffices);
+  };
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom color="primary">
         Clinic & Consultation Details
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Provide clinic information and consultation details (all fields are optional).
+        Provide clinic information and consultation details. You can add multiple office locations.
       </Typography>
 
+      {/* Office Locations Section */}
+      <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.default' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocationIcon color="primary" />
+            <Typography variant="h6">Office Locations</Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={addOffice}
+          >
+            Add Office
+          </Button>
+        </Box>
+
+        {formData.offices.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 3, bgcolor: 'action.hover', borderRadius: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              No offices added yet. Click "Add Office" to add your clinic locations.
+            </Typography>
+          </Box>
+        ) : (
+          <Grid container spacing={2}>
+            {formData.offices.map((office, index) => (
+              <Grid item xs={12} key={office.id}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    border: office.is_primary ? '2px solid' : '1px solid',
+                    borderColor: office.is_primary ? 'primary.main' : 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={4}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Office Name"
+                            placeholder="e.g., Main Clinic, Chrompet Branch"
+                            value={office.name}
+                            onChange={(e) => updateOffice(index, 'name', e.target.value)}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={8}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Full Address"
+                            placeholder="e.g., 123 Main Street, Chrompet, Chennai - 600044"
+                            value={office.address}
+                            onChange={(e) => updateOffice(index, 'address', e.target.value)}
+                          />
+                        </Grid>
+                      </Grid>
+                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={office.is_primary}
+                              onChange={(e) => updateOffice(index, 'is_primary', e.target.checked)}
+                            />
+                          }
+                          label={
+                            <Typography variant="body2" color="text.secondary">
+                              Primary Office
+                            </Typography>
+                          }
+                        />
+                        {office.is_primary && (
+                          <Chip
+                            label="Primary"
+                            size="small"
+                            color="primary"
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => removeOffice(index)}
+                      title="Remove office"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Paper>
+
+      {/* Consultation Details */}
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <TextField
             fullWidth
-            label="Clinic/Hospital Address"
+            label="Legacy Clinic Address (Optional)"
             multiline
-            rows={3}
+            rows={2}
             value={formData.clinic_address}
             onChange={handleInputChange('clinic_address')}
-            helperText="Primary practice location address"
+            helperText="This field is deprecated. Use Office Locations above instead."
           />
         </Grid>
 
@@ -850,11 +1008,52 @@ const ReviewStep = ({ userAccountData, doctorInfo }: ReviewStepProps) => {
           <Grid item xs={12} sm={6}>
             <Typography variant="body2"><strong>Duration:</strong> {doctorInfo.consultation_duration} minutes</Typography>
           </Grid>
-          <Grid item xs={12}>
-            <Typography variant="body2"><strong>Clinic Address:</strong> {doctorInfo.clinic_address || 'Not provided'}</Typography>
-          </Grid>
+          {doctorInfo.clinic_address && (
+            <Grid item xs={12}>
+              <Typography variant="body2"><strong>Legacy Clinic Address:</strong> {doctorInfo.clinic_address}</Typography>
+            </Grid>
+          )}
         </Grid>
       </Paper>
+
+      {/* Office Locations */}
+      {doctorInfo.offices.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'action.hover' }}>
+          <Typography variant="h6" gutterBottom>
+            Office Locations ({doctorInfo.offices.length})
+          </Typography>
+          <Grid container spacing={2}>
+            {doctorInfo.offices.map((office, index) => (
+              <Grid item xs={12} key={office.id}>
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: 'background.paper',
+                    borderRadius: 1,
+                    border: office.is_primary ? '2px solid' : '1px solid',
+                    borderColor: office.is_primary ? 'primary.main' : 'divider',
+                  }}
+                >
+                  <Typography variant="body2">
+                    <strong>{office.name || `Office ${index + 1}`}</strong>
+                    {office.is_primary && (
+                      <Chip
+                        label="Primary"
+                        size="small"
+                        color="primary"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {office.address || 'No address provided'}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
 
       {/* Schedule Summary */}
       <Paper sx={{ p: 3, mb: 3, bgcolor: 'action.hover' }}>
@@ -879,6 +1078,12 @@ const ReviewStep = ({ userAccountData, doctorInfo }: ReviewStepProps) => {
           • License number: {doctorInfo.license_number}
           <br />
           • Specialization: {doctorInfo.specialization}
+          {doctorInfo.offices.length > 0 && (
+            <>
+              <br />
+              • Office locations: {doctorInfo.offices.length} configured
+            </>
+          )}
           <br />
           • The doctor can login and update their profile after registration
         </Typography>

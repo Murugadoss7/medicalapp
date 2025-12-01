@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.deps.database import get_db
 from app.api.deps.auth import get_current_active_user, require_staff, require_admin
 from app.models.user import User
+from app.models.appointment import Appointment
 from app.schemas.dental import (
     DentalObservationCreate, DentalObservationUpdate, DentalObservationResponse,
     DentalObservationListResponse, DentalProcedureCreate, DentalProcedureUpdate,
@@ -455,6 +456,47 @@ async def get_appointment_procedures(
 
     return DentalProcedureListResponse(
         procedures=[DentalProcedureResponse.model_validate(proc) for proc in procedures],
+        total=len(procedures)
+    )
+
+
+@router.get("/procedures/doctor/{doctor_id}/today", response_model=DentalProcedureListResponse)
+async def get_doctor_today_procedures(
+    doctor_id: UUID = Path(..., description="Doctor ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Get dental procedures scheduled for today for a specific doctor.
+
+    **Features:**
+    - Filters by procedure_date = today
+    - Only returns procedures from appointments belonging to this doctor
+    - Includes planned and in_progress procedures
+    - Includes patient_name from linked appointment
+
+    **Use Cases:**
+    - Doctor dashboard to show today's procedure count
+    - Dental doctor overview
+    - Sidebar procedures list with patient names
+    """
+    service = get_dental_service(db)
+    procedures = service.get_doctor_today_procedures(doctor_id)
+
+    # Build response with patient_name from appointment
+    procedure_responses = []
+    for proc in procedures:
+        proc_dict = DentalProcedureResponse.model_validate(proc).model_dump()
+        # Get patient name from appointment if available
+        if proc.appointment_id:
+            appointment = db.query(Appointment).filter(Appointment.id == proc.appointment_id).first()
+            if appointment:
+                # Appointment table has patient_first_name (not last_name or full_name)
+                proc_dict['patient_name'] = appointment.patient_first_name or 'Unknown Patient'
+        procedure_responses.append(DentalProcedureResponse(**proc_dict))
+
+    return DentalProcedureListResponse(
+        procedures=procedure_responses,
         total=len(procedures)
     )
 

@@ -14,12 +14,17 @@ interface Notification {
   duration?: number;
 }
 
+type SidebarMode = 'appointments' | 'procedures';
+
 interface UIState {
   breadcrumbs: BreadcrumbItem[];
   notifications: Notification[];
   modals: Record<string, boolean>;
   loading: Record<string, boolean>;
   sidebarOpen: boolean;
+  appointmentsSidebarOpen: boolean;
+  selectedOfficeId: string | null; // For filtering appointments by office
+  sidebarMode: SidebarMode; // Toggle between appointments and procedures view
 }
 
 const initialState: UIState = {
@@ -28,6 +33,9 @@ const initialState: UIState = {
   modals: {},
   loading: {},
   sidebarOpen: true,
+  appointmentsSidebarOpen: false,
+  selectedOfficeId: null,
+  sidebarMode: 'appointments',
 };
 
 const uiSlice = createSlice({
@@ -65,9 +73,25 @@ const uiSlice = createSlice({
     toggleSidebar: (state) => {
       state.sidebarOpen = !state.sidebarOpen;
     },
-    
+
     setSidebarOpen: (state, action: PayloadAction<boolean>) => {
       state.sidebarOpen = action.payload;
+    },
+
+    toggleAppointmentsSidebar: (state) => {
+      state.appointmentsSidebarOpen = !state.appointmentsSidebarOpen;
+    },
+
+    setAppointmentsSidebarOpen: (state, action: PayloadAction<boolean>) => {
+      state.appointmentsSidebarOpen = action.payload;
+    },
+
+    setSelectedOfficeId: (state, action: PayloadAction<string | null>) => {
+      state.selectedOfficeId = action.payload;
+    },
+
+    setSidebarMode: (state, action: PayloadAction<SidebarMode>) => {
+      state.sidebarMode = action.payload;
     },
   },
 });
@@ -81,6 +105,10 @@ export const {
   setLoading,
   toggleSidebar,
   setSidebarOpen,
+  toggleAppointmentsSidebar,
+  setAppointmentsSidebarOpen,
+  setSelectedOfficeId,
+  setSidebarMode,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

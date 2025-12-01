@@ -24,6 +24,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
   Save as SaveIcon,
   Cancel as CancelIcon,
+  ArrowForward as ArrowForwardIcon,
 } from '@mui/icons-material';
 
 // Tooth surfaces
@@ -75,6 +76,10 @@ interface DentalObservationFormProps {
   onSubmit: (data: DentalObservationFormData) => void;
   onCancel: () => void;
   isEditing?: boolean;
+  // Multi-tooth and combined workflow support
+  selectedTeeth?: string[];
+  onProceed?: () => void;
+  showProceedButton?: boolean;
 }
 
 const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
@@ -83,9 +88,18 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
   onSubmit,
   onCancel,
   isEditing = false,
+  // New props with defaults
+  selectedTeeth = [],
+  onProceed,
+  showProceedButton = false,
 }) => {
+  // Determine tooth numbers from selectedTeeth array or single selectedTooth
+  const toothNumbersValue = selectedTeeth.length > 0
+    ? selectedTeeth.join(',')
+    : (selectedTooth || initialData?.toothNumber || '');
+
   const [formData, setFormData] = useState<DentalObservationFormData>({
-    toothNumber: selectedTooth || initialData?.toothNumber || '',
+    toothNumber: toothNumbersValue,
     toothSurface: initialData?.toothSurface || '',
     conditionType: initialData?.conditionType || '',
     severity: initialData?.severity || '',
@@ -94,6 +108,9 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
     treatmentDone: initialData?.treatmentDone ?? false,
     treatmentDate: initialData?.treatmentDate || null,
   });
+
+  // Check if we have multiple teeth selected
+  const hasMultipleTeeth = selectedTeeth.length > 1;
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -162,8 +179,11 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
 
     if (!formData.toothNumber) {
       newErrors.toothNumber = 'Tooth number is required';
-    } else if (!validateToothNumber(formData.toothNumber)) {
-      newErrors.toothNumber = 'Invalid FDI tooth number';
+    } else if (selectedTeeth.length === 0) {
+      // Only validate individual FDI number if not using multi-select
+      if (!validateToothNumber(formData.toothNumber)) {
+        newErrors.toothNumber = 'Invalid FDI tooth number';
+      }
     }
 
     if (!formData.conditionType) {
@@ -172,6 +192,18 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle save and proceed to procedure
+  const handleSaveAndProceed = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (validateForm()) {
+      onSubmit(formData);
+      if (onProceed) {
+        onProceed();
+      }
+    }
   };
 
   // Handle form submission
@@ -183,32 +215,49 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
     }
   };
 
+  // Get display text for selected teeth
+  const getTeethDisplayText = () => {
+    if (selectedTeeth.length > 0) {
+      return selectedTeeth.length > 3
+        ? `${selectedTeeth.length} teeth: #${selectedTeeth.slice(0, 3).join(', #')}...`
+        : `Teeth #${selectedTeeth.join(', #')}`;
+    }
+    if (formData.toothNumber) {
+      return `Tooth #${formData.toothNumber}`;
+    }
+    return null;
+  };
+
   return (
-    <Paper elevation={2} sx={{ p: 3 }}>
+    <Paper elevation={showProceedButton ? 0 : 2} sx={{ p: showProceedButton ? 0 : 3 }}>
       <Box component="form" onSubmit={handleSubmit}>
         {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
-            {isEditing ? 'Edit' : 'Add'} Dental Observation
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant={showProceedButton ? 'subtitle1' : 'h6'} fontWeight={showProceedButton ? 600 : 400}>
+            {isEditing ? 'Edit' : 'Add'} Observation
           </Typography>
-          {formData.toothNumber && (
-            <Chip label={`Tooth #${formData.toothNumber}`} color="primary" />
+          {getTeethDisplayText() && (
+            <Chip
+              label={getTeethDisplayText()}
+              color="primary"
+              size={showProceedButton ? 'small' : 'medium'}
+            />
           )}
         </Box>
 
         {/* Form Fields */}
-        <Grid container spacing={3}>
+        <Grid container spacing={showProceedButton ? 2 : 3}>
           {/* Tooth Number */}
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               required
-              label="Tooth Number (FDI)"
+              label={hasMultipleTeeth ? 'Selected Teeth (FDI)' : 'Tooth Number (FDI)'}
               value={formData.toothNumber}
               onChange={handleChange('toothNumber')}
               error={Boolean(errors.toothNumber)}
-              helperText={errors.toothNumber || 'e.g., 11, 21, 51 (FDI notation)'}
-              disabled={Boolean(selectedTooth)}
+              helperText={errors.toothNumber || (hasMultipleTeeth ? 'Multiple teeth selected' : 'e.g., 11, 21, 51 (FDI notation)')}
+              disabled={Boolean(selectedTooth) || selectedTeeth.length > 0}
             />
           </Grid>
 
@@ -334,21 +383,34 @@ const DentalObservationForm: React.FC<DentalObservationFormProps> = ({
         </Alert>
 
         {/* Action Buttons */}
-        <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+        <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             startIcon={<CancelIcon />}
             onClick={onCancel}
+            size={showProceedButton ? 'medium' : 'large'}
           >
             Cancel
           </Button>
           <Button
             type="submit"
-            variant="contained"
+            variant={showProceedButton ? 'outlined' : 'contained'}
             startIcon={<SaveIcon />}
+            size={showProceedButton ? 'medium' : 'large'}
           >
             {isEditing ? 'Update' : 'Save'} Observation
           </Button>
+          {showProceedButton && onProceed && (
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardIcon />}
+              onClick={handleSaveAndProceed}
+              size="medium"
+              color="primary"
+            >
+              Save & Add Procedure
+            </Button>
+          )}
         </Box>
       </Box>
     </Paper>

@@ -63,6 +63,17 @@ class DoctorService:
         if existing_license:
             raise ValueError(f"License number {doctor_data.license_number} already exists")
 
+        # Convert offices to dicts for JSONB storage
+        offices_data = []
+        if doctor_data.offices:
+            for office in doctor_data.offices:
+                if hasattr(office, 'dict'):
+                    offices_data.append(office.dict())
+                elif isinstance(office, dict):
+                    offices_data.append(office)
+                else:
+                    offices_data.append(dict(office))
+
         # Create doctor profile
         doctor = Doctor(
             user_id=doctor_data.user_id,
@@ -71,6 +82,7 @@ class DoctorService:
             qualification=doctor_data.qualification,
             experience_years=doctor_data.experience_years,
             clinic_address=doctor_data.clinic_address,
+            offices=offices_data,
             phone=doctor_data.phone,
             consultation_fee=doctor_data.consultation_fee,
             consultation_duration=doctor_data.consultation_duration,
@@ -134,10 +146,23 @@ class DoctorService:
         
         # Update fields
         update_data = doctor_update.dict(exclude_unset=True)
-        
+
         # Handle availability schedule separately
         availability_schedule = update_data.pop('availability_schedule', None)
-        
+
+        # Handle offices separately - convert to dicts for JSONB storage
+        offices = update_data.pop('offices', None)
+        if offices is not None:
+            offices_data = []
+            for office in offices:
+                if hasattr(office, 'dict'):
+                    offices_data.append(office.dict())
+                elif isinstance(office, dict):
+                    offices_data.append(office)
+                else:
+                    offices_data.append(dict(office))
+            doctor.offices = offices_data
+
         for field, value in update_data.items():
             if hasattr(doctor, field):
                 setattr(doctor, field, value)

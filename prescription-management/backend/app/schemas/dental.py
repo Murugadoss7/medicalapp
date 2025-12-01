@@ -207,6 +207,8 @@ class DentalProcedureResponse(DentalProcedureBase):
     appointment_id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
+    # Optional fields populated by endpoints
+    patient_name: Optional[str] = None  # Populated for today's procedures
 
     model_config = {"from_attributes": True}
 

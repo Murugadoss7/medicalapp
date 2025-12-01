@@ -3,10 +3,20 @@
 
 ---
 
-**📅 Last Updated**: November 28, 2025
+**📅 Last Updated**: December 2, 2025
 **🎯 Purpose**: Complete technical architecture and folder structure documentation
-**📋 Status**: Backend Complete (117+ endpoints across 9 modules), Frontend 97% Complete
+**📋 Status**: Backend Complete (118+ endpoints across 9 modules), Frontend 98% Complete
 **🚀 Recent Updates**:
+- **iPad UI Optimizations**: Fixed page freeze on iPad with useTransition and module-level guards ⭐ NEW
+- **Responsive Layout System**: Side-by-side layout (55/45%) on tablet, stacked on mobile ⭐ NEW
+- **Observation Side Panel**: Replaced tabs with fixed side panel for observations ⭐ NEW
+- **ObservationRow Component**: Inline observation form with optional procedure expansion ⭐ NEW
+- **TodayAppointmentsSidebar**: Persistent right sidebar for today's appointments (doctors only) ⭐ NEW
+- **Treatment Summary Dialog**: DentalSummaryTable in modal for holistic patient view ⭐ NEW
+- **Procedures Sidebar View**: Click "Today's Procedures" card to view procedures in sidebar
+- **Clickable StatCards**: StatCard component supports onClick for interactive dashboards
+- **Sidebar Mode Toggle**: uiSlice.ts manages 'appointments' | 'procedures' view mode
+- **Doctor Today Procedures API**: GET /dental/procedures/doctor/{id}/today with patient_name
 - **Toast Notification System**: ToastContext.tsx + ConfirmDialog.tsx replaces browser alerts
 - **Consultation Status Tracking**: DentalConsultation.tsx with status chip, Complete button, navigation guard
 - **Backend Status Transitions**: appointment_service.py allows `scheduled → in_progress` direct transition
@@ -234,19 +244,34 @@ frontend/
 │   │   │   ├── 📄 DoctorCard.tsx         # Doctor profile display card ✅ IMPLEMENTED
 │   │   │   ├── 📄 PatientCard.tsx        # Patient profile display card ✅ IMPLEMENTED
 │   │   │   └── 📄 AppointmentCard.tsx    # Appointment summary card ✅ IMPLEMENTED
-│   │   ├── 📁 dashboard/                 # Dashboard components ⭐ NEW
+│   │   ├── 📁 dashboard/                 # Dashboard components ⭐ UPDATED
 │   │   │   ├── 📄 TodaySchedule.tsx      # Today's appointments with status-based styling
 │   │   │   │   # "Start"/"Continue"/"View" buttons based on status
 │   │   │   │   # Time-sorted appointment list
 │   │   │   │   # Orange background for in_progress appointments
+│   │   │   ├── 📄 TodayAppointmentsSidebar.tsx # Persistent right sidebar ⭐ NEW
+│   │   │   │   # Shows today's appointments for doctors
+│   │   │   │   # Collapsible with toggle in AppBar
+│   │   │   │   # 320px width, visible on dashboard + large screens
+│   │   │   │   # Click to navigate to consultation
 │   │   │   ├── 📄 StatCard.tsx           # Statistics card with icon and subtitle
 │   │   │   └── 📄 RecentPrescriptions.tsx # Recent prescriptions list
-│   │   └── 📁 dental/                    # Dental-specific components
-│   │       ├── 📄 DentalChart.tsx        # Interactive FDI tooth chart
+│   │   ├── 📁 layout/                    # Layout components ⭐ UPDATED
+│   │   │   └── 📄 MainLayout.tsx         # Main layout with right sidebar support
+│   │   │       # TodayAppointmentsSidebar integration
+│   │   │       # Responsive margin adjustments for sidebars
+│   │   └── 📁 dental/                    # Dental-specific components ⭐ UPDATED
+│   │       ├── 📄 DentalChart.tsx        # Interactive FDI tooth chart (optimized for iPad)
 │   │       ├── 📄 DentalObservationForm.tsx # Add/edit tooth observations
 │   │       ├── 📄 DentalProcedureForm.tsx # Manage dental procedures
 │   │       ├── 📄 ToothHistoryViewer.tsx # Timeline view of tooth history
-│   │       └── 📄 PrescriptionViewer.tsx # Prescription display with print
+│   │       ├── 📄 DentalSummaryTable.tsx # Holistic view of all teeth/procedures ⭐ NEW
+│   │       ├── 📄 ObservationRow.tsx     # Inline observation form with procedure ⭐ NEW
+│   │       │   # Collapsible observation cards
+│   │       │   # Optional procedure expansion within observation
+│   │       │   # Save/edit state management
+│   │       ├── 📄 PrescriptionViewer.tsx # Prescription display with print
+│   │       └── 📄 index.ts               # Module exports
 │   │
 │   ├── 📁 pages/                         # Page components ✅ IMPLEMENTED
 │   │   ├── 📁 auth/                      # Authentication pages ✅ IMPLEMENTED
@@ -261,13 +286,18 @@ frontend/
 │   │   │   ├── 📄 DoctorAppointments.tsx # Doctor appointments view ✅ IMPLEMENTED
 │   │   │   └── 📄 PatientConsultation.tsx # General patient consultation ✅ IMPLEMENTED
 │   │   │
-│   │   ├── 📁 dental/                    # Dental consultation pages ⭐ NEW
+│   │   ├── 📁 dental/                    # Dental consultation pages ⭐ UPDATED
 │   │   │   └── 📄 DentalConsultation.tsx # Complete dental consultation workflow
-│   │   │       # ~800 lines with status tracking
+│   │   │       # ~1350 lines with iPad optimizations
+│   │   │       # Side-by-side layout: Chart (55%) | Observations (45%)
 │   │   │       # Status chip (Scheduled/In Progress/Completed)
 │   │   │       # Complete Consultation button
 │   │   │       # Navigation guard with exit dialog
 │   │   │       # Auto-update to in_progress on entry
+│   │   │       # Treatment Summary dialog with DentalSummaryTable
+│   │   │       # ObservationRow components in fixed side panel
+│   │   │       # useTransition for non-blocking state updates
+│   │   │       # Module-level guards prevent double API calls
 │   │   │       # Route: /appointments/{appointmentId}/dental
 │   │   │
 │   │   ├── 📁 admin/                     # Admin role pages ✅ IMPLEMENTED
@@ -380,13 +410,22 @@ frontend/
   - ToastContext.tsx with success/error/warning/info methods
   - ConfirmDialog.tsx for action confirmations and navigation guards
   - Replaces all browser alerts throughout the application
-- ✅ **Dental Consultation Module**: Complete consultation workflow ⭐ NEW
-  - DentalConsultation.tsx (~800 lines) with full status tracking
+- ✅ **Dental Consultation Module**: Complete consultation workflow ⭐ UPDATED
+  - DentalConsultation.tsx (~1350 lines) with full status tracking
+  - **iPad Optimizations**: useTransition + module-level guards prevent freezing
+  - **Side-by-side Layout**: Chart (55%) | Observations (45%) on tablet
+  - **ObservationRow Component**: Inline forms with optional procedure expansion
+  - **Treatment Summary Dialog**: DentalSummaryTable for holistic patient view
   - Status chip showing real-time appointment status (Scheduled/In Progress/Completed)
   - "Complete Consultation" button for finalizing appointments
   - Navigation guard with exit dialog for in-progress consultations
   - Auto-update to "in_progress" when entering consultation
   - Backend status transitions updated: `scheduled → in_progress` allowed
+- ✅ **Today's Appointments Sidebar**: Persistent sidebar for doctors ⭐ NEW
+  - TodayAppointmentsSidebar.tsx component
+  - Toggle in AppBar for show/hide
+  - 320px width, visible on dashboard and large screens
+  - Click appointment to navigate to consultation
 - ✅ **Doctor Dashboard Enhancements**: Real-time statistics ⭐ NEW
   - Statistics calculated from actual appointment data
   - "X scheduled, Y in progress" subtitle on stat cards

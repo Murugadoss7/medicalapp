@@ -39,8 +39,16 @@ export interface RegisterRequest {
   last_name: string;
   phone?: string;
   role: 'doctor' | 'admin' | 'patient' | 'nurse' | 'receptionist';
-  license_number?: string; // Required for doctor role
-  specialization?: string; // Optional for doctor role
+  // Doctor-specific fields
+  license_number?: string;
+  specialization?: string;
+  qualification?: string;
+  experience_years?: number;
+  clinic_address?: string;
+  consultation_fee?: string;
+  consultation_duration?: number;
+  availability_schedule?: Record<string, { start_time: string; end_time: string }[]>;
+  offices?: OfficeLocation[];
 }
 
 // Doctor Dashboard Types
@@ -59,6 +67,7 @@ export interface Appointment {
   id: string;
   appointment_number: string;
   doctor_id: string;
+  office_id?: string;
   patient_mobile_number: string;
   patient_first_name: string;
   patient_last_name: string;
@@ -108,6 +117,44 @@ export interface Prescription {
   items?: PrescriptionItem[];
   created_at: string;
   updated_at: string;
+}
+
+export interface DentalProcedure {
+  id: string;
+  procedure_code: string;
+  procedure_name: string;
+  tooth_numbers?: string;
+  description?: string;
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  procedure_date?: string;
+  completed_date?: string;
+  estimated_cost?: number;
+  actual_cost?: number;
+  duration_minutes?: number;
+  appointment_id?: string;
+  observation_id?: string;
+  prescription_id?: string;
+  procedure_notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface DentalProcedureListResponse {
+  procedures: DentalProcedure[];
+  total: number;
+}
+
+export interface OfficeStats {
+  office_id: string | null;
+  office_name: string;
+  appointment_count: number;
+}
+
+export interface DoctorOfficeStatsResponse {
+  doctor_id: string;
+  date: string;
+  office_stats: OfficeStats[];
+  total: number;
 }
 
 export interface DoctorDashboardData {
@@ -276,6 +323,13 @@ export interface ShortKey {
   medicine_count: number;
 }
 
+export interface OfficeLocation {
+  id: string;
+  name: string;
+  address: string;
+  is_primary: boolean;
+}
+
 export interface Doctor {
   id: string;
   user_id: string;
@@ -284,6 +338,7 @@ export interface Doctor {
   qualification?: string;
   experience_years?: number;
   clinic_address?: string;
+  offices?: OfficeLocation[];
   phone?: string;
   consultation_fee?: string;
   consultation_duration?: number;
@@ -326,6 +381,7 @@ export interface DoctorUpdate {
   consultation_duration?: number;
   availability_schedule?: Record<string, Array<{ start_time: string; end_time: string }>>;
   is_active?: boolean;
+  offices?: OfficeLocation[];
 }
 
 export interface DoctorListResponse {
@@ -471,6 +527,7 @@ export interface AppointmentCreateRequest {
   patient_first_name: string;
   patient_uuid: string;
   doctor_id: string;
+  office_id?: string;
   appointment_date: string;
   appointment_time: string;
   duration_minutes?: number;
@@ -583,7 +640,7 @@ export const api = createApi({
     }),
 
     getDoctorProfile: builder.query<Doctor, string>({
-      query: (userId) => `/doctors/profile/user/${userId}`,
+      query: (doctorId) => `/doctors/${doctorId}`,
       providesTags: ['Doctor'],
     }),
 
@@ -619,6 +676,21 @@ export const api = createApi({
           upcoming: true,
           limit,
         },
+      }),
+      providesTags: ['Appointment'],
+    }),
+
+    // Dental Procedures endpoint
+    getDoctorTodayProcedures: builder.query<DentalProcedureListResponse, string>({
+      query: (doctorId) => `/dental/procedures/doctor/${doctorId}/today`,
+      providesTags: ['Prescription'], // Using prescription tag for invalidation
+    }),
+
+    // Office Stats endpoint
+    getDoctorOfficeStats: builder.query<DoctorOfficeStatsResponse, { doctorId: string; date?: string }>({
+      query: ({ doctorId, date }) => ({
+        url: `/appointments/doctor/${doctorId}/office-stats`,
+        params: date ? { stats_date: date } : undefined,
       }),
       providesTags: ['Appointment'],
     }),
@@ -1158,6 +1230,10 @@ export const {
   useGetDoctorDailyScheduleQuery,
   useGetDoctorRecentPrescriptionsQuery,
   useGetDoctorUpcomingAppointmentsQuery,
+  // Dental Procedures hooks
+  useGetDoctorTodayProceduresQuery,
+  // Office Stats hooks
+  useGetDoctorOfficeStatsQuery,
   // Appointment Management hooks
   useGetDoctorAppointmentsQuery,
   useGetAppointmentsByDateQuery,

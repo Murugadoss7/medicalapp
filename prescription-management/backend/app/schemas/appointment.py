@@ -16,12 +16,13 @@ class AppointmentBase(BaseModel):
     patient_mobile_number: str = Field(..., min_length=10, max_length=15, description="Patient mobile number")
     patient_first_name: str = Field(..., min_length=2, max_length=100, description="Patient first name")
     patient_uuid: UUID = Field(..., description="Patient UUID for internal reference")
-    
+
     # Doctor and scheduling
     doctor_id: UUID = Field(..., description="Assigned doctor ID")
+    office_id: Optional[str] = Field(None, max_length=50, description="Office ID from doctor's offices array")
     appointment_date: date = Field(..., description="Appointment date")
     appointment_time: time = Field(..., description="Appointment time")
-    
+
     # Appointment details
     reason_for_visit: str = Field(..., min_length=3, max_length=1000, description="Reason for visit")
     notes: Optional[str] = Field(None, max_length=2000, description="Additional notes")
@@ -175,6 +176,7 @@ class AppointmentResponse(BaseModel):
     
     # Doctor and scheduling
     doctor_id: UUID
+    office_id: Optional[str] = Field(None, description="Office ID from doctor's offices array")
     appointment_date: date
     appointment_time: time
     
