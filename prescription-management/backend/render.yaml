@@ -1,0 +1,94 @@
+services:
+  # FastAPI Backend Service
+  - type: web
+    name: prescription-backend
+    runtime: python
+    region: oregon
+    plan: free
+    branch: development
+    rootDir: prescription-management/backend
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # Application
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: API_V1_STR
+        value: /api/v1
+      - key: PROJECT_NAME
+        value: Prescription Management System
+      - key: VERSION
+        value: 1.0.0
+      - key: DESCRIPTION
+        value: Healthcare Prescription Management API
+
+      # Database - Will be set from Neon manually
+      - key: DATABASE_URL
+        sync: false
+
+      # JWT Configuration
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+
+      # Security
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BCRYPT_ROUNDS
+        value: 12
+
+      # CORS - Will be updated with Vercel URL
+      - key: ALLOWED_ORIGINS
+        value: '["https://medicalapp-three.vercel.app","https://medicalapp-git-development-murugadoss-projects-c09a7c92.vercel.app"]'
+      - key: ALLOWED_METHODS
+        value: '["GET","POST","PUT","DELETE","OPTIONS"]'
+      - key: ALLOWED_HEADERS
+        value: '["*"]'
+
+      # Logging
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+
+      # Rate Limiting
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 60
+      - key: RATE_LIMIT_BURST
+        value: 100
+
+      # File Upload
+      - key: MAX_FILE_SIZE
+        value: 10485760
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: ALLOWED_FILE_TYPES
+        value: '["pdf","jpg","jpeg","png"]'
+
+      # Audit
+      - key: ENABLE_AUDIT_LOGGING
+        value: true
+      - key: AUDIT_LOG_RETENTION_DAYS
+        value: 2555
+
+      # Redis (Optional - leave empty for now)
+      - key: REDIS_URL
+        value: redis://localhost:6379
+
+      # Keycloak (Optional - leave empty)
+      - key: KEYCLOAK_URL
+        value: ""
+      - key: KEYCLOAK_REALM
+        value: ""
+      - key: KEYCLOAK_CLIENT_ID
+        value: ""
+      - key: KEYCLOAK_CLIENT_SECRET
+        value: ""
