@@ -3,6 +3,8 @@ Standardized Date Schemas
 Centralized Pydantic schemas for consistent date validation across all modules
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, validator, root_validator
 from datetime import date, datetime, time
 from typing import Optional, Union

@@ -4,6 +4,8 @@ Handles validation for prescriptions and prescription items with PDF generation 
 Integrates with existing patients, doctors, medicines, and short keys modules
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, validator, model_validator, computed_field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import date, datetime, time

@@ -4,6 +4,8 @@ Handles validation for tooth-level observations and dental procedures
 Uses FDI notation system for tooth numbering
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, validator, field_validator
 from typing import Optional, List, Literal, Dict, Any
 from datetime import date, datetime
