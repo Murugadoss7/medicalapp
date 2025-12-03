@@ -9,6 +9,8 @@ from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
 
+from .user import UserResponse
+
 
 class LoginRequest(BaseModel):
     """Login request schema"""
@@ -212,7 +214,3 @@ class PasswordChangeRequest(BaseModel):
                 "confirm_password": "newsecurepassword123"
             }
         }
-
-
-# Import here to avoid circular imports
-from .user import UserResponse
