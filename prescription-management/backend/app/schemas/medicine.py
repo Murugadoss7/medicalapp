@@ -3,6 +3,8 @@ Medicine Schemas for Drug Catalog Management
 Handles medicine data validation, search, and drug interaction checking
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, validator, model_validator, computed_field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime

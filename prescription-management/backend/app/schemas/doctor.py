@@ -3,6 +3,8 @@ Doctor Pydantic schemas for API validation
 Following ERD specifications and business requirements
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, Any, List
 from uuid import UUID

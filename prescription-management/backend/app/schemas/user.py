@@ -3,6 +3,8 @@ User Pydantic schemas
 Handles user profile and management operations
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime

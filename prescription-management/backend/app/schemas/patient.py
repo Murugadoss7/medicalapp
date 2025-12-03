@@ -4,6 +4,8 @@ Handles validation for mobile_number + first_name composite primary key
 Supports family registration with same mobile number
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, EmailStr, validator, model_validator, computed_field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import date, datetime
