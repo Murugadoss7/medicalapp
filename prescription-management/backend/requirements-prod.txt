@@ -1,6 +1,6 @@
 # FastAPI and ASGI
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Database
@@ -16,8 +16,8 @@ python-keycloak==3.7.0
 httpx==0.25.2
 
 # Data Validation
-pydantic==2.9.2
-pydantic-settings==2.5.2
+pydantic==2.5.0
+pydantic-settings==2.1.0
 email-validator==2.1.0
 
 # Caching & Background Tasks (optional)
