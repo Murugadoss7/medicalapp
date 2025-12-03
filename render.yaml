@@ -3,6 +3,7 @@ services:
   - type: web
     name: prescription-backend
     runtime: python
+    pythonVersion: 3.11.6
     region: oregon
     plan: free
     branch: development
