@@ -3,6 +3,8 @@ Authentication Pydantic schemas
 Handles login, registration, and token management
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
@@ -51,7 +53,7 @@ class TokenResponse(BaseModel):
 
 class LoginResponse(BaseModel):
     """Complete login response with user info and tokens"""
-    user: 'UserResponse'
+    user: UserResponse
     tokens: TokenResponse
     permissions: List[str] = Field(default_factory=list, description="User permissions")
     
