@@ -88,10 +88,10 @@ def init_db() -> None:
     Initialize database with ERD schema
     Creates all tables based on ERD specifications
     """
-    # Import only existing models to register them with Base.metadata
+    # Import all models to register them with Base.metadata
     from app.models import (
-        user, patient, doctor, medicine, short_key, 
-        appointment, prescription, audit_log
+        user, patient, doctor, medicine, short_key,
+        appointment, prescription, audit_log, dental
     )
     # TODO: Import other models as they are implemented
     # referral, patient_visit, allergy, medical_history
