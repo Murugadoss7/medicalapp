@@ -625,13 +625,23 @@ const DentalConsultation: React.FC = () => {
       let savedObservations = 0;
       let savedProcedures = 0;
 
+      // Track newly created IDs to store in state
+      const newBackendIds: Record<string, Record<string, string>> = {};
+      const newProcedureIds: Record<string, string> = {};
+
       for (const obs of validObservations) {
+        // Initialize ID storage for this observation
+        if (!newBackendIds[obs.id]) {
+          newBackendIds[obs.id] = {};
+        }
+
         // Save or update observations for each tooth
         for (const toothNumber of obs.selectedTeeth) {
           const backendObsId = obs.backendObservationIds?.[toothNumber];
 
           if (backendObsId) {
             // UPDATE existing observation (prevents duplicates)
+            console.log(`UPDATE observation ${backendObsId} for tooth ${toothNumber}`);
             await dentalService.observations.update(backendObsId, {
               tooth_surface: obs.toothSurface || undefined,
               condition_type: obs.conditionType,
@@ -640,9 +650,12 @@ const DentalConsultation: React.FC = () => {
               treatment_required: obs.treatmentRequired,
               treatment_done: false,
             });
+            // Keep the existing backend ID
+            newBackendIds[obs.id][toothNumber] = backendObsId;
           } else {
             // CREATE new observation
-            await dentalService.observations.create({
+            console.log(`CREATE new observation for tooth ${toothNumber}`);
+            const created = await dentalService.observations.create({
               appointment_id: appointmentId,
               patient_mobile_number: patientData.mobileNumber,
               patient_first_name: patientData.firstName,
@@ -654,6 +667,8 @@ const DentalConsultation: React.FC = () => {
               treatment_required: obs.treatmentRequired,
               treatment_done: false,
             });
+            // Store the new backend ID for future updates
+            newBackendIds[obs.id][toothNumber] = created.id;
           }
           savedObservations++;
         }
@@ -666,6 +681,7 @@ const DentalConsultation: React.FC = () => {
 
           if (obs.backendProcedureId) {
             // UPDATE existing procedure (prevents duplicates)
+            console.log(`UPDATE procedure ${obs.backendProcedureId}`);
             await dentalService.procedures.update(obs.backendProcedureId, {
               procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
               procedure_name: procedureName,
@@ -674,9 +690,12 @@ const DentalConsultation: React.FC = () => {
               procedure_notes: obs.procedureNotes || undefined,
               status: 'planned',
             });
+            // Keep existing procedure ID
+            newProcedureIds[obs.id] = obs.backendProcedureId;
           } else {
             // CREATE new procedure
-            await dentalService.procedures.create({
+            console.log(`CREATE new procedure`);
+            const createdProc = await dentalService.procedures.create({
               appointment_id: appointmentId,
               procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
               procedure_name: procedureName,
@@ -685,6 +704,8 @@ const DentalConsultation: React.FC = () => {
               procedure_notes: obs.procedureNotes || undefined,
               status: 'planned',  // Procedures start as planned, doctor marks completed later
             });
+            // Store new procedure ID for future updates
+            newProcedureIds[obs.id] = createdProc.id;
           }
           savedProcedures++;
         }
@@ -692,10 +713,19 @@ const DentalConsultation: React.FC = () => {
 
       toast.success(`Saved ${savedObservations} observations${savedProcedures > 0 ? ` and ${savedProcedures} procedures` : ''}`);
 
-      // Mark saved observations as saved (keep them visible)
+      // Mark saved observations as saved AND update their backend IDs
       const updatedObservations = observations.map(obs => {
         if (validObservations.find(vo => vo.id === obs.id)) {
-          return { ...obs, isSaved: true };
+          return {
+            ...obs,
+            isSaved: true,
+            // CRITICAL: Update backend IDs so future edits use UPDATE not CREATE
+            backendObservationIds: {
+              ...obs.backendObservationIds,
+              ...newBackendIds[obs.id],
+            },
+            backendProcedureId: newProcedureIds[obs.id] || obs.backendProcedureId,
+          };
         }
         return obs;
       });
