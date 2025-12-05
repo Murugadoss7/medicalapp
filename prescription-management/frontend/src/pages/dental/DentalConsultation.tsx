@@ -246,6 +246,7 @@ const DentalConsultation: React.FC = () => {
     customProcedureName: '',
     procedureDate: new Date(),
     procedureNotes: '',
+    procedureStatus: 'planned',
   });
 
   // Load saved observations and procedures from backend for this appointment
@@ -316,6 +317,7 @@ const DentalConsultation: React.FC = () => {
                   customProcedureName: '',
                   procedureDate: new Date(),
                   procedureNotes: '',
+                  procedureStatus: 'planned',
                   isSaved: true,
                   // CRITICAL: Track backend observation IDs for updates
                   backendObservationIds: {
@@ -340,6 +342,7 @@ const DentalConsultation: React.FC = () => {
                   obsGroup.procedureName = proc.procedure_name;
                   obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
                   obsGroup.procedureNotes = proc.procedure_notes || '';
+                  obsGroup.procedureStatus = proc.status || 'planned';  // Load status from backend
                   obsGroup.backendProcedureId = proc.id; // CRITICAL: Track backend procedure ID
                   if (proc.procedure_code === 'CUSTOM') {
                     obsGroup.customProcedureName = proc.procedure_name;
@@ -373,6 +376,7 @@ const DentalConsultation: React.FC = () => {
                   customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : '',
                   procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
                   procedureNotes: proc.procedure_notes || '',
+                  procedureStatus: proc.status || 'planned',  // Load status from backend
                   isSaved: true,
                   backendProcedureId: proc.id, // CRITICAL: Track backend procedure ID
                 };
@@ -688,7 +692,7 @@ const DentalConsultation: React.FC = () => {
               tooth_numbers: obs.selectedTeeth.join(','),
               procedure_date: obs.procedureDate?.toISOString().split('T')[0],
               procedure_notes: obs.procedureNotes || undefined,
-              status: 'planned',
+              status: obs.procedureStatus || 'planned',  // Save user-selected status
             });
             // Keep existing procedure ID
             newProcedureIds[obs.id] = obs.backendProcedureId;
@@ -702,7 +706,7 @@ const DentalConsultation: React.FC = () => {
               tooth_numbers: obs.selectedTeeth.join(','),
               procedure_date: obs.procedureDate?.toISOString().split('T')[0],
               procedure_notes: obs.procedureNotes || undefined,
-              status: 'planned',  // Procedures start as planned, doctor marks completed later
+              status: obs.procedureStatus || 'planned',  // Save user-selected status
             });
             // Store new procedure ID for future updates
             newProcedureIds[obs.id] = createdProc.id;

@@ -481,16 +481,16 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         <Paper elevation={1} sx={{ p: 3, mb: 2, borderBottom: 3, borderColor: 'primary.main' }}>
           <Box sx={{ textAlign: 'center', mb: 2 }}>
             <Typography variant="h4" fontWeight="bold" color="primary">
-              {clinicName}
+              {prescription?.clinic_name || clinicName}
             </Typography>
             <Typography variant="h6" color="text.secondary">
-              {doctorName}
+              {prescription?.doctor_name || doctorName}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {doctorSpecialization}
+              {prescription?.doctor_specialization || doctorSpecialization}
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              {clinicAddress}
+              {prescription?.clinic_address || clinicAddress}
             </Typography>
             <Typography variant="body2">
               Phone: {clinicPhone}

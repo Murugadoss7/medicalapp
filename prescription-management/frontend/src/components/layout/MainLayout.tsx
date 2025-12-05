@@ -251,6 +251,7 @@ export const MainLayout = () => {
         anchor="left"
         open={sidebarOpen}
         onClose={handleSidebarToggle}
+        disableRestoreFocus={true}
         ModalProps={{
           keepMounted: true, // Better mobile performance
         }}
@@ -273,7 +274,12 @@ export const MainLayout = () => {
             {filteredMenuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
                 <ListItemButton
-                  onClick={() => {
+                  onClick={(event) => {
+                    // Blur button before navigation to prevent aria-hidden focus trap
+                    const target = event.currentTarget;
+                    if (target instanceof HTMLElement) {
+                      target.blur();
+                    }
                     navigate(item.path);
                     handleSidebarToggle();
                   }}
@@ -312,7 +318,16 @@ export const MainLayout = () => {
           <List>
             {filteredMenuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
-                <ListItemButton onClick={() => navigate(item.path)}>
+                <ListItemButton
+                  onClick={(event) => {
+                    // Blur button before navigation to prevent aria-hidden focus trap
+                    const target = event.currentTarget;
+                    if (target instanceof HTMLElement) {
+                      target.blur();
+                    }
+                    navigate(item.path);
+                  }}
+                >
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.text} />
                 </ListItemButton>

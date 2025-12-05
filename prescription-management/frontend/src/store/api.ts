@@ -115,6 +115,12 @@ export interface Prescription {
   total_amount: number;
   status: 'draft' | 'finalized' | 'dispensed' | 'completed';
   items?: PrescriptionItem[];
+  // Clinic details (from doctor's offices via appointment)
+  clinic_name?: string;
+  clinic_address?: string;
+  // Doctor details (from doctor relationship)
+  doctor_name?: string;
+  doctor_specialization?: string;
   created_at: string;
   updated_at: string;
 }

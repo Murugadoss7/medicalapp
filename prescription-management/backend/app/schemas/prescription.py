@@ -293,35 +293,43 @@ class PrescriptionResponse(BaseModel):
     # Basic prescription information
     id: UUID
     prescription_number: str
-    
+
     # Patient information (composite key)
     patient_mobile_number: str
     patient_first_name: str
     patient_uuid: UUID
-    
+
     # Doctor and appointment
     doctor_id: UUID
     appointment_id: Optional[UUID]
-    
+
     # Visit information
     visit_date: date
-    
+
     # Clinical information
     chief_complaint: Optional[str]
     diagnosis: str
     symptoms: Optional[str]
     clinical_notes: Optional[str]
     doctor_instructions: Optional[str]
-    
+
     # Status and metadata
     status: PrescriptionStatusEnum
     is_printed: bool
     printed_at: Optional[datetime]
     template_used: Optional[str]
-    
+
     # Prescription items
     items: Optional[List[PrescriptionItemResponse]] = Field(default=[], description="Prescription items")
-    
+
+    # Clinic details (from doctor's offices via appointment)
+    clinic_name: Optional[str] = Field(None, description="Clinic name where appointment was booked")
+    clinic_address: Optional[str] = Field(None, description="Clinic address where appointment was booked")
+
+    # Doctor details (from doctor relationship)
+    doctor_name: Optional[str] = Field(None, description="Doctor's full name")
+    doctor_specialization: Optional[str] = Field(None, description="Doctor's specialization")
+
     # Audit fields
     created_by: Optional[UUID]
     created_at: datetime
