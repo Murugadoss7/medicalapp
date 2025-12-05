@@ -68,11 +68,20 @@ export const DoctorDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Open both sidebars when dashboard loads
+  // Open both sidebars, reset office filter, and refetch data when dashboard loads
   useEffect(() => {
     dispatch(setSidebarOpen(true));
     dispatch(setAppointmentsSidebarOpen(true));
-  }, [dispatch]);
+    // Reset to show ALL appointments from all locations
+    dispatch(setSelectedOfficeId(null));
+
+    // CRITICAL FIX: Refetch appointments and procedures to show latest data
+    // This ensures newly created procedures from dental consultation appear immediately
+    refetchAppointments();
+    if (isDentalDoctor) {
+      refetchProcedures();
+    }
+  }, [dispatch, refetchAppointments, refetchProcedures, isDentalDoctor]);
 
   // Return null while redirecting
   if (!user || user.role !== 'doctor') {
@@ -194,14 +203,10 @@ export const DoctorDashboard = () => {
     return stats;
   }, [doctorProfile?.offices, todayAppointments]);
 
-  // Auto-select first office if none selected
-  useEffect(() => {
-    if (officeStats.length > 0 && selectedOfficeId === null) {
-      // Select the primary office or first office
-      const primaryOffice = officeStats.find((o) => o.is_primary);
-      dispatch(setSelectedOfficeId(primaryOffice?.id || officeStats[0].id));
-    }
-  }, [officeStats, selectedOfficeId, dispatch]);
+  // REMOVED: Auto-select first office
+  // Now defaults to showing ALL appointments across all locations
+  // Users can click on a specific office to filter
+  // This provides better visibility of all appointments on dashboard load
 
   // Handle office selection - shows appointments for that office
   const handleOfficeSelect = (officeId: string) => {
