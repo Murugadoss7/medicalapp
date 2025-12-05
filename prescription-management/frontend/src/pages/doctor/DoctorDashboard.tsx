@@ -68,21 +68,6 @@ export const DoctorDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Open both sidebars, reset office filter, and refetch data when dashboard loads
-  useEffect(() => {
-    dispatch(setSidebarOpen(true));
-    dispatch(setAppointmentsSidebarOpen(true));
-    // Reset to show ALL appointments from all locations
-    dispatch(setSelectedOfficeId(null));
-
-    // CRITICAL FIX: Refetch appointments and procedures to show latest data
-    // This ensures newly created procedures from dental consultation appear immediately
-    refetchAppointments();
-    if (isDentalDoctor) {
-      refetchProcedures();
-    }
-  }, [dispatch, refetchAppointments, refetchProcedures, isDentalDoctor]);
-
   // Return null while redirecting
   if (!user || user.role !== 'doctor') {
     return (
@@ -126,6 +111,22 @@ export const DoctorDashboard = () => {
   } = useGetDoctorProfileQuery(doctorId, {
     skip: !doctorId,
   });
+
+  // Open both sidebars, reset office filter, and refetch data when dashboard loads
+  // CRITICAL: Must be AFTER hooks are defined to avoid reference errors
+  useEffect(() => {
+    dispatch(setSidebarOpen(true));
+    dispatch(setAppointmentsSidebarOpen(true));
+    // Reset to show ALL appointments from all locations
+    dispatch(setSelectedOfficeId(null));
+
+    // CRITICAL FIX: Refetch appointments and procedures to show latest data
+    // This ensures newly created procedures from dental consultation appear immediately
+    refetchAppointments();
+    if (isDentalDoctor) {
+      refetchProcedures();
+    }
+  }, [dispatch, refetchAppointments, refetchProcedures, isDentalDoctor]);
 
   // Extract appointments array from response
   const todayAppointments = useMemo(() => {
