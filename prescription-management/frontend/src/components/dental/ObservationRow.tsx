@@ -101,6 +101,9 @@ export interface ObservationData {
   procedureNotes: string;
   // Saved state
   isSaved?: boolean;
+  // Backend IDs for update operations (maps tooth_number -> observation_id)
+  backendObservationIds?: Record<string, string>;
+  backendProcedureId?: string;
 }
 
 interface ObservationRowProps {

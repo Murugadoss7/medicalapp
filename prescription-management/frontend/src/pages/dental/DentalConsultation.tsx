@@ -291,12 +291,17 @@ const DentalConsultation: React.FC = () => {
               const key = `${obs.condition_type}_${obs.tooth_surface || 'none'}_${obs.severity || 'none'}`;
 
               if (groupedObs[key]) {
-                // Add tooth to existing group
+                // Add tooth to existing group AND track its backend ID
                 if (!groupedObs[key].selectedTeeth.includes(obs.tooth_number)) {
                   groupedObs[key].selectedTeeth.push(obs.tooth_number);
+                  // Store backend observation ID for this tooth
+                  if (!groupedObs[key].backendObservationIds) {
+                    groupedObs[key].backendObservationIds = {};
+                  }
+                  groupedObs[key].backendObservationIds![obs.tooth_number] = obs.id;
                 }
               } else {
-                // Create new observation group
+                // Create new observation group with backend ID tracking
                 groupedObs[key] = {
                   id: `saved_${obs.id}`,
                   selectedTeeth: [obs.tooth_number],
@@ -312,6 +317,10 @@ const DentalConsultation: React.FC = () => {
                   procedureDate: new Date(),
                   procedureNotes: '',
                   isSaved: true,
+                  // CRITICAL: Track backend observation IDs for updates
+                  backendObservationIds: {
+                    [obs.tooth_number]: obs.id
+                  },
                 };
               }
             });
@@ -331,6 +340,7 @@ const DentalConsultation: React.FC = () => {
                   obsGroup.procedureName = proc.procedure_name;
                   obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
                   obsGroup.procedureNotes = proc.procedure_notes || '';
+                  obsGroup.backendProcedureId = proc.id; // CRITICAL: Track backend procedure ID
                   if (proc.procedure_code === 'CUSTOM') {
                     obsGroup.customProcedureName = proc.procedure_name;
                   }
@@ -364,6 +374,7 @@ const DentalConsultation: React.FC = () => {
                   procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
                   procedureNotes: proc.procedure_notes || '',
                   isSaved: true,
+                  backendProcedureId: proc.id, // CRITICAL: Track backend procedure ID
                 };
               }
             });
@@ -615,38 +626,66 @@ const DentalConsultation: React.FC = () => {
       let savedProcedures = 0;
 
       for (const obs of validObservations) {
-        // Save observations for each tooth
+        // Save or update observations for each tooth
         for (const toothNumber of obs.selectedTeeth) {
-          await dentalService.observations.create({
-            appointment_id: appointmentId,
-            patient_mobile_number: patientData.mobileNumber,
-            patient_first_name: patientData.firstName,
-            tooth_number: toothNumber,
-            tooth_surface: obs.toothSurface || undefined,
-            condition_type: obs.conditionType,
-            severity: obs.severity || undefined,
-            observation_notes: obs.observationNotes || undefined,
-            treatment_required: obs.treatmentRequired,
-            treatment_done: false,
-          });
+          const backendObsId = obs.backendObservationIds?.[toothNumber];
+
+          if (backendObsId) {
+            // UPDATE existing observation (prevents duplicates)
+            await dentalService.observations.update(backendObsId, {
+              tooth_surface: obs.toothSurface || undefined,
+              condition_type: obs.conditionType,
+              severity: obs.severity || undefined,
+              observation_notes: obs.observationNotes || undefined,
+              treatment_required: obs.treatmentRequired,
+              treatment_done: false,
+            });
+          } else {
+            // CREATE new observation
+            await dentalService.observations.create({
+              appointment_id: appointmentId,
+              patient_mobile_number: patientData.mobileNumber,
+              patient_first_name: patientData.firstName,
+              tooth_number: toothNumber,
+              tooth_surface: obs.toothSurface || undefined,
+              condition_type: obs.conditionType,
+              severity: obs.severity || undefined,
+              observation_notes: obs.observationNotes || undefined,
+              treatment_required: obs.treatmentRequired,
+              treatment_done: false,
+            });
+          }
           savedObservations++;
         }
 
-        // Save procedure if added
+        // Save or update procedure if added
         if (obs.hasProcedure && obs.procedureCode) {
           const procedureName = obs.procedureCode === 'CUSTOM'
             ? obs.customProcedureName
             : obs.procedureName;
 
-          await dentalService.procedures.create({
-            appointment_id: appointmentId,
-            procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
-            procedure_name: procedureName,
-            tooth_numbers: obs.selectedTeeth.join(','),
-            procedure_date: obs.procedureDate?.toISOString().split('T')[0],
-            procedure_notes: obs.procedureNotes || undefined,
-            status: 'planned',  // Procedures start as planned, doctor marks completed later
-          });
+          if (obs.backendProcedureId) {
+            // UPDATE existing procedure (prevents duplicates)
+            await dentalService.procedures.update(obs.backendProcedureId, {
+              procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
+              procedure_name: procedureName,
+              tooth_numbers: obs.selectedTeeth.join(','),
+              procedure_date: obs.procedureDate?.toISOString().split('T')[0],
+              procedure_notes: obs.procedureNotes || undefined,
+              status: 'planned',
+            });
+          } else {
+            // CREATE new procedure
+            await dentalService.procedures.create({
+              appointment_id: appointmentId,
+              procedure_code: obs.procedureCode === 'CUSTOM' ? 'CUSTOM' : obs.procedureCode,
+              procedure_name: procedureName,
+              tooth_numbers: obs.selectedTeeth.join(','),
+              procedure_date: obs.procedureDate?.toISOString().split('T')[0],
+              procedure_notes: obs.procedureNotes || undefined,
+              status: 'planned',  // Procedures start as planned, doctor marks completed later
+            });
+          }
           savedProcedures++;
         }
       }
