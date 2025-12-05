@@ -187,8 +187,8 @@ export const dentalObservationAPI = {
   },
 
   // Get observations by appointment
-  getByAppointment: async (appointmentId: string): Promise<{ observations: DentalObservation[]; total: number }> => {
-    const response = await axiosInstance.get(`/dental/observations/appointment/${appointmentId}`);
+  getByAppointment: async (appointmentId: string, config?: { signal?: AbortSignal }): Promise<{ observations: DentalObservation[]; total: number }> => {
+    const response = await axiosInstance.get(`/dental/observations/appointment/${appointmentId}`, config);
     return response.data;
   },
 
@@ -256,8 +256,8 @@ export const dentalProcedureAPI = {
   },
 
   // Get procedures by appointment
-  getByAppointment: async (appointmentId: string): Promise<{ procedures: DentalProcedure[]; total: number }> => {
-    const response = await axiosInstance.get(`/dental/procedures/appointment/${appointmentId}`);
+  getByAppointment: async (appointmentId: string, config?: { signal?: AbortSignal }): Promise<{ procedures: DentalProcedure[]; total: number }> => {
+    const response = await axiosInstance.get(`/dental/procedures/appointment/${appointmentId}`, config);
     return response.data;
   },
 

@@ -532,3 +532,37 @@ const procedure = {
 - Test files demonstrate correct usage patterns
 - ERD is the single source of truth for data structures
 - Dental module docs: See DENTAL_*.md files in project root
+
+
+
+Directory Structure
+
+  | Directory                         | Branch      | Purpose                      |
+  |-----------------------------------|-------------|------------------------------|
+  | /Users/murugadoss/MedicalApp      | development | Active development           |
+  | /Users/murugadoss/MedicalApp-main | main        | Stable/production comparison |
+
+  Running Both Environments
+
+  Development (current setup):
+  # Frontend: port 5173, Backend: port 8000
+  cd /Users/murugadoss/MedicalApp/prescription-management/frontend && npm run dev
+  cd /Users/murugadoss/MedicalApp/prescription-management/backend && uvicorn app.main:app --port 8000
+
+  Main (different ports):
+  # Frontend: port 5174, Backend: port 8001
+  cd /Users/murugadoss/MedicalApp-main/prescription-management/frontend && npm run dev -- --port 5174
+  cd /Users/murugadoss/MedicalApp-main/prescription-management/backend && uvicorn app.main:app --port 8001
+
+  Note
+
+  Currently both branches have identical code since we just merged. The difference will appear when you make new changes
+   to development - main will stay at the current stable version until you merge again.
+
+  Worktree Commands
+
+  # List worktrees
+  git worktree list
+
+  # Remove main worktree when no longer needed
+  git worktree remove /Users/murugadoss/MedicalApp-main

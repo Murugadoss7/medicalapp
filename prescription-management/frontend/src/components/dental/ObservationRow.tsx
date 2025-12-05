@@ -99,6 +99,7 @@ export interface ObservationData {
   customProcedureName: string;
   procedureDate: Date | null;
   procedureNotes: string;
+  procedureStatus: 'planned' | 'cancelled' | 'completed';  // Procedure status
   // Saved state
   isSaved?: boolean;
   // Backend IDs for update operations (maps tooth_number -> observation_id)
@@ -231,7 +232,27 @@ const ObservationRow: React.FC<ObservationRowProps> = ({
                 }
                 size="small"
                 color="success"
-                sx={{ height: 22, maxWidth: 120 }}
+                sx={{
+                  height: 22,
+                  maxWidth: 120,
+                  opacity: observation.procedureStatus === 'completed' ? 0.5 : 1,
+                  textDecoration: observation.procedureStatus === 'completed' ? 'line-through' : 'none'
+                }}
+              />
+            )}
+            {observation.hasProcedure && observation.procedureStatus && (
+              <Chip
+                label={
+                  observation.procedureStatus === 'planned' ? '📋' :
+                  observation.procedureStatus === 'cancelled' ? '❌' :
+                  '✅'
+                }
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 22,
+                  opacity: observation.procedureStatus === 'completed' ? 0.5 : 1
+                }}
               />
             )}
           </Box>
@@ -443,6 +464,20 @@ const ObservationRow: React.FC<ObservationRowProps> = ({
               }}
             />
           </LocalizationProvider>
+
+          <TextField
+            select
+            size="small"
+            label="Status"
+            value={observation.procedureStatus || 'planned'}
+            onChange={(e) => handleChange('procedureStatus', e.target.value)}
+            sx={{ mb: 1, minWidth: 150 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MenuItem value="planned">📋 Planned</MenuItem>
+            <MenuItem value="cancelled">❌ Cancelled</MenuItem>
+            <MenuItem value="completed">✅ Completed</MenuItem>
+          </TextField>
 
           <TextField
             fullWidth

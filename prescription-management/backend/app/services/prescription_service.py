@@ -654,7 +654,7 @@ class PrescriptionService:
     
     def _get_prescription_with_relationships(self, prescription_id: UUID) -> Optional[Prescription]:
         """Get prescription with all relationships loaded"""
-        return self.db.query(Prescription).options(
+        prescription = self.db.query(Prescription).options(
             joinedload(Prescription.patient),
             joinedload(Prescription.doctor),
             joinedload(Prescription.appointment)
@@ -662,7 +662,80 @@ class PrescriptionService:
             Prescription.id == prescription_id,
             Prescription.is_active == True
         ).first()
-    
+
+        # Compute clinic_address, clinic_name and doctor details
+        if prescription:
+            prescription.clinic_address = self._get_clinic_address_for_prescription(prescription)
+            prescription.clinic_name = self._get_clinic_name_for_prescription(prescription)
+            # Add doctor name and specialization
+            if prescription.doctor:
+                prescription.doctor_name = prescription.doctor.get_full_name()
+                prescription.doctor_specialization = prescription.doctor.specialization
+
+        return prescription
+
+    def _get_clinic_address_for_prescription(self, prescription: Prescription) -> Optional[str]:
+        """Extract clinic address from doctor's offices based on appointment's office_id"""
+        try:
+            # If no appointment, fall back to doctor's primary office or deprecated clinic_address
+            if not prescription.appointment or not prescription.appointment.office_id:
+                # Try to find primary office
+                if prescription.doctor and prescription.doctor.offices:
+                    for office in prescription.doctor.offices:
+                        if office.get('is_primary', False):
+                            return office.get('address')
+                # Fall back to deprecated clinic_address field
+                if prescription.doctor:
+                    return prescription.doctor.clinic_address
+                return None
+
+            # Find the office by office_id from appointment
+            if prescription.doctor and prescription.doctor.offices:
+                office_id = prescription.appointment.office_id
+                for office in prescription.doctor.offices:
+                    if office.get('id') == office_id:
+                        return office.get('address')
+
+            # Fallback to deprecated field
+            if prescription.doctor:
+                return prescription.doctor.clinic_address
+
+            return None
+        except Exception:
+            # Return None if any error occurs
+            return None
+
+    def _get_clinic_name_for_prescription(self, prescription: Prescription) -> Optional[str]:
+        """Extract clinic name from doctor's offices based on appointment's office_id"""
+        try:
+            # If no appointment, fall back to doctor's primary office or deprecated clinic_name
+            if not prescription.appointment or not prescription.appointment.office_id:
+                # Try to find primary office
+                if prescription.doctor and prescription.doctor.offices:
+                    for office in prescription.doctor.offices:
+                        if office.get('is_primary', False):
+                            return office.get('name')
+                # Fall back to deprecated clinic_name field
+                if prescription.doctor:
+                    return prescription.doctor.clinic_name
+                return None
+
+            # Find the office by office_id from appointment
+            if prescription.doctor and prescription.doctor.offices:
+                office_id = prescription.appointment.office_id
+                for office in prescription.doctor.offices:
+                    if office.get('id') == office_id:
+                        return office.get('name')
+
+            # Fallback to deprecated field
+            if prescription.doctor:
+                return prescription.doctor.clinic_name
+
+            return None
+        except Exception:
+            # Return None if any error occurs
+            return None
+
     def _get_items_from_short_key(self, short_key_code: str) -> List[PrescriptionItemCreate]:
         """Get prescription items from short key"""
         short_key = self.db.query(ShortKey).filter(
