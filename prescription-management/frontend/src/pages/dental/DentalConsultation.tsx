@@ -2,6 +2,7 @@
  * Dental Consultation Page
  * Main page for dental consultations integrating all dental components
  * Allows doctors to record observations, procedures, and view patient dental history
+ * Updated: 2025-12-05 - Fixed iPad freezing and modal overlay issues
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
@@ -54,10 +55,6 @@ import PrescriptionViewer from '../../components/dental/PrescriptionViewer';
 // Simple ID generator (replaces uuid)
 const generateId = () => `obs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// MODULE-LEVEL guard to prevent double API calls from React Strict Mode
-// This persists outside the component and is not affected by React's double-invocation
-const loadedAppointments = new Set<string>();
-const loadingAppointments = new Set<string>();
 import dentalService, { type DentalChart as DentalChartType } from '../../services/dentalService';
 import {
   useGetAppointmentDetailsQuery,
@@ -80,13 +77,18 @@ const DentalConsultation: React.FC = () => {
   // useTransition for non-blocking state updates on tablet (prevents UI freeze)
   const [, startTransition] = useTransition();
 
-  // Track if initial data load is complete (controls loading screen)
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
-
-  // Auto-close sidebars on mount for more screen space
+  // Auto-close sidebars on mount and when component unmounts to prevent drawer overlay issues
   useEffect(() => {
+    // Close sidebars on consultation page for more screen space
     dispatch(setSidebarOpen(false));
     dispatch(setAppointmentsSidebarOpen(false));
+
+    // CRITICAL FIX: Ensure sidebars stay closed on this page to prevent iPad freezing
+    // The temporary drawer variant creates a modal overlay that blocks interactions
+    return () => {
+      // Keep sidebars closed on unmount to prevent modal overlay issues
+      dispatch(setAppointmentsSidebarOpen(false));
+    };
   }, [dispatch]);
 
   // Get logged-in user from Redux store
@@ -134,6 +136,35 @@ const DentalConsultation: React.FC = () => {
   // Track if we've already auto-started the consultation
   const hasAutoStartedRef = useRef(false);
 
+  // Track if we've already loaded observations for this mount (prevents double-loading)
+  const hasLoadedObservationsRef = useRef(false);
+
+  // Track the previous appointmentId to detect when it actually changes
+  const previousAppointmentIdRef = useRef<string | null>(null);
+
+  // Handle status update - memoized to prevent infinite loops
+  // MUST be declared before the useEffect that uses it
+  const handleUpdateStatus = useCallback(async (newStatus: string) => {
+    if (!appointmentId) return;
+
+    try {
+      await updateStatus({
+        appointmentId,
+        status: newStatus,
+      }).unwrap();
+
+      refetchAppointment();
+
+      if (newStatus === 'completed') {
+        toast.success('Consultation completed successfully!');
+      } else if (newStatus === 'in_progress') {
+        toast.info('Consultation started');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update appointment status');
+    }
+  }, [appointmentId, updateStatus, refetchAppointment]);
+
   // Update patient data when appointment details are loaded
   useEffect(() => {
     if (appointmentDetails) {
@@ -143,9 +174,12 @@ const DentalConsultation: React.FC = () => {
       const firstName = appointmentDetails.patient_details?.first_name ||
                        appointmentDetails.patient_first_name || '';
 
-      setPatientData({
-        mobileNumber,
-        firstName,
+      // Only update if values actually changed (prevents unnecessary re-renders)
+      setPatientData(prev => {
+        if (prev.mobileNumber === mobileNumber && prev.firstName === firstName) {
+          return prev;
+        }
+        return { mobileNumber, firstName };
       });
 
       // Auto-update status to in_progress if scheduled (only once)
@@ -154,7 +188,7 @@ const DentalConsultation: React.FC = () => {
         handleUpdateStatus('in_progress');
       }
     }
-  }, [appointmentDetails]);
+  }, [appointmentDetails, handleUpdateStatus]); // Include memoized function
 
   // Fetch prescriptions for this patient
   const { data: allPrescriptions, refetch: refetchPrescriptions } = useGetPatientMedicalHistoryQuery(
@@ -215,212 +249,169 @@ const DentalConsultation: React.FC = () => {
   });
 
   // Load saved observations and procedures from backend for this appointment
-  const loadSavedObservations = async () => {
-    // Guard: Prevent double API calls using MODULE-LEVEL Sets
-    // This handles React Strict Mode double-invocation
-    if (!appointmentId || loadingAppointments.has(appointmentId) || loadedAppointments.has(appointmentId)) {
-      return;
-    }
-
-    // Set guard IMMEDIATELY (synchronous, before any async work)
-    loadingAppointments.add(appointmentId);
-
-    try {
-      // Fetch both observations and procedures for this appointment
-      const [obsResponse, procResponse] = await Promise.all([
-        dentalService.observations.getByAppointment(appointmentId),
-        dentalService.procedures.getByAppointment(appointmentId),
-      ]);
-
-      const fetchedObservations = obsResponse.observations || [];
-      const procedures = procResponse.procedures || [];
-
-      // Process data outside of state update for better performance
-      const processObservationsData = () => {
-        if (fetchedObservations.length > 0 || procedures.length > 0) {
-          // Group observations by condition and surface to create observation rows
-          const groupedObs: Record<string, ObservationData> = {};
-
-          fetchedObservations.forEach(obs => {
-            // Create a key based on condition and surface to group related observations
-            const key = `${obs.condition_type}_${obs.tooth_surface || 'none'}_${obs.severity || 'none'}`;
-
-            if (groupedObs[key]) {
-              // Add tooth to existing group
-              if (!groupedObs[key].selectedTeeth.includes(obs.tooth_number)) {
-                groupedObs[key].selectedTeeth.push(obs.tooth_number);
-              }
-            } else {
-              // Create new observation group
-              groupedObs[key] = {
-                id: `saved_${obs.id}`,
-                selectedTeeth: [obs.tooth_number],
-                toothSurface: obs.tooth_surface || '',
-                conditionType: obs.condition_type,
-                severity: obs.severity || '',
-                observationNotes: obs.observation_notes || '',
-                treatmentRequired: obs.treatment_required,
-                hasProcedure: false,
-                procedureCode: '',
-                procedureName: '',
-                customProcedureName: '',
-                procedureDate: new Date(),
-                procedureNotes: '',
-                isSaved: true,
-              };
-            }
-          });
-
-          // Match procedures to observations based on tooth numbers
-          procedures.forEach(proc => {
-            const procTeeth = proc.tooth_numbers?.split(',') || [];
-
-            // Find matching observation group by teeth
-            for (const key of Object.keys(groupedObs)) {
-              const obsGroup = groupedObs[key];
-              const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
-
-              if (hasMatchingTeeth && !obsGroup.hasProcedure) {
-                obsGroup.hasProcedure = true;
-                obsGroup.procedureCode = proc.procedure_code;
-                obsGroup.procedureName = proc.procedure_name;
-                obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
-                obsGroup.procedureNotes = proc.procedure_notes || '';
-                if (proc.procedure_code === 'CUSTOM') {
-                  obsGroup.customProcedureName = proc.procedure_name;
-                }
-                break;
-              }
-            }
-          });
-
-          // Handle procedures without matching observations (standalone procedures)
-          procedures.forEach((proc, index) => {
-            const procTeeth = proc.tooth_numbers?.split(',') || [];
-            const hasMatchingObs = Object.values(groupedObs).some(obs =>
-              obs.hasProcedure && obs.procedureCode === proc.procedure_code
-            );
-
-            if (!hasMatchingObs) {
-              // Create a standalone observation row for this procedure
-              const key = `proc_${proc.id}`;
-              groupedObs[key] = {
-                id: `saved_proc_${proc.id}`,
-                selectedTeeth: procTeeth,
-                toothSurface: '',
-                conditionType: '',
-                severity: '',
-                observationNotes: '',
-                treatmentRequired: true,
-                hasProcedure: true,
-                procedureCode: proc.procedure_code,
-                procedureName: proc.procedure_name,
-                customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : '',
-                procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
-                procedureNotes: proc.procedure_notes || '',
-                isSaved: true,
-              };
-            }
-          });
-
-          const savedObservations = Object.values(groupedObs);
-          const newObs = createNewObservation();
-          return { observations: [...savedObservations, newObs], activeId: newObs.id };
-        } else {
-          const newObs = createNewObservation();
-          return { observations: [newObs], activeId: newObs.id };
-        }
-      };
-
-      const result = processObservationsData();
-
-      // Mark as loaded using MODULE-LEVEL Sets
-      if (appointmentId) {
-        loadedAppointments.add(appointmentId);
-        loadingAppointments.delete(appointmentId);
-      }
-
-      // IMPORTANT: Set isInitialLoadComplete OUTSIDE of startTransition
-      // startTransition can be interrupted/rolled back by React, causing state to flicker
-      setIsInitialLoadComplete(true);
-
-      // Use startTransition on tablet to prevent UI freeze during heavy state update
-      if (isTablet) {
-        startTransition(() => {
-          setObservations(result.observations);
-          setActiveObservationId(result.activeId);
-        });
-      } else {
-        setObservations(result.observations);
-        setActiveObservationId(result.activeId);
-      }
-    } catch (error) {
-      console.error('Failed to load dental observations:', error);
-
-      // Mark as loaded even on error to prevent retry loops
-      if (appointmentId) {
-        loadedAppointments.add(appointmentId);
-        loadingAppointments.delete(appointmentId);
-      }
-
-      // On error, show empty observation form
-      const newObs = createNewObservation();
-      setIsInitialLoadComplete(true);
-
-      if (isTablet) {
-        startTransition(() => {
-          setObservations([newObs]);
-          setActiveObservationId(newObs.id);
-        });
-      } else {
-        setObservations([newObs]);
-        setActiveObservationId(newObs.id);
-      }
-    }
-  };
 
   // Load saved observations when appointment is available
   useEffect(() => {
     if (!appointmentId) return;
 
-    // Check MODULE-LEVEL guard (persists across React Strict Mode remounts)
-    if (loadedAppointments.has(appointmentId) || loadingAppointments.has(appointmentId)) {
-      // If already loaded, ensure isInitialLoadComplete is true
-      if (loadedAppointments.has(appointmentId) && !isInitialLoadComplete) {
-        setIsInitialLoadComplete(true);
-      }
+    // Check if we already loaded data for this appointment
+    if (previousAppointmentIdRef.current === appointmentId && hasLoadedObservationsRef.current) {
       return;
     }
 
-    loadSavedObservations();
+    // Mark as loading for this appointment
+    hasLoadedObservationsRef.current = true;
+    previousAppointmentIdRef.current = appointmentId;
 
-    // Tablet safety fallback: Force complete after 3 seconds if still loading
-    let fallbackTimer: NodeJS.Timeout | null = null;
-    if (isTablet) {
-      fallbackTimer = setTimeout(() => {
-        if (!loadedAppointments.has(appointmentId)) {
-          loadedAppointments.add(appointmentId);
-          loadingAppointments.delete(appointmentId);
-          setIsInitialLoadComplete(true);
+    const abortController = new AbortController();
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        // Fetch both observations and procedures with cancellation support
+        const [obsResponse, procResponse] = await Promise.all([
+          dentalService.observations.getByAppointment(appointmentId, { signal: abortController.signal }),
+          dentalService.procedures.getByAppointment(appointmentId, { signal: abortController.signal }),
+        ]);
+
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
+
+        const fetchedObservations = obsResponse.observations || [];
+        const procedures = procResponse.procedures || [];
+
+        // Process data outside of state update for better performance
+        const processObservationsData = () => {
+          if (fetchedObservations.length > 0 || procedures.length > 0) {
+            // Group observations by condition and surface to create observation rows
+            const groupedObs: Record<string, ObservationData> = {};
+
+            fetchedObservations.forEach(obs => {
+              // Create a key based on condition and surface to group related observations
+              const key = `${obs.condition_type}_${obs.tooth_surface || 'none'}_${obs.severity || 'none'}`;
+
+              if (groupedObs[key]) {
+                // Add tooth to existing group
+                if (!groupedObs[key].selectedTeeth.includes(obs.tooth_number)) {
+                  groupedObs[key].selectedTeeth.push(obs.tooth_number);
+                }
+              } else {
+                // Create new observation group
+                groupedObs[key] = {
+                  id: `saved_${obs.id}`,
+                  selectedTeeth: [obs.tooth_number],
+                  toothSurface: obs.tooth_surface || '',
+                  conditionType: obs.condition_type,
+                  severity: obs.severity || '',
+                  observationNotes: obs.observation_notes || '',
+                  treatmentRequired: obs.treatment_required,
+                  hasProcedure: false,
+                  procedureCode: '',
+                  procedureName: '',
+                  customProcedureName: '',
+                  procedureDate: new Date(),
+                  procedureNotes: '',
+                  isSaved: true,
+                };
+              }
+            });
+
+            // Match procedures to observations based on tooth numbers
+            procedures.forEach(proc => {
+              const procTeeth = proc.tooth_numbers?.split(',') || [];
+
+              // Find matching observation group by teeth
+              for (const key of Object.keys(groupedObs)) {
+                const obsGroup = groupedObs[key];
+                const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
+
+                if (hasMatchingTeeth && !obsGroup.hasProcedure) {
+                  obsGroup.hasProcedure = true;
+                  obsGroup.procedureCode = proc.procedure_code;
+                  obsGroup.procedureName = proc.procedure_name;
+                  obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
+                  obsGroup.procedureNotes = proc.procedure_notes || '';
+                  if (proc.procedure_code === 'CUSTOM') {
+                    obsGroup.customProcedureName = proc.procedure_name;
+                  }
+                  break;
+                }
+              }
+            });
+
+            // Handle procedures without matching observations (standalone procedures)
+            procedures.forEach((proc, index) => {
+              const procTeeth = proc.tooth_numbers?.split(',') || [];
+              const hasMatchingObs = Object.values(groupedObs).some(obs =>
+                obs.hasProcedure && obs.procedureCode === proc.procedure_code
+              );
+
+              if (!hasMatchingObs) {
+                // Create a standalone observation row for this procedure
+                const key = `proc_${proc.id}`;
+                groupedObs[key] = {
+                  id: `saved_proc_${proc.id}`,
+                  selectedTeeth: procTeeth,
+                  toothSurface: '',
+                  conditionType: '',
+                  severity: '',
+                  observationNotes: '',
+                  treatmentRequired: true,
+                  hasProcedure: true,
+                  procedureCode: proc.procedure_code,
+                  procedureName: proc.procedure_name,
+                  customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : '',
+                  procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                  procedureNotes: proc.procedure_notes || '',
+                  isSaved: true,
+                };
+              }
+            });
+
+            const savedObservations = Object.values(groupedObs);
+            const newObs = createNewObservation();
+            return { observations: [...savedObservations, newObs], activeId: newObs.id };
+          } else {
+            const newObs = createNewObservation();
+            return { observations: [newObs], activeId: newObs.id };
+          }
+        };
+
+        const result = processObservationsData();
+
+        // Update state
+        setObservations(result.observations);
+        setActiveObservationId(result.activeId);
+      } catch (error: any) {
+        // Ignore cancelled requests
+        if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+          return;
         }
-      }, 3000);
-    }
 
-    return () => {
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer);
+        // Only update state if still mounted
+        if (isMounted) {
+          const newObs = createNewObservation();
+          setObservations([newObs]);
+          setActiveObservationId(newObs.id);
+        }
       }
     };
-  }, [appointmentId, isTablet]);
 
-  // Load dental chart data
-  useEffect(() => {
-    if (patientData.mobileNumber && patientData.firstName) {
-      loadDentalChart();
-    }
-  }, [patientData]);
+    loadData();
 
-  const loadDentalChart = async () => {
+    return () => {
+      // Cleanup: Cancel pending requests but DON'T reset refs
+      isMounted = false;
+      abortController.abort();
+      // NOTE: We intentionally DON'T reset hasLoadedObservationsRef here
+      // to prevent duplicate loads if component remounts with same appointmentId
+    };
+  }, [appointmentId]); // Only depend on appointmentId
+
+  // Load dental chart data - memoized to prevent infinite loops
+  const loadDentalChart = useCallback(async () => {
+    if (!patientData.mobileNumber || !patientData.firstName) return;
+
     try {
       setLoading(true);
       const chart = await dentalService.chart.getChart(
@@ -433,29 +424,14 @@ const DentalConsultation: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientData.mobileNumber, patientData.firstName]);
 
-  // Handle status update
-  const handleUpdateStatus = async (newStatus: string) => {
-    if (!appointmentId) return;
-
-    try {
-      await updateStatus({
-        appointmentId,
-        status: newStatus,
-      }).unwrap();
-
-      refetchAppointment();
-
-      if (newStatus === 'completed') {
-        toast.success('Consultation completed successfully!');
-      } else if (newStatus === 'in_progress') {
-        toast.info('Consultation started');
-      }
-    } catch (error: any) {
-      toast.error(error?.data?.detail || 'Failed to update appointment status');
+  // Trigger dental chart load when patient data changes
+  useEffect(() => {
+    if (patientData.mobileNumber && patientData.firstName) {
+      loadDentalChart();
     }
-  };
+  }, [patientData.mobileNumber, patientData.firstName, loadDentalChart]); // Include memoized function
 
   // Handle complete consultation
   const handleCompleteConsultation = async () => {
@@ -575,22 +551,13 @@ const DentalConsultation: React.FC = () => {
     scrollToObservation(newObs.id);
   };
 
-  // Update observation - use transition on tablet to prevent freeze during rapid updates
+  // Update observation - DISABLED startTransition, just update directly
   const handleUpdateObservation = useCallback((id: string, data: Partial<ObservationData>) => {
-    const updateFn = () => {
-      setObservations(prev => prev.map(obs =>
-        obs.id === id ? { ...obs, ...data } : obs
-      ));
-      setHasUnsavedChanges(true);
-    };
-
-    // On tablet, use startTransition for non-urgent updates to prevent UI blocking
-    if (isTablet) {
-      startTransition(updateFn);
-    } else {
-      updateFn();
-    }
-  }, [isTablet]);
+    setObservations(prev => prev.map(obs =>
+      obs.id === id ? { ...obs, ...data } : obs
+    ));
+    setHasUnsavedChanges(true);
+  }, []);
 
   // Delete observation
   const handleDeleteObservation = (id: string) => {
@@ -742,20 +709,26 @@ const DentalConsultation: React.FC = () => {
     if (!dentalChart?.teeth) return [];
 
     return dentalChart.teeth.map(tooth => {
-      // Count completed procedures
-      const completedProcedures = tooth.procedures.filter(p => p.status === 'completed');
-      const inProgressProcedures = tooth.procedures.filter(p => p.status === 'in_progress');
-      const plannedProcedures = tooth.procedures.filter(p => p.status === 'planned');
+      // Optimize: Single pass through procedures instead of 3 separate filters
+      let completedCount = 0;
+      let inProgressCount = 0;
+      let plannedCount = 0;
+
+      for (const proc of tooth.procedures) {
+        if (proc.status === 'completed') completedCount++;
+        else if (proc.status === 'in_progress') inProgressCount++;
+        else if (proc.status === 'planned') plannedCount++;
+      }
 
       // Determine overall procedure status for the tooth
       let procedureStatus: 'planned' | 'in_progress' | 'completed' | undefined;
-      if (completedProcedures.length > 0 && completedProcedures.length === tooth.procedures.length) {
+      if (completedCount > 0 && completedCount === tooth.procedures.length) {
         procedureStatus = 'completed'; // All procedures completed
-      } else if (completedProcedures.length > 0) {
+      } else if (completedCount > 0) {
         procedureStatus = 'in_progress'; // Some completed, some pending
-      } else if (inProgressProcedures.length > 0) {
+      } else if (inProgressCount > 0) {
         procedureStatus = 'in_progress';
-      } else if (plannedProcedures.length > 0) {
+      } else if (plannedCount > 0) {
         procedureStatus = 'planned';
       }
 
@@ -773,9 +746,9 @@ const DentalConsultation: React.FC = () => {
         procedureCount: tooth.procedures.length,
         // New fields for better status tracking
         procedureStatus,
-        completedProcedureCount: completedProcedures.length,
-        hasPendingProcedure: plannedProcedures.length > 0 || inProgressProcedures.length > 0,
-        hasCompletedProcedure: completedProcedures.length > 0,
+        completedProcedureCount: completedCount,
+        hasPendingProcedure: plannedCount > 0 || inProgressCount > 0,
+        hasCompletedProcedure: completedCount > 0,
       };
     });
   }, [dentalChart]);
@@ -810,20 +783,9 @@ const DentalConsultation: React.FC = () => {
     );
   }
 
-  // Tablet-specific: Show loading until initial data processing is complete
-  // This prevents the freeze caused by rendering heavy components before data is ready
-  if (isTablet && !isInitialLoadComplete && appointmentDetails) {
-    return (
-      <Container maxWidth="xl" sx={{ py: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={60} />
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Preparing consultation...
-          </Typography>
-        </Box>
-      </Container>
-    );
-  }
+  // REMOVED: Tablet loading screen was causing UI to become unresponsive
+  // The data loads quickly enough without blocking the UI
+  // Keeping the useTransition hooks in loadSavedObservations prevents freezing
 
   // Show error if appointment not found
   if (appointmentError || !appointmentDetails) {

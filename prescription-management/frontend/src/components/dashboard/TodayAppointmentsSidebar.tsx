@@ -221,7 +221,20 @@ export const TodayAppointmentsSidebar = () => {
     dispatch(setAppointmentsSidebarOpen(false));
   };
 
-  const handleAppointmentClick = (appointment: Appointment) => {
+  const handleAppointmentClick = (appointment: Appointment, event: React.MouseEvent<HTMLElement>) => {
+    // CRITICAL FIX for iPad: Blur the button before navigation to prevent aria-hidden focus trap
+    // When a button retains focus during navigation, Material-UI sets aria-hidden="true" on root,
+    // blocking ALL clicks on the page. Blurring prevents this issue.
+    const target = event.currentTarget;
+    if (target instanceof HTMLElement) {
+      target.blur();
+    }
+
+    // Also blur any focused element as a safety measure
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     // Check if doctor has dental specialization
     const isDentalDoctor =
       user?.specialization?.toLowerCase().includes('dental') ||
@@ -246,17 +259,32 @@ export const TodayAppointmentsSidebar = () => {
       open={appointmentsSidebarOpen}
       onClose={handleClose}
       ModalProps={{
-        keepMounted: true, // Better performance on mobile
+        keepMounted: false, // CRITICAL FIX: Don't keep mounted when closed to prevent iPad overlay blocking
+        disableRestoreFocus: true, // Prevent focus trap issues
+        // Hide backdrop immediately when closing to prevent interaction blocking
+        hideBackdrop: false,
+        slotProps: {
+          backdrop: {
+            // Make backdrop invisible and non-blocking
+            sx: {
+              backgroundColor: 'transparent',
+              pointerEvents: 'none', // CRITICAL: Prevent backdrop from blocking clicks
+            },
+          },
+        },
       }}
       sx={{
         // Don't set width on Drawer - main content uses margin-right instead
         // This prevents double-counting of sidebar space
         flexShrink: 0,
+        // CRITICAL FIX: Ensure drawer doesn't block interactions when closed
+        pointerEvents: appointmentsSidebarOpen ? 'auto' : 'none',
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
           top: { xs: 56, sm: 64 }, // Below AppBar (56px on mobile, 64px on desktop)
           height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
+          pointerEvents: 'auto', // Re-enable pointer events on the paper itself
         },
       }}
     >
@@ -371,7 +399,16 @@ export const TodayAppointmentsSidebar = () => {
                     sx={{ mb: 1 }}
                   >
                     <ListItemButton
-                      onClick={() => {
+                      onClick={(event) => {
+                        // CRITICAL FIX: Blur button before navigation to prevent aria-hidden focus trap
+                        const target = event.currentTarget;
+                        if (target instanceof HTMLElement) {
+                          target.blur();
+                        }
+                        if (document.activeElement instanceof HTMLElement) {
+                          document.activeElement.blur();
+                        }
+
                         if (procedure.appointment_id) {
                           navigate(`/appointments/${procedure.appointment_id}/dental`);
                         }
@@ -520,7 +557,7 @@ export const TodayAppointmentsSidebar = () => {
                 sx={{ mb: 1 }}
               >
                 <ListItemButton
-                  onClick={() => handleAppointmentClick(appointment)}
+                  onClick={(event) => handleAppointmentClick(appointment, event)}
                   sx={{
                     borderRadius: 1,
                     border: 1,
