@@ -1,0 +1,628 @@
+/**
+ * SavedObservationsPanel Component
+ * Displays saved observations as collapsible cards with procedures
+ * Matches Figma design with procedure action buttons
+ */
+
+import React, { useState } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Card,
+  CardContent,
+  Chip,
+  IconButton,
+  Divider,
+  Button,
+  Collapse,
+  TextField,
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Delete as DeleteIcon,
+  CalendarToday as CalendarIcon,
+  AccessTime as TimeIcon,
+  CheckCircle as CompleteIcon,
+  Schedule as RescheduleIcon,
+  Cancel as CancelIcon,
+} from '@mui/icons-material';
+import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { type ObservationData } from './ObservationRow';
+
+interface SavedObservationsPanelProps {
+  observations: ObservationData[];
+  onEditClick: (observation: ObservationData) => void;
+  onRefresh: () => void;
+  onUpdateProcedure?: (obsId: string, procedureData: Partial<ObservationData>) => Promise<void>;
+  onDeleteObservation?: (obsId: string) => Promise<void>;
+}
+
+const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
+  observations,
+  onEditClick,
+  onRefresh,
+  onUpdateProcedure,
+  onDeleteObservation,
+}) => {
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [reschedulingProcedures, setReschedulingProcedures] = useState<Set<string>>(new Set());
+  const [procedureDates, setProcedureDates] = useState<Record<string, Date | null>>({});
+
+  const toggleCard = (obsId: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(obsId)) {
+      newExpanded.delete(obsId);
+    } else {
+      newExpanded.add(obsId);
+    }
+    setExpandedCards(newExpanded);
+  };
+
+  const formatDate = (dateString?: string | Date | null) => {
+    if (!dateString) return 'Today';
+    try {
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      const now = new Date();
+      const isToday =
+        date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
+      if (isToday) {
+        return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      return date.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return 'Today';
+    }
+  };
+
+  const formatDateOnly = (dateString?: string | Date | null) => {
+    if (!dateString) return '';
+    try {
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      return date.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+    } catch {
+      return '';
+    }
+  };
+
+  const formatTimeOnly = (dateString?: string | Date | null) => {
+    if (!dateString) return '';
+    try {
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return '';
+    }
+  };
+
+  const handleProcedureAction = async (obs: ObservationData, action: 'completed' | 'cancelled' | 'reschedule') => {
+    if (!onUpdateProcedure) return;
+
+    if (action === 'reschedule') {
+      setReschedulingProcedures(prev => {
+        const newSet = new Set(prev);
+        newSet.add(obs.id);
+        return newSet;
+      });
+      // Initialize with current date if available
+      if (obs.procedureDate) {
+        setProcedureDates(prev => ({ ...prev, [obs.id]: new Date(obs.procedureDate!) }));
+      }
+    } else {
+      await onUpdateProcedure(obs.id, { procedureStatus: action });
+    }
+  };
+
+  const handleSaveReschedule = async (obs: ObservationData) => {
+    if (!onUpdateProcedure) return;
+
+    const newDate = procedureDates[obs.id];
+    if (newDate) {
+      await onUpdateProcedure(obs.id, {
+        procedureDate: newDate,
+        procedureStatus: 'planned',
+      });
+    }
+
+    setReschedulingProcedures(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(obs.id);
+      return newSet;
+    });
+  };
+
+  const handleCancelReschedule = (obsId: string) => {
+    setReschedulingProcedures(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(obsId);
+      return newSet;
+    });
+  };
+
+  const getStatusColor = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      case 'planned':
+      default:
+        return 'info';
+    }
+  };
+
+  const getStatusLabel = (status?: string) => {
+    return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Scheduled';
+  };
+
+  // Count procedures from procedures array AND legacy single procedures
+  const totalProcedures = observations.reduce((count, obs) => {
+    const newProcs = obs.procedures?.length || 0;
+    // Fix: Check backendProcedureId instead of procedureCode (which can be empty)
+    const legacyProc = (!obs.procedures || obs.procedures.length === 0) && obs.hasProcedure && obs.backendProcedureId ? 1 : 0;
+    return count + newProcs + legacyProc;
+  }, 0);
+
+  const scheduledProcedures = observations.reduce((count, obs) => {
+    const scheduled = obs.procedures?.filter(p => p.procedureStatus?.toLowerCase() === 'planned').length || 0;
+    const legacyScheduled = (!obs.procedures || obs.procedures.length === 0) && obs.hasProcedure && obs.procedureStatus?.toLowerCase() === 'planned' ? 1 : 0;
+    return count + scheduled + legacyScheduled;
+  }, 0);
+
+  const doneProcedures = observations.reduce((count, obs) => {
+    const done = obs.procedures?.filter(p => p.procedureStatus?.toLowerCase() === 'completed').length || 0;
+    const legacyDone = (!obs.procedures || obs.procedures.length === 0) && obs.hasProcedure && obs.procedureStatus?.toLowerCase() === 'completed' ? 1 : 0;
+    return count + done + legacyDone;
+  }, 0);
+
+  return (
+    <Paper
+      elevation={2}
+      sx={{
+        p: 2,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography variant="h6" fontWeight="bold">
+            Today's Observations ({observations.length})
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {scheduledProcedures} Scheduled | {doneProcedures} Done
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={onRefresh} title="Refresh" color="primary">
+          <RefreshIcon />
+        </IconButton>
+      </Box>
+
+      <Divider sx={{ mb: 2 }} />
+
+      {/* Cards */}
+      <Box>
+        {observations.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 6 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              No observations recorded yet
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Create a new observation using the form on the left
+            </Typography>
+          </Box>
+        ) : (
+          observations.map((obs) => {
+            const isExpanded = expandedCards.has(obs.id);
+            const isRescheduling = reschedulingProcedures.has(obs.id);
+
+            return (
+              <Card
+                key={obs.id}
+                sx={{
+                  mb: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Card Header - Always Visible */}
+                <Box
+                  sx={{
+                    p: 2,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    cursor: 'pointer',
+                    bgcolor: 'grey.50',
+                    '&:hover': {
+                      bgcolor: 'grey.100',
+                    },
+                  }}
+                  onClick={() => toggleCard(obs.id)}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    {/* Teeth and Status */}
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mb: 1 }}>
+                      {/* Single chip showing all teeth numbers */}
+                      <Chip
+                        label={`Teeth: ${obs.selectedTeeth.join(', ')}`}
+                        size="small"
+                        color="primary"
+                        sx={{ fontWeight: 600 }}
+                      />
+                      {obs.severity && (
+                        <Chip
+                          label={obs.severity}
+                          size="small"
+                          color={
+                            obs.severity === 'Severe' ? 'error' :
+                            obs.severity === 'Moderate' ? 'warning' : 'success'
+                          }
+                        />
+                      )}
+                      {/* Show procedure count for THIS observation - support both new and legacy */}
+                      {((obs.procedures && obs.procedures.length > 0) || (obs.hasProcedure && obs.backendProcedureId)) && (
+                        <Chip
+                          label={(() => {
+                            const newScheduled = obs.procedures?.filter(p => p.procedureStatus?.toLowerCase() === 'planned').length || 0;
+                            const newDone = obs.procedures?.filter(p => p.procedureStatus?.toLowerCase() === 'completed').length || 0;
+                            const legacyScheduled = (!obs.procedures || obs.procedures.length === 0) && obs.hasProcedure && obs.procedureStatus?.toLowerCase() === 'planned' ? 1 : 0;
+                            const legacyDone = (!obs.procedures || obs.procedures.length === 0) && obs.hasProcedure && obs.procedureStatus?.toLowerCase() === 'completed' ? 1 : 0;
+                            return `${newScheduled + legacyScheduled} Scheduled | ${newDone + legacyDone} Done`;
+                          })()}
+                          size="small"
+                          variant="outlined"
+                          color="secondary"
+                        />
+                      )}
+                    </Box>
+
+                    {/* Condition */}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 500,
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      Condition: {obs.conditionType}
+                    </Typography>
+
+                    {/* Timestamp */}
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDate(obs.created_at)}
+                    </Typography>
+                  </Box>
+
+                  {/* Expand/Collapse and Delete */}
+                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCard(obs.id);
+                      }}
+                    >
+                      {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDeleteObservation && window.confirm('Delete this observation?')) {
+                          onDeleteObservation(obs.id);
+                        }
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+
+                {/* Expandable Content */}
+                <Collapse in={isExpanded} timeout="auto">
+                  <CardContent sx={{ pt: 2 }}>
+                    {/* Observation Details */}
+                    {obs.observationNotes && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          mb: 2,
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {obs.observationNotes}
+                      </Typography>
+                    )}
+
+                    {/* Procedures Section - Loop through ALL procedures */}
+                    {((obs.procedures && obs.procedures.length > 0) || (obs.hasProcedure && obs.backendProcedureId)) && (
+                      <>
+                        <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
+                          Procedures ({obs.procedures?.length || 1}):
+                        </Typography>
+
+                        {/* Loop through all procedures - Support both new array and legacy single procedure */}
+                        {(obs.procedures && obs.procedures.length > 0 ? obs.procedures :
+                          obs.hasProcedure && obs.backendProcedureId ? [{
+                            id: 'legacy',
+                            selectedTeeth: obs.selectedTeeth,
+                            procedureCode: obs.procedureCode,
+                            procedureName: obs.procedureName,
+                            customProcedureName: obs.customProcedureName,
+                            procedureDate: obs.procedureDate,
+                            procedureTime: obs.procedureDate, // Use same date for time
+                            procedureNotes: obs.procedureNotes,
+                            procedureStatus: obs.procedureStatus || 'planned',
+                          }] : []
+                        ).map((procedure, procIndex) => {
+                          const isRescheduling = reschedulingProcedures.has(procedure.id);
+
+                          return (
+                            <Box
+                              key={procedure.id}
+                              sx={{
+                                p: 2,
+                                border: '2px solid',
+                                borderColor: procedure.procedureStatus?.toLowerCase() === 'completed' ? 'success.light' :
+                                            procedure.procedureStatus?.toLowerCase() === 'cancelled' ? 'error.light' : 'primary.light',
+                                borderRadius: 1,
+                                bgcolor: procedure.procedureStatus?.toLowerCase() === 'completed' ? 'success.50' :
+                                          procedure.procedureStatus?.toLowerCase() === 'cancelled' ? 'error.50' : 'primary.50',
+                                mb: 2,
+                              }}
+                            >
+                              {/* Procedure Header */}
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
+                                <Typography variant="caption" fontWeight="bold" color="primary">
+                                  #{procIndex + 1}
+                                </Typography>
+                                <Chip
+                                  label={`Teeth: ${procedure.selectedTeeth.join(', ')}`}
+                                  size="small"
+                                  sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider' }}
+                                />
+                                <Chip
+                                  label={getStatusLabel(procedure.procedureStatus)}
+                                  size="small"
+                                  color={getStatusColor(procedure.procedureStatus)}
+                                />
+                              </Box>
+
+                              {/* Procedure Name */}
+                              <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
+                                {procedure.procedureCode === 'CUSTOM' ? procedure.customProcedureName : procedure.procedureName}
+                              </Typography>
+
+                              {/* Date and Time - View or Reschedule Mode */}
+                              {isRescheduling ? (
+                                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                    <DatePicker
+                                      label="Date"
+                                      value={procedureDates[procedure.id] || procedure.procedureDate}
+                                      onChange={(newDate) => setProcedureDates(prev => ({ ...prev, [procedure.id]: newDate }))}
+                                      slotProps={{
+                                        textField: {
+                                          size: 'small',
+                                          sx: { flex: 1 },
+                                        },
+                                      }}
+                                    />
+                                    <TimePicker
+                                      label="Time"
+                                      value={procedureDates[procedure.id] || procedure.procedureTime}
+                                      onChange={(newTime) => setProcedureDates(prev => ({ ...prev, [procedure.id]: newTime }))}
+                                      slotProps={{
+                                        textField: {
+                                          size: 'small',
+                                          sx: { flex: 1 },
+                                        },
+                                      }}
+                                    />
+                                  </Box>
+                                </LocalizationProvider>
+                              ) : (
+                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1 }}>
+                                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                    <CalendarIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                    <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                                      {formatDateOnly(procedure.procedureDate)}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                    <TimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                    <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                                      {formatTimeOnly(procedure.procedureTime || procedure.procedureDate)}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              )}
+
+                              {/* Procedure Notes */}
+                              {procedure.procedureNotes && (
+                                <Box
+                                  sx={{
+                                    p: 1,
+                                    bgcolor: 'white',
+                                    borderRadius: 1,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    mb: 2,
+                                  }}
+                                >
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    {procedure.procedureNotes}
+                                  </Typography>
+                                </Box>
+                              )}
+
+                              {/* Action Buttons - Only show for scheduled procedures */}
+                              {procedure.procedureStatus?.toLowerCase() === 'planned' && (
+                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                  {isRescheduling ? (
+                                    <>
+                                      <Button
+                                        variant="contained"
+                                        size="small"
+                                        onClick={async () => {
+                                          if (onUpdateProcedure) {
+                                            // Handle both new array and legacy single procedure
+                                            if (obs.procedures && obs.procedures.length > 0) {
+                                              // New array structure
+                                              await onUpdateProcedure(obs.id, {
+                                                procedures: obs.procedures.map(p =>
+                                                  p.id === procedure.id
+                                                    ? { ...p, procedureDate: procedureDates[procedure.id] || p.procedureDate, procedureTime: procedureDates[procedure.id] || p.procedureTime }
+                                                    : p
+                                                )
+                                              });
+                                            } else {
+                                              // Legacy single procedure - update date directly
+                                              await onUpdateProcedure(obs.id, {
+                                                procedureDate: procedureDates[procedure.id] || procedure.procedureDate
+                                              });
+                                            }
+                                          }
+                                          setReschedulingProcedures(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(procedure.id);
+                                            return newSet;
+                                          });
+                                        }}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        color="inherit"
+                                        onClick={() => {
+                                          setReschedulingProcedures(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(procedure.id);
+                                            return newSet;
+                                          });
+                                        }}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="contained"
+                                        color="success"
+                                        size="small"
+                                        startIcon={<CompleteIcon sx={{ fontSize: 14 }} />}
+                                        onClick={async () => {
+                                          if (onUpdateProcedure) {
+                                            // Handle both new array and legacy single procedure
+                                            if (obs.procedures && obs.procedures.length > 0) {
+                                              // New array structure
+                                              await onUpdateProcedure(obs.id, {
+                                                procedures: obs.procedures.map(p =>
+                                                  p.id === procedure.id ? { ...p, procedureStatus: 'completed' } : p
+                                                )
+                                              });
+                                            } else {
+                                              // Legacy single procedure - update status directly
+                                              await onUpdateProcedure(obs.id, {
+                                                procedureStatus: 'completed'
+                                              });
+                                            }
+                                          }
+                                        }}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                                      >
+                                        Complete
+                                      </Button>
+                                      <Button
+                                        variant="contained"
+                                        color="primary"
+                                        size="small"
+                                        startIcon={<RescheduleIcon sx={{ fontSize: 14 }} />}
+                                        onClick={() => {
+                                          setReschedulingProcedures(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.add(procedure.id);
+                                            return newSet;
+                                          });
+                                          setProcedureDates(prev => ({
+                                            ...prev,
+                                            [procedure.id]: procedure.procedureDate || new Date()
+                                          }));
+                                        }}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                                      >
+                                        Reschedule
+                                      </Button>
+                                      <Button
+                                        variant="contained"
+                                        color="error"
+                                        size="small"
+                                        startIcon={<CancelIcon sx={{ fontSize: 14 }} />}
+                                        onClick={async () => {
+                                          if (onUpdateProcedure) {
+                                            // Handle both new array and legacy single procedure
+                                            if (obs.procedures && obs.procedures.length > 0) {
+                                              // New array structure
+                                              await onUpdateProcedure(obs.id, {
+                                                procedures: obs.procedures.map(p =>
+                                                  p.id === procedure.id ? { ...p, procedureStatus: 'cancelled' } : p
+                                                )
+                                              });
+                                            } else {
+                                              // Legacy single procedure - update status directly
+                                              await onUpdateProcedure(obs.id, {
+                                                procedureStatus: 'cancelled'
+                                              });
+                                            }
+                                          }
+                                        }}
+                                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  )}
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </>
+                    )}
+                  </CardContent>
+                </Collapse>
+              </Card>
+            );
+          })
+        )}
+      </Box>
+    </Paper>
+  );
+};
+
+export default SavedObservationsPanel;

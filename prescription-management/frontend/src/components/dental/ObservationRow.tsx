@@ -84,6 +84,20 @@ const COMMON_PROCEDURES = [
   { code: 'CUSTOM', name: 'Custom Procedure' },
 ];
 
+// Individual procedure data
+export interface ProcedureData {
+  id: string; // Unique ID for UI tracking
+  selectedTeeth: string[]; // Teeth for this procedure (can be subset of observation teeth)
+  procedureCode: string;
+  procedureName: string;
+  customProcedureName?: string;
+  procedureDate: Date | null;
+  procedureTime: Date | null; // Separate time field
+  procedureNotes: string;
+  procedureStatus: 'planned' | 'cancelled' | 'completed';
+  backendProcedureId?: string; // Backend ID for updates
+}
+
 export interface ObservationData {
   id: string;
   selectedTeeth: string[];
@@ -92,19 +106,21 @@ export interface ObservationData {
   severity: string;
   observationNotes: string;
   treatmentRequired: boolean;
-  // Procedure data (optional)
+  // Multiple procedures support
   hasProcedure: boolean;
-  procedureCode: string;
-  procedureName: string;
-  customProcedureName: string;
-  procedureDate: Date | null;
-  procedureNotes: string;
-  procedureStatus: 'planned' | 'cancelled' | 'completed';  // Procedure status
+  procedures: ProcedureData[]; // Array of procedures
+  // Legacy single procedure fields (for backward compatibility during migration)
+  procedureCode?: string;
+  procedureName?: string;
+  customProcedureName?: string;
+  procedureDate?: Date | null;
+  procedureNotes?: string;
+  procedureStatus?: 'planned' | 'cancelled' | 'completed';
   // Saved state
   isSaved?: boolean;
   // Backend IDs for update operations (maps tooth_number -> observation_id)
   backendObservationIds?: Record<string, string>;
-  backendProcedureId?: string;
+  backendProcedureId?: string; // Legacy single procedure ID
 }
 
 interface ObservationRowProps {
