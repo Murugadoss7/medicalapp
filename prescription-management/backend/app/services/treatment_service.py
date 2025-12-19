@@ -221,13 +221,21 @@ class TreatmentService:
         if status_filter and status_filter != treatment_status:
             return None  # Skip this patient
 
+        # Calculate age from date_of_birth
+        age = None
+        if patient.date_of_birth:
+            today = date.today()
+            age = today.year - patient.date_of_birth.year - (
+                (today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day)
+            )
+
         return {
             "patient": {
                 "mobile_number": patient.mobile_number,
                 "first_name": patient.first_name,
                 "last_name": patient.last_name,
                 "uuid": str(patient.id),
-                "age": patient.age,
+                "age": age,
                 "gender": patient.gender,
                 "email": patient.email
             },
