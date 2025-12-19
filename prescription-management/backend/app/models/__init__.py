@@ -14,6 +14,7 @@ from app.models.prescription import Prescription, PrescriptionItem
 from app.models.appointment import Appointment
 from app.models.audit_log import AuditLog
 from app.models.dental import DentalObservation, DentalProcedure, DentalObservationTemplate
+from app.models.case_study import CaseStudy
 
 # Import helper functions
 from app.models.patient import (
@@ -80,7 +81,8 @@ __all__ = [
     "DentalObservation",
     "DentalProcedure",
     "DentalObservationTemplate",
-    
+    "CaseStudy",
+
     # Helper functions
     "get_family_members",
     "check_family_limit",

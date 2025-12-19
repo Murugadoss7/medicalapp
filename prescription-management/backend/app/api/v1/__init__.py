@@ -5,7 +5,7 @@ Includes all endpoint modules with proper prefixes and tags
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental
+from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental, treatments
 
 # Main API router
 api_router = APIRouter()
@@ -73,6 +73,13 @@ api_router.include_router(
     tags=["Dental Management"]
 )
 
+# Treatment dashboard endpoints
+api_router.include_router(
+    treatments.router,
+    prefix="/treatments",
+    tags=["Treatment Dashboard"]
+)
+
 # Temporary endpoint for testing
 @api_router.get("/")
 async def api_root():
@@ -87,6 +94,7 @@ async def api_root():
             "short-keys": "/short-keys",
             "appointments": "/appointments",
             "prescriptions": "/prescriptions",
-            "dental": "/dental"
+            "dental": "/dental",
+            "treatments": "/treatments"
         }
     }
