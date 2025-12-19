@@ -247,7 +247,7 @@ AGENT WORK:
                 tools=self.tools,
                 memory=memory,
                 verbose=self.verbose,
-                max_iterations=10,  # Prevent infinite loops
+                max_iterations=5,  # Prevent infinite loops
                 handle_parsing_errors=True,  # Gracefully handle errors
                 return_intermediate_steps=False,  # Return only final answer
             )

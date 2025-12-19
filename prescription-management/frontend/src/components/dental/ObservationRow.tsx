@@ -121,6 +121,9 @@ export interface ObservationData {
   // Backend IDs for update operations (maps tooth_number -> observation_id)
   backendObservationIds?: Record<string, string>;
   backendProcedureId?: string; // Legacy single procedure ID
+  // Template support
+  selectedTemplateIds?: string[];
+  customNotes?: string;
 }
 
 interface ObservationRowProps {

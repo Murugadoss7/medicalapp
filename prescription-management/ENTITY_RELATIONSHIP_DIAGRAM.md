@@ -31,7 +31,7 @@
 
 ## 🗄️ Database Tables Overview
 
-### **Core Entities (9 Primary Tables)**
+### **Core Entities (10 Primary Tables)**
 1. **users** - Authentication and user management (includes specialization for doctors)
 2. **doctors** - Doctor profiles and specializations
 3. **patients** - Patient records with composite key (mobile + firstName)
@@ -39,8 +39,9 @@
 5. **short_keys** - Quick prescription templates
 6. **appointments** - Doctor-patient scheduling
 7. **prescriptions** - Prescription management
-8. **dental_observations** - Tooth-level observations with FDI notation ⭐ NEW
-9. **dental_procedures** - Dental procedures and treatments ⭐ NEW
+8. **dental_observations** - Tooth-level observations with FDI notation
+9. **dental_procedures** - Dental procedures and treatments
+10. **dental_observation_templates** - Pre-defined observation note templates ⭐ NEW
 
 ### **Junction/Relationship Tables**
 - **short_key_medicines** - Many-to-many: Short keys ↔ Medicines
@@ -768,7 +769,7 @@ CREATE TABLE prescription_items (
 
 ---
 
-### **8. DENTAL_OBSERVATIONS Table** ⭐ NEW
+### **8. DENTAL_OBSERVATIONS Table**
 ```sql
 CREATE TABLE dental_observations (
     -- Primary Key
@@ -789,7 +790,11 @@ CREATE TABLE dental_observations (
     -- Observation Details
     condition_type          VARCHAR(50) NOT NULL,   -- Cavity, Decay, Fracture, etc. (14 types)
     severity                VARCHAR(20),            -- Mild, Moderate, Severe
-    observation_notes       TEXT,
+    observation_notes       TEXT,                   -- Combined template notes + custom notes
+
+    -- Template Support ⭐ NEW
+    selected_template_ids   TEXT,                   -- Comma-separated UUIDs of selected templates
+    custom_notes            TEXT,                   -- Additional notes beyond templates
 
     -- Treatment Tracking
     treatment_required      BOOLEAN DEFAULT TRUE NOT NULL,
@@ -829,6 +834,10 @@ CREATE TABLE dental_observations (
     "treatment_required": boolean,
     "treatment_done": boolean,
     "treatment_date": "date",           // "2025-11-16"
+
+    // Template Support ⭐ NEW
+    "selected_template_ids": "string",  // Comma-separated UUIDs
+    "custom_notes": "string",           // Additional custom notes
 
     // Audit
     "created_at": "datetime",
@@ -946,6 +955,81 @@ cancelled ← cancelled ← cancelled
 
 ---
 
+### **10. DENTAL_OBSERVATION_TEMPLATES Table** ⭐ NEW
+```sql
+CREATE TABLE dental_observation_templates (
+    -- Primary Key
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Matching Criteria (NULL = wildcard, matches all)
+    condition_type          VARCHAR(50),            -- "Cavity", NULL = all conditions
+    tooth_surface           VARCHAR(10),            -- "Occlusal", NULL = all surfaces
+    severity                VARCHAR(20),            -- "Moderate", NULL = all severities
+
+    -- Template Content
+    template_text           TEXT NOT NULL,          -- Pre-defined note text
+    short_code              VARCHAR(20),            -- Quick reference code (e.g., "CAV-OCC-M")
+    display_order           INTEGER DEFAULT 0,      -- Sort order for display
+
+    -- Access Control
+    is_global               BOOLEAN DEFAULT FALSE,  -- Available to same specialization doctors
+    specialization          VARCHAR(200),           -- Filter by doctor specialty
+    created_by_doctor       UUID REFERENCES doctors(id),
+
+    -- Audit Fields
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by              UUID,
+    is_active               BOOLEAN DEFAULT TRUE
+);
+```
+
+**🔗 Frontend Field Mapping:**
+```javascript
+// API Response Format
+{
+    "id": "uuid",
+
+    // Matching Criteria (NULL = wildcard)
+    "condition_type": "string|null",    // "Cavity" or null
+    "tooth_surface": "string|null",     // "Occlusal" or null
+    "severity": "string|null",          // "Moderate" or null
+
+    // Template Content
+    "template_text": "string",          // The actual note template
+    "short_code": "string",             // "CAV-OCC-M"
+    "display_order": number,
+
+    // Access Control
+    "is_global": boolean,               // Share with same specialization
+    "specialization": "string|null",
+    "created_by_doctor": "uuid|null",
+
+    // Computed (returned by match endpoint)
+    "match_score": number,              // 3=exact, 2=good, 1=general
+
+    // Audit
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "is_active": boolean
+}
+```
+
+**Template Matching Logic:**
+- **Score 3 (Exact)**: All 3 fields match exactly
+- **Score 2 (Good)**: 2 fields match, 1 is wildcard (NULL)
+- **Score 1 (General)**: 1 field matches, 2 are wildcards
+- Templates sorted by match_score DESC, then display_order ASC
+
+**API Endpoints:**
+- `GET /dental/templates/match?condition=X&surface=Y&severity=Z` - Get matching templates
+- `GET /dental/templates` - List all accessible templates
+- `POST /dental/templates` - Create new template
+- `PUT /dental/templates/{id}` - Update template (creator only)
+- `DELETE /dental/templates/{id}` - Delete template (creator only)
+
+---
+
 ## 🔗 Entity Relationships
 
 ### **Primary Relationships**
@@ -961,12 +1045,16 @@ medicines (1) ←→ (many) prescription_items
 short_keys (many) ←→ (many) medicines [via short_key_medicines]
 doctors (1) ←→ (many) short_keys
 
-⭐ NEW: Dental Relationships
+⭐ Dental Relationships
 prescriptions (1) ←→ (many) dental_observations
 appointments (1) ←→ (many) dental_observations
 dental_observations (1) ←→ (many) dental_procedures
 prescriptions (1) ←→ (many) dental_procedures
 appointments (1) ←→ (many) dental_procedures
+
+⭐ NEW: Template Relationships
+doctors (1) ←→ (many) dental_observation_templates
+dental_observation_templates (many) ←→ (many) dental_observations [via selected_template_ids]
 ```
 
 ### **Composite Key Relationships**

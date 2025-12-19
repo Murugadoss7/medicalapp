@@ -13,7 +13,7 @@ from app.models.short_key import ShortKey, ShortKeyMedicine
 from app.models.prescription import Prescription, PrescriptionItem
 from app.models.appointment import Appointment
 from app.models.audit_log import AuditLog
-from app.models.dental import DentalObservation, DentalProcedure
+from app.models.dental import DentalObservation, DentalProcedure, DentalObservationTemplate
 
 # Import helper functions
 from app.models.patient import (
@@ -79,6 +79,7 @@ __all__ = [
     "AuditLog",
     "DentalObservation",
     "DentalProcedure",
+    "DentalObservationTemplate",
     
     # Helper functions
     "get_family_members",

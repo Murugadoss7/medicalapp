@@ -15,15 +15,8 @@
 - **Fixed Duration**: 30 minutes per appointment
 - **Working Hours**: Monday to Friday, 9 AM to 10 PM
 - **Break Time**: 10-minute breaks between appointments
-- **Lunch Time**: Configurable lunch break for each doctor
-- **Availability**: Set during doctor registration by doctor/admin
-
-### **Procedures Sidebar View** ⭐ NEW (November 30, 2025)
-- **Access**: Click "Today's Procedures" card in dashboard
-- **Mode Toggle**: Sidebar switches between appointments and procedures view
-- **Procedures Display**: Shows procedure name, patient name, tooth numbers, status
-- **Return to Appointments**: Click any office location to switch back to appointments
-- **API**: `GET /dental/procedures/doctor/{doctor_id}/today` with patient_name from linked appointment
+- **Lunch Time**: Configurable lunch break for each doctor duration 1 hour
+- **Availability**: Set during doctor registration by doctor/admin. 
 
 ### **Navigation Pattern**
 - **Breadcrumb**: Home > Appointments > Patient Details
@@ -67,39 +60,6 @@ Example Schedule:
 - **Schedule Patterns**: Weekly recurring schedule
 - **Exception Handling**: Holiday/leave management
 - **Slot Management**: Block/unblock specific time slots
-
-### **Multiple Office Locations** ⭐ NEW
-Doctors can practice at multiple clinic/hospital locations.
-
-**Office Configuration:**
-```
-Office Structure:
-{
-  "id": "uuid-string",        // Unique office ID
-  "name": "Main Clinic",      // Display name
-  "address": "123 Main St",   // Full address
-  "is_primary": true          // Primary office flag
-}
-
-Example for a doctor with 2 offices:
-[
-  { "id": "off-001", "name": "Main Clinic", "address": "Downtown", "is_primary": true },
-  { "id": "off-002", "name": "Branch Office", "address": "Uptown", "is_primary": false }
-]
-```
-
-**Office Management Workflow:**
-- **During Registration**: Add offices in Step 2 (Clinic Details)
-- **First Office**: Automatically marked as primary
-- **Edit Office**: Update name/address via Doctor Edit page
-- **Add/Remove**: Manage offices through Doctor Profile
-
-**Appointment with Office Selection:**
-1. Patient selects doctor
-2. If doctor has multiple offices → Show office selection cards
-3. If single office or none → Auto-select primary/first
-4. Selected `office_id` stored with appointment
-5. Dashboard sidebar shows office location for each appointment
 
 ---
 

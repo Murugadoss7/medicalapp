@@ -254,8 +254,9 @@ Key documentation files:
 - `ENTITY_RELATIONSHIP_DIAGRAM.md` - Database schema authority
 - `API_REFERENCE_GUIDE.md` - Complete API documentation
 - `PROJECT_ARCHITECTURE.md` - Technical architecture
+-`WORKFLOW_SPECIFICATIONS.md` - Business rules
 - `FRONTEND_DEVELOPMENT_PLAN.md` - UI/UX specifications
-- `WORKFLOW_SPECIFICATIONS.md` - Business rules
+
 
 ## License
 

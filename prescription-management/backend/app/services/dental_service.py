@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, desc, asc, func
 
 from app.models.dental import (
-    DentalObservation, DentalProcedure,
+    DentalObservation, DentalProcedure, DentalObservationTemplate,
     is_valid_tooth_number, get_tooth_type,
     DENTAL_CONDITION_TYPES, TOOTH_SURFACES
 )
@@ -95,6 +95,31 @@ class DentalService:
                 appointment.patient_first_name != observation_data.patient_first_name):
                 raise ValidationError("Appointment does not match patient")
 
+        # Handle template IDs and combine notes
+        selected_template_ids_str = None
+        combined_notes = observation_data.observation_notes or ""
+
+        if observation_data.selected_template_ids:
+            # Convert UUIDs to comma-separated string
+            selected_template_ids_str = ",".join(str(tid) for tid in observation_data.selected_template_ids)
+
+            # Get template texts and combine
+            templates = self.db.query(DentalObservationTemplate).filter(
+                DentalObservationTemplate.id.in_(observation_data.selected_template_ids),
+                DentalObservationTemplate.is_active == True
+            ).all()
+
+            template_texts = [t.template_text for t in templates]
+
+            # Combine template notes with custom notes
+            if template_texts:
+                if observation_data.custom_notes:
+                    combined_notes = " | ".join(template_texts) + " | " + observation_data.custom_notes
+                else:
+                    combined_notes = " | ".join(template_texts)
+            elif observation_data.custom_notes:
+                combined_notes = observation_data.custom_notes
+
         # Create observation
         observation = DentalObservation(
             id=uuid4(),
@@ -106,7 +131,9 @@ class DentalService:
             tooth_surface=observation_data.tooth_surface,
             condition_type=observation_data.condition_type,
             severity=observation_data.severity,
-            observation_notes=observation_data.observation_notes,
+            observation_notes=combined_notes if combined_notes else observation_data.observation_notes,
+            selected_template_ids=selected_template_ids_str,
+            custom_notes=observation_data.custom_notes,
             treatment_required=observation_data.treatment_required,
             treatment_done=observation_data.treatment_done,
             treatment_date=observation_data.treatment_date,
@@ -137,7 +164,14 @@ class DentalService:
             raise ValidationError("Dental observation not found")
 
         # Update fields
-        update_dict = update_data.dict(exclude_unset=True)
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        # Handle template IDs specially
+        template_ids_updated = False
+        custom_notes_updated = False
+        new_template_ids = None
+        new_custom_notes = None
+
         for field, value in update_dict.items():
             # Validate tooth surface if being updated
             if field == 'tooth_surface' and value and value not in TOOTH_SURFACES:
@@ -147,7 +181,39 @@ class DentalService:
             if field == 'condition_type' and value and value not in DENTAL_CONDITION_TYPES:
                 raise ValidationError(f"Invalid condition type: {value}")
 
+            # Handle template IDs
+            if field == 'selected_template_ids':
+                template_ids_updated = True
+                new_template_ids = value
+                if value:
+                    # Convert UUIDs to comma-separated string
+                    setattr(observation, field, ",".join(str(tid) for tid in value))
+                else:
+                    setattr(observation, field, None)
+                continue
+
+            if field == 'custom_notes':
+                custom_notes_updated = True
+                new_custom_notes = value
+
             setattr(observation, field, value)
+
+        # Recalculate observation_notes if templates or custom notes changed
+        if template_ids_updated or custom_notes_updated:
+            template_texts = []
+            if new_template_ids:
+                templates = self.db.query(DentalObservationTemplate).filter(
+                    DentalObservationTemplate.id.in_(new_template_ids),
+                    DentalObservationTemplate.is_active == True
+                ).all()
+                template_texts = [t.template_text for t in templates]
+
+            # Combine notes
+            combined_parts = template_texts.copy()
+            if new_custom_notes:
+                combined_parts.append(new_custom_notes)
+
+            observation.observation_notes = " | ".join(combined_parts) if combined_parts else None
 
         observation.updated_at = datetime.utcnow()
         observation.updated_by = updated_by
@@ -163,6 +229,7 @@ class DentalService:
         if not observation:
             return False
 
+        observation.is_active = False
         observation.updated_at = datetime.utcnow()
 
         self.db.commit()
@@ -178,7 +245,8 @@ class DentalService:
         """Get dental observations for a patient"""
         query = self.db.query(DentalObservation).filter(
             DentalObservation.patient_mobile_number == mobile_number,
-            DentalObservation.patient_first_name == first_name
+            DentalObservation.patient_first_name == first_name,
+            DentalObservation.is_active == True
         )
 
         if tooth_number:
@@ -202,6 +270,7 @@ class DentalService:
         """Get dental observations for an appointment"""
         return self.db.query(DentalObservation).filter(
             DentalObservation.appointment_id == appointment_id,
+            DentalObservation.is_active == True
         ).order_by(DentalObservation.tooth_number).all()
 
     def get_tooth_history(
@@ -343,6 +412,7 @@ class DentalService:
         if not procedure:
             return False
 
+        procedure.is_active = False
         procedure.updated_at = datetime.utcnow()
 
         self.db.commit()
@@ -373,6 +443,7 @@ class DentalService:
         """Get procedures for an appointment"""
         return self.db.query(DentalProcedure).filter(
             DentalProcedure.appointment_id == appointment_id,
+            DentalProcedure.is_active == True
         ).order_by(DentalProcedure.created_at).all()
 
     def get_doctor_today_procedures(
@@ -485,6 +556,7 @@ class DentalService:
         ).filter(
             Appointment.patient_mobile_number == mobile_number,
             Appointment.patient_first_name == first_name,
+            DentalProcedure.is_active == True
         ).all()
 
         # Organize by tooth number

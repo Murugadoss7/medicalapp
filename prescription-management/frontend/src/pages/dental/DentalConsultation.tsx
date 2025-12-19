@@ -83,6 +83,9 @@ const createNewObservation = (teeth: string[] = []): ObservationData => ({
   procedureDate: new Date(),
   procedureNotes: '',
   isSaved: false,
+  // Template support
+  selectedTemplateIds: [],
+  customNotes: '',
 });
 
 import dentalService, { type DentalChart as DentalChartType } from '../../services/dentalService';
@@ -266,6 +269,16 @@ const DentalConsultation: React.FC = () => {
   const [observationFormCollapsed, setObservationFormCollapsed] = useState(false);
   const [chartCollapsed, setChartCollapsed] = useState(false);
 
+  // Edit confirmation dialog state
+  const [showEditConfirmDialog, setShowEditConfirmDialog] = useState(false);
+  const [pendingEditObservation, setPendingEditObservation] = useState<ObservationData | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingObservationId, setEditingObservationId] = useState<string | null>(null);
+
+  // Delete confirmation dialog state
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [pendingDeleteObservationId, setPendingDeleteObservationId] = useState<string | null>(null);
+
   // Refs for scrolling observations into view
   const observationContainerRef = useRef<HTMLDivElement>(null);
   const observationRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -343,6 +356,10 @@ const DentalConsultation: React.FC = () => {
                   backendObservationIds: {
                     [obs.tooth_number]: obs.id
                   },
+                  // Template support - load from backend
+                  selectedTemplateIds: obs.selected_template_ids ? obs.selected_template_ids.split(',') : [],
+                  customNotes: obs.custom_notes || '',
+                  procedures: [], // Initialize procedures array
                 };
               }
             });
@@ -356,16 +373,36 @@ const DentalConsultation: React.FC = () => {
                 const obsGroup = groupedObs[key];
                 const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
 
-                if (hasMatchingTeeth && !obsGroup.hasProcedure) {
-                  obsGroup.hasProcedure = true;
-                  obsGroup.procedureCode = proc.procedure_code;
-                  obsGroup.procedureName = proc.procedure_name;
-                  obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
-                  obsGroup.procedureNotes = proc.procedure_notes || '';
-                  obsGroup.procedureStatus = proc.status || 'planned'; // FIX: Set procedure status
-                  obsGroup.backendProcedureId = proc.id; // CRITICAL: Track backend procedure ID
-                  if (proc.procedure_code === 'CUSTOM') {
-                    obsGroup.customProcedureName = proc.procedure_name;
+                if (hasMatchingTeeth) {
+                  // FIX: Add procedure to procedures array (new format) for edit mode
+                  const procedureData: ProcedureData = {
+                    id: proc.id, // Use backend ID as the ID
+                    selectedTeeth: procTeeth,
+                    procedureCode: proc.procedure_code,
+                    procedureName: proc.procedure_name,
+                    customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : undefined,
+                    procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                    procedureTime: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                    procedureNotes: proc.procedure_notes || '',
+                    procedureStatus: (proc.status || 'planned') as 'planned' | 'cancelled' | 'completed',
+                    backendProcedureId: proc.id, // CRITICAL: Track backend procedure ID
+                  };
+
+                  obsGroup.procedures = obsGroup.procedures || [];
+                  obsGroup.procedures.push(procedureData);
+
+                  // Also set legacy fields for backward compatibility (for display in SavedObservationsPanel)
+                  if (!obsGroup.hasProcedure) {
+                    obsGroup.hasProcedure = true;
+                    obsGroup.procedureCode = proc.procedure_code;
+                    obsGroup.procedureName = proc.procedure_name;
+                    obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
+                    obsGroup.procedureNotes = proc.procedure_notes || '';
+                    obsGroup.procedureStatus = proc.status || 'planned';
+                    obsGroup.backendProcedureId = proc.id;
+                    if (proc.procedure_code === 'CUSTOM') {
+                      obsGroup.customProcedureName = proc.procedure_name;
+                    }
                   }
                   break;
                 }
@@ -376,12 +413,27 @@ const DentalConsultation: React.FC = () => {
             procedures.forEach((proc, index) => {
               const procTeeth = proc.tooth_numbers?.split(',') || [];
               const hasMatchingObs = Object.values(groupedObs).some(obs =>
-                obs.hasProcedure && obs.procedureCode === proc.procedure_code
+                obs.procedures?.some(p => p.backendProcedureId === proc.id)
               );
 
               if (!hasMatchingObs) {
                 // Create a standalone observation row for this procedure
                 const key = `proc_${proc.id}`;
+
+                // FIX: Create procedure data for procedures array
+                const procedureData: ProcedureData = {
+                  id: proc.id,
+                  selectedTeeth: procTeeth,
+                  procedureCode: proc.procedure_code,
+                  procedureName: proc.procedure_name,
+                  customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : undefined,
+                  procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                  procedureTime: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                  procedureNotes: proc.procedure_notes || '',
+                  procedureStatus: (proc.status || 'planned') as 'planned' | 'cancelled' | 'completed',
+                  backendProcedureId: proc.id,
+                };
+
                 groupedObs[key] = {
                   id: `saved_proc_${proc.id}`,
                   selectedTeeth: procTeeth,
@@ -396,9 +448,11 @@ const DentalConsultation: React.FC = () => {
                   customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : '',
                   procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
                   procedureNotes: proc.procedure_notes || '',
-                  procedureStatus: proc.status || 'planned', // FIX: Set procedure status
+                  procedureStatus: proc.status || 'planned',
                   isSaved: true,
-                  backendProcedureId: proc.id, // CRITICAL: Track backend procedure ID
+                  backendProcedureId: proc.id,
+                  // FIX: Add procedures array
+                  procedures: [procedureData],
                 };
               }
             });
@@ -819,7 +873,7 @@ const DentalConsultation: React.FC = () => {
     }));
   }, []);
 
-  // Save new observation
+  // Save new observation (or update if in edit mode)
   const handleSaveNewObservation = useCallback(async () => {
     if (!newObservation.selectedTeeth.length || !newObservation.conditionType) {
       toast.warning('Please select teeth and condition');
@@ -829,118 +883,262 @@ const DentalConsultation: React.FC = () => {
     try {
       setSavingObservations(true);
 
-      // Create observations for each tooth
-      const createdIds: Record<string, string> = {};
-      for (const toothNumber of newObservation.selectedTeeth) {
-        const created = await dentalService.observations.create({
-          appointment_id: appointmentId,
-          patient_mobile_number: patientData.mobileNumber,
-          patient_first_name: patientData.firstName,
-          tooth_number: toothNumber,
-          condition_type: newObservation.conditionType,
-          severity: newObservation.severity,
-          tooth_surface: newObservation.toothSurface,
-          observation_notes: newObservation.observationNotes,
-          treatment_required: newObservation.treatmentRequired,
-        });
-        createdIds[toothNumber] = created.id;
-      }
+      // Check if we're in edit mode (updating existing observation)
+      if (isEditMode && editingObservationId && newObservation.backendObservationIds) {
+        // UPDATE MODE: Update existing observations
+        console.log('UPDATE MODE: Updating observation', editingObservationId);
 
-      // Create procedures from procedures array (NEW format)
-      let proceduresArray: ProcedureData[] = [];
+        // Update each tooth's observation in backend
+        for (const toothNumber of newObservation.selectedTeeth) {
+          const backendId = newObservation.backendObservationIds[toothNumber];
+          if (backendId) {
+            await dentalService.observations.update(backendId, {
+              condition_type: newObservation.conditionType,
+              severity: newObservation.severity,
+              tooth_surface: newObservation.toothSurface,
+              observation_notes: newObservation.observationNotes,
+              treatment_required: newObservation.treatmentRequired,
+              selected_template_ids: newObservation.selectedTemplateIds || [],
+              custom_notes: newObservation.customNotes,
+            });
+          }
+        }
 
-      // Check if observation has procedures array (new format)
-      if (newObservation.procedures && newObservation.procedures.length > 0) {
-        console.log('Saving procedures:', newObservation.procedures);
+        // Update procedures if they exist
+        if (newObservation.procedures && newObservation.procedures.length > 0) {
+          for (const procedure of newObservation.procedures) {
+            if (procedure.backendProcedureId) {
+              // Update existing procedure
+              const procedureName = procedure.procedureCode === 'CUSTOM'
+                ? procedure.customProcedureName
+                : procedure.procedureName;
 
-        for (const procedure of newObservation.procedures) {
-          const procedureName = procedure.procedureCode === 'CUSTOM'
-            ? procedure.customProcedureName
-            : procedure.procedureName;
+              await dentalService.procedures.update(procedure.backendProcedureId, {
+                procedure_code: procedure.procedureCode,
+                procedure_name: procedureName,
+                tooth_numbers: procedure.selectedTeeth.join(','),
+                procedure_date: procedure.procedureDate?.toISOString().split('T')[0],
+                procedure_notes: procedure.procedureNotes,
+                status: procedure.procedureStatus || 'planned',
+              });
+            }
+          }
+        }
+        // Handle legacy single procedure
+        else if (newObservation.backendProcedureId && newObservation.hasProcedure) {
+          const procedureName = newObservation.procedureCode === 'CUSTOM'
+            ? newObservation.customProcedureName
+            : newObservation.procedureName;
+
+          await dentalService.procedures.update(newObservation.backendProcedureId, {
+            procedure_code: newObservation.procedureCode,
+            procedure_name: procedureName,
+            tooth_numbers: newObservation.selectedTeeth.join(','),
+            procedure_date: newObservation.procedureDate?.toISOString().split('T')[0],
+            procedure_notes: newObservation.procedureNotes,
+            status: newObservation.procedureStatus || 'planned',
+          });
+        }
+
+        // Update local state - replace the old observation with updated one
+        const updatedObs: ObservationData = {
+          ...newObservation,
+          isSaved: true,
+        };
+
+        setObservations(prev => prev.map(obs =>
+          obs.id === editingObservationId ? updatedObs : obs
+        ));
+
+        // Reset form and edit mode
+        setNewObservation(createNewObservation());
+        setIsEditMode(false);
+        setEditingObservationId(null);
+        toast.success('Observation updated successfully');
+        await loadDentalChart(); // Refresh chart
+
+      } else {
+        // CREATE MODE: Create new observations
+        console.log('CREATE MODE: Creating new observation');
+
+        // Create observations for each tooth
+        const createdIds: Record<string, string> = {};
+        for (const toothNumber of newObservation.selectedTeeth) {
+          const created = await dentalService.observations.create({
+            appointment_id: appointmentId,
+            patient_mobile_number: patientData.mobileNumber,
+            patient_first_name: patientData.firstName,
+            tooth_number: toothNumber,
+            condition_type: newObservation.conditionType,
+            severity: newObservation.severity,
+            tooth_surface: newObservation.toothSurface,
+            observation_notes: newObservation.observationNotes,
+            treatment_required: newObservation.treatmentRequired,
+            // Template fields
+            selected_template_ids: newObservation.selectedTemplateIds,
+            custom_notes: newObservation.customNotes,
+          });
+          createdIds[toothNumber] = created.id;
+        }
+
+        // Create procedures from procedures array (NEW format)
+        let proceduresArray: ProcedureData[] = [];
+
+        // Check if observation has procedures array (new format)
+        if (newObservation.procedures && newObservation.procedures.length > 0) {
+          console.log('Saving procedures:', newObservation.procedures);
+
+          for (const procedure of newObservation.procedures) {
+            const procedureName = procedure.procedureCode === 'CUSTOM'
+              ? procedure.customProcedureName
+              : procedure.procedureName;
+
+            const createdProc = await dentalService.procedures.create({
+              appointment_id: appointmentId,
+              procedure_code: procedure.procedureCode,
+              procedure_name: procedureName,
+              tooth_numbers: procedure.selectedTeeth.join(','),
+              procedure_date: procedure.procedureDate?.toISOString().split('T')[0],
+              procedure_notes: procedure.procedureNotes,
+              status: procedure.procedureStatus || 'planned',
+            });
+
+            console.log('Created procedure with ID:', createdProc.id);
+
+            // Add to procedures array with backend ID
+            proceduresArray.push({
+              ...procedure,
+              id: createdProc.id,
+              backendProcedureId: createdProc.id,
+            });
+          }
+        }
+        // Backward compatibility: Check for legacy single procedure fields
+        else if (newObservation.hasProcedure && newObservation.procedureCode) {
+          const procedureName = newObservation.procedureCode === 'CUSTOM'
+            ? newObservation.customProcedureName
+            : newObservation.procedureName;
 
           const createdProc = await dentalService.procedures.create({
             appointment_id: appointmentId,
-            procedure_code: procedure.procedureCode,
+            procedure_code: newObservation.procedureCode,
             procedure_name: procedureName,
-            tooth_numbers: procedure.selectedTeeth.join(','),
-            procedure_date: procedure.procedureDate?.toISOString().split('T')[0],
-            procedure_notes: procedure.procedureNotes,
-            status: procedure.procedureStatus || 'planned',
+            tooth_numbers: newObservation.selectedTeeth.join(','),
+            procedure_date: newObservation.procedureDate?.toISOString().split('T')[0],
+            procedure_notes: newObservation.procedureNotes,
+            status: newObservation.procedureStatus || 'planned',
           });
 
-          console.log('Created procedure with ID:', createdProc.id);
+          console.log('Created legacy procedure with ID:', createdProc.id);
 
-          // Add to procedures array with backend ID
-          proceduresArray.push({
-            ...procedure,
+          // Convert legacy to procedures array format
+          proceduresArray = [{
             id: createdProc.id,
+            selectedTeeth: newObservation.selectedTeeth,
+            procedureCode: newObservation.procedureCode,
+            procedureName: procedureName || '',
+            customProcedureName: newObservation.customProcedureName,
+            procedureDate: newObservation.procedureDate,
+            procedureTime: newObservation.procedureDate,
+            procedureNotes: newObservation.procedureNotes || '',
+            procedureStatus: (newObservation.procedureStatus || 'planned') as 'planned' | 'cancelled' | 'completed',
             backendProcedureId: createdProc.id,
-          });
+          }];
         }
+
+        // Add to observations array with isSaved flag AND procedures array
+        const savedObs: ObservationData = {
+          ...newObservation,
+          isSaved: true,
+          backendObservationIds: createdIds,
+          created_at: new Date().toISOString(),
+          // IMPORTANT: Add procedures array in new format
+          procedures: proceduresArray,
+          // For backward compatibility, keep first procedure ID as backendProcedureId
+          backendProcedureId: proceduresArray.length > 0 ? proceduresArray[0].backendProcedureId : undefined,
+        };
+
+        console.log('Saved observation:', savedObs);
+        setObservations(prev => [savedObs, ...prev]);
+
+        // Reset form
+        setNewObservation(createNewObservation());
+        toast.success('Observation saved successfully');
+        await loadDentalChart(); // Refresh chart
       }
-      // Backward compatibility: Check for legacy single procedure fields
-      else if (newObservation.hasProcedure && newObservation.procedureCode) {
-        const procedureName = newObservation.procedureCode === 'CUSTOM'
-          ? newObservation.customProcedureName
-          : newObservation.procedureName;
-
-        const createdProc = await dentalService.procedures.create({
-          appointment_id: appointmentId,
-          procedure_code: newObservation.procedureCode,
-          procedure_name: procedureName,
-          tooth_numbers: newObservation.selectedTeeth.join(','),
-          procedure_date: newObservation.procedureDate?.toISOString().split('T')[0],
-          procedure_notes: newObservation.procedureNotes,
-          status: newObservation.procedureStatus || 'planned',
-        });
-
-        console.log('Created legacy procedure with ID:', createdProc.id);
-
-        // Convert legacy to procedures array format
-        proceduresArray = [{
-          id: createdProc.id,
-          selectedTeeth: newObservation.selectedTeeth,
-          procedureCode: newObservation.procedureCode,
-          procedureName: procedureName || '',
-          customProcedureName: newObservation.customProcedureName,
-          procedureDate: newObservation.procedureDate,
-          procedureTime: newObservation.procedureDate,
-          procedureNotes: newObservation.procedureNotes || '',
-          procedureStatus: (newObservation.procedureStatus || 'planned') as 'planned' | 'cancelled' | 'completed',
-          backendProcedureId: createdProc.id,
-        }];
-      }
-
-      // Add to observations array with isSaved flag AND procedures array
-      const savedObs: ObservationData = {
-        ...newObservation,
-        isSaved: true,
-        backendObservationIds: createdIds,
-        created_at: new Date().toISOString(),
-        // IMPORTANT: Add procedures array in new format
-        procedures: proceduresArray,
-        // For backward compatibility, keep first procedure ID as backendProcedureId
-        backendProcedureId: proceduresArray.length > 0 ? proceduresArray[0].backendProcedureId : undefined,
-      };
-
-      console.log('Saved observation:', savedObs);
-      setObservations(prev => [savedObs, ...prev]);
-
-      // Reset form
-      setNewObservation(createNewObservation());
-      toast.success('Observation saved successfully');
-      await loadDentalChart(); // Refresh chart
 
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save observation');
     } finally {
       setSavingObservations(false);
     }
-  }, [newObservation, appointmentId, patientData, loadDentalChart]);
+  }, [newObservation, appointmentId, patientData, loadDentalChart, isEditMode, editingObservationId]);
 
   // Clear new observation form
   const handleClearNewObservation = useCallback(() => {
     setNewObservation(createNewObservation());
+    setIsEditMode(false);
+    setEditingObservationId(null);
+  }, []);
+
+  // Check if newObservation has unsaved data
+  const hasUnsavedNewObservation = useCallback(() => {
+    return newObservation.selectedTeeth.length > 0 ||
+           newObservation.conditionType !== '' ||
+           newObservation.observationNotes !== '';
+  }, [newObservation]);
+
+  // Handle edit in panel - load observation into left panel form
+  const handleEditInPanel = useCallback((observation: ObservationData) => {
+    if (hasUnsavedNewObservation()) {
+      // Show confirmation dialog
+      setPendingEditObservation(observation);
+      setShowEditConfirmDialog(true);
+    } else {
+      // Directly load observation for editing
+      loadObservationForEdit(observation);
+    }
+  }, [hasUnsavedNewObservation]);
+
+  // Load observation data into the form for editing
+  const loadObservationForEdit = useCallback((observation: ObservationData) => {
+    // Expand the form if collapsed
+    setObservationFormCollapsed(false);
+
+    // Minimize the tooth chart to save space
+    setChartCollapsed(true);
+
+    // Load observation data into newObservation state
+    setNewObservation({
+      ...observation,
+      isSaved: false, // Allow editing
+    });
+
+    // Track that we're in edit mode
+    setIsEditMode(true);
+    setEditingObservationId(observation.id);
+
+    // Close dialog if open
+    setShowEditConfirmDialog(false);
+    setPendingEditObservation(null);
+
+    // Scroll to top of the page to show the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    toast.info('Observation loaded for editing. Make changes and click Update.');
+  }, []);
+
+  // Handle confirmation dialog - Continue (discard and edit)
+  const handleConfirmEdit = useCallback(() => {
+    if (pendingEditObservation) {
+      loadObservationForEdit(pendingEditObservation);
+    }
+  }, [pendingEditObservation, loadObservationForEdit]);
+
+  // Handle confirmation dialog - Cancel (keep current work)
+  const handleCancelEdit = useCallback(() => {
+    setShowEditConfirmDialog(false);
+    setPendingEditObservation(null);
   }, []);
 
   // Open edit modal
@@ -1063,9 +1261,17 @@ const DentalConsultation: React.FC = () => {
     }
   }, [observations, loadDentalChart]);
 
-  // Delete saved observation (from SavedObservationsPanel)
-  const handleDeleteSavedObservation = useCallback(async (obsId: string) => {
-    const observation = observations.find(obs => obs.id === obsId);
+  // Show delete confirmation dialog (called from SavedObservationsPanel)
+  const handleRequestDeleteObservation = useCallback((obsId: string) => {
+    setPendingDeleteObservationId(obsId);
+    setShowDeleteConfirmDialog(true);
+  }, []);
+
+  // Confirm and execute delete
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteObservationId) return;
+
+    const observation = observations.find(obs => obs.id === pendingDeleteObservationId);
     if (!observation) return;
 
     try {
@@ -1077,22 +1283,48 @@ const DentalConsultation: React.FC = () => {
         }
       }
 
-      // Delete procedure if exists
-      if (observation.backendProcedureId) {
+      // Delete all procedures from procedures array
+      if (observation.procedures && observation.procedures.length > 0) {
+        for (const procedure of observation.procedures) {
+          if (procedure.backendProcedureId) {
+            await dentalService.procedures.delete(procedure.backendProcedureId);
+          }
+        }
+      }
+      // Legacy: Delete single procedure if exists
+      else if (observation.backendProcedureId) {
         await dentalService.procedures.delete(observation.backendProcedureId);
       }
 
-      // Update local state
-      setObservations(prev => prev.filter(obs => obs.id !== obsId));
+      // If this observation is currently being edited, clear the edit form
+      if (editingObservationId === pendingDeleteObservationId) {
+        setNewObservation(createNewObservation());
+        setIsEditMode(false);
+        setEditingObservationId(null);
+        toast.info('Edit mode cleared');
+      }
 
-      toast.success('Observation deleted');
-      await loadDentalChart(); // Refresh chart
+      // Update local state
+      setObservations(prev => prev.filter(obs => obs.id !== pendingDeleteObservationId));
+
+      // Close dialog
+      setShowDeleteConfirmDialog(false);
+      setPendingDeleteObservationId(null);
+
+      toast.success('Observation and all procedures deleted');
+      await loadDentalChart(); // Refresh chart to remove markings
 
     } catch (error: any) {
       toast.error('Failed to delete observation');
       throw error;
     }
-  }, [observations, loadDentalChart]);
+  }, [pendingDeleteObservationId, observations, editingObservationId, loadDentalChart]);
+
+  // Cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteConfirmDialog(false);
+    setPendingDeleteObservationId(null);
+  }, []);
 
   // ============================================================
   // END NEW HANDLERS
@@ -1389,6 +1621,7 @@ const DentalConsultation: React.FC = () => {
                 onSave={handleSaveNewObservation}
                 onClear={handleClearNewObservation}
                 saving={savingObservations}
+                isEditMode={isEditMode}
               />
             </Collapse>
           </Paper>
@@ -1404,9 +1637,11 @@ const DentalConsultation: React.FC = () => {
           <SavedObservationsPanel
             observations={observations.filter(o => o.isSaved)}
             onEditClick={handleOpenEditModal}
+            onEditInPanel={handleEditInPanel}
             onRefresh={loadDentalChart}
             onUpdateProcedure={handleUpdateProcedure}
-            onDeleteObservation={handleDeleteSavedObservation}
+            onDeleteObservation={handleRequestDeleteObservation}
+            editingObservationId={editingObservationId}
           />
         </Box>
       </Box>
@@ -1631,6 +1866,94 @@ const DentalConsultation: React.FC = () => {
             onClick={() => handleExitDialogResponse(true)}
           >
             Yes, Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Confirmation Dialog */}
+      <Dialog
+        open={showEditConfirmDialog}
+        onClose={handleCancelEdit}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">Unsaved Changes</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            You have an observation in progress that hasn't been saved.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            If you continue, the current observation data will be discarded and replaced with the selected observation for editing.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={handleCancelEdit}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleConfirmEdit}
+          >
+            Continue
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirmDialog}
+        onClose={handleCancelDelete}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" color="error.main">Delete Observation?</Typography>
+        </DialogTitle>
+        <DialogContent>
+          {editingObservationId === pendingDeleteObservationId ? (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                This observation is currently being edited!
+              </Alert>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                This observation is currently being edited. Are you sure you want to delete it?
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                The observation, all its procedures, and your current edits will be permanently deleted.
+                The left panel will be cleared.
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                Are you sure you want to delete this observation?
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                The observation and all its procedures will be permanently deleted.
+                This action cannot be undone.
+              </Typography>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={handleCancelDelete}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

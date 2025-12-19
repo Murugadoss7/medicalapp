@@ -2391,4 +2391,156 @@ cancelled ← cancelled ← cancelled
 
 ---
 
-**✅ This API Reference Guide provides complete field mappings and request/response formats for all 117+ endpoints including the dental consultation module with FDI tooth charting system.**
+### **Dental Observation Templates (5 endpoints)** ⭐ NEW
+
+Pre-defined observation note templates that doctors can quickly select based on condition, surface, and severity.
+
+#### **1. GET /dental/templates/match** - Get Matching Templates
+```javascript
+// Query Parameters:
+// ?condition=Cavity&surface=Occlusal&severity=Moderate
+// Note: NULL values in templates act as wildcards (match all)
+
+// Response (200)
+{
+    "templates": [
+        {
+            "id": "uuid",
+            "condition_type": "Cavity",       // Matches query
+            "tooth_surface": "Occlusal",      // Matches query
+            "severity": "Moderate",           // Matches query
+            "template_text": "Deep cavity observed on occlusal surface requiring immediate restoration",
+            "short_code": "CAV-OCC-M",        // Quick reference code
+            "display_order": 1,
+            "is_global": false,               // Doctor-specific
+            "specialization": "Dental",
+            "created_by_doctor": "doctor-uuid",
+            "match_score": 3,                 // 3=exact, 2=good, 1=general
+            "is_active": true
+        },
+        {
+            "id": "uuid2",
+            "condition_type": "Cavity",
+            "tooth_surface": null,            // Wildcard - matches any surface
+            "severity": null,                 // Wildcard - matches any severity
+            "template_text": "Cavity detected, recommend dental restoration",
+            "match_score": 1                  // General match
+        }
+    ],
+    "total": 5
+}
+
+// Match Score Logic:
+// - score = 3: All criteria (condition + surface + severity) match
+// - score = 2: Two criteria match (condition + surface OR condition + severity)
+// - score = 1: Only condition matches (or template uses wildcards)
+```
+
+#### **2. GET /dental/templates** - List All Templates
+```javascript
+// Query Parameters:
+// ?condition_type=Cavity&is_global=true&page=1&page_size=20
+
+// Response (200)
+{
+    "templates": [
+        {
+            "id": "uuid",
+            "condition_type": "Cavity",
+            "tooth_surface": "Occlusal",
+            "severity": "Moderate",
+            "template_text": "Deep cavity observed...",
+            "short_code": "CAV-OCC-M",
+            "display_order": 1,
+            "is_global": false,
+            "specialization": "Dental",
+            "created_by_doctor": "uuid",
+            "is_active": true,
+            "created_at": "2025-12-15T10:00:00Z",
+            "updated_at": "2025-12-15T10:00:00Z"
+        }
+    ],
+    "total": 36,
+    "page": 1,
+    "page_size": 20
+}
+```
+
+#### **3. POST /dental/templates** - Create Template
+```javascript
+// Request
+{
+    "condition_type": "Cavity",              // Optional (NULL = wildcard)
+    "tooth_surface": "Occlusal",             // Optional (NULL = wildcard)
+    "severity": "Moderate",                  // Optional (NULL = wildcard)
+    "template_text": "Deep cavity observed on occlusal surface requiring immediate restoration",
+    "short_code": "CAV-OCC-M",               // Optional quick reference
+    "is_global": false                       // If true, shared with same specialization
+}
+
+// Response (201)
+{
+    "id": "uuid",
+    "condition_type": "Cavity",
+    "tooth_surface": "Occlusal",
+    "severity": "Moderate",
+    "template_text": "Deep cavity observed...",
+    "short_code": "CAV-OCC-M",
+    "display_order": 0,
+    "is_global": false,
+    "specialization": "Dental",              // Auto-set from doctor's specialization
+    "created_by_doctor": "doctor-uuid",
+    "is_active": true,
+    "created_at": "2025-12-15T10:00:00Z"
+}
+```
+
+#### **4. PUT /dental/templates/{id}** - Update Template
+```javascript
+// Request
+{
+    "template_text": "Updated observation note text",
+    "is_global": true
+}
+
+// Response (200)
+{
+    // Updated template object
+}
+```
+
+#### **5. DELETE /dental/templates/{id}** - Delete Template
+```javascript
+// Response (204 No Content)
+// Soft delete: sets is_active = false
+```
+
+---
+
+### **🦷 Template Notes Field Mapping**
+
+#### **DentalObservation Template Fields:**
+- `selected_template_ids`: Comma-separated UUIDs of selected templates
+- `custom_notes`: Doctor's additional custom notes
+- `observation_notes`: Combined notes (template texts + custom notes)
+
+#### **Frontend Integration:**
+- **Component**: `TemplateNotesSelector.tsx` in `/components/dental/`
+- **RTK Query**: `getMatchingTemplates`, `createObservationTemplate`
+- **Multi-select**: Doctors can select multiple templates
+- **Custom notes**: Additional notes field for doctor input
+
+#### **Template Matching Rules:**
+```javascript
+// NULL values in templates act as wildcards:
+{
+    condition_type: "Cavity",    // Only match Cavity conditions
+    tooth_surface: null,         // Match ANY surface
+    severity: null               // Match ANY severity
+}
+// This template will show for ALL Cavity observations regardless of surface/severity
+```
+
+---
+
+**✅ This API Reference Guide provides complete field mappings and request/response formats for all 120+ endpoints including the dental consultation module with FDI tooth charting system and observation note templates.**

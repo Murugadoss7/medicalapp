@@ -27,6 +27,7 @@ import {
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ButtonGroupSelect from '../common/ButtonGroupSelect';
+import TemplateNotesSelector from './TemplateNotesSelector';
 import { type ObservationData, type ProcedureData } from './ObservationRow';
 
 // Dental conditions (from ObservationRow.tsx)
@@ -92,6 +93,7 @@ interface NewObservationFormProps {
   onSave: () => Promise<void>;
   onClear: () => void;
   saving?: boolean;
+  isEditMode?: boolean;
 }
 
 const NewObservationForm: React.FC<NewObservationFormProps> = ({
@@ -100,9 +102,19 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   onSave,
   onClear,
   saving = false,
+  isEditMode = false,
 }) => {
-  const [showProcedures, setShowProcedures] = useState(false);
+  // Auto-show procedures section when in edit mode with existing procedures
+  const hasProcedures = observation.procedures && observation.procedures.length > 0;
+  const [showProcedures, setShowProcedures] = useState(isEditMode && hasProcedures);
   const [showAllProcedures, setShowAllProcedures] = useState(false);
+
+  // Update showProcedures when edit mode changes
+  React.useEffect(() => {
+    if (isEditMode && (observation.procedures?.length || observation.hasProcedure)) {
+      setShowProcedures(true);
+    }
+  }, [isEditMode, observation.procedures, observation.hasProcedure]);
 
   const handleChange = (field: keyof ObservationData, value: any) => {
     onUpdate({ ...observation, [field]: value });
@@ -174,6 +186,27 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
 
   return (
     <Box sx={{ p: 2 }}>
+      {/* Edit Mode Banner */}
+      {isEditMode && (
+        <Box
+          sx={{
+            bgcolor: 'info.light',
+            color: 'info.contrastText',
+            px: 2,
+            py: 1,
+            mb: 1.5,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" fontWeight="bold">
+            ✏️ Edit Mode - Modify the observation below and click Update to save changes
+          </Typography>
+        </Box>
+      )}
+
       {/* Sticky Header: Selected Teeth + Buttons - All in One Line */}
       <Box
         sx={{
@@ -246,23 +279,24 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
             <Button
               variant="outlined"
               size="small"
-              startIcon={<ClearIcon />}
+              color={isEditMode ? 'error' : 'inherit'}
+              startIcon={isEditMode ? <CloseIcon /> : <ClearIcon />}
               onClick={onClear}
               disabled={saving}
               sx={{ textTransform: 'none', fontSize: '0.7rem', minWidth: 80 }}
             >
-              Clear
+              {isEditMode ? 'Cancel' : 'Clear'}
             </Button>
             <Button
               variant="contained"
-              color="success"
+              color={isEditMode ? 'primary' : 'success'}
               size="small"
               startIcon={<SaveIcon />}
               onClick={handleSave}
               disabled={!isValid || saving}
               sx={{ textTransform: 'none', fontSize: '0.7rem', minWidth: 80 }}
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update' : 'Save')}
             </Button>
           </Box>
         </Box>
@@ -298,18 +332,19 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
         color="default"
       />
 
-      {/* Notes */}
-      <TextField
-        fullWidth
-        multiline
-        rows={2}
-        label="Observation Notes"
-        value={observation.observationNotes}
-        onChange={(e) => handleChange('observationNotes', e.target.value)}
-        placeholder="Enter notes..."
-        size="small"
-        sx={{ mb: 1.5 }}
-      />
+      {/* Template Notes Selector */}
+      <Box sx={{ mb: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+        <TemplateNotesSelector
+          conditionType={observation.conditionType}
+          toothSurface={observation.toothSurface}
+          severity={observation.severity}
+          selectedTemplateIds={observation.selectedTemplateIds || []}
+          onTemplateSelect={(ids) => handleChange('selectedTemplateIds', ids)}
+          customNotes={observation.customNotes || ''}
+          onCustomNotesChange={(notes) => handleChange('customNotes', notes)}
+          disabled={saving}
+        />
+      </Box>
 
       {/* Treatment Required */}
       <FormControlLabel
@@ -348,33 +383,50 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
       {/* Procedures Section - Multiple Procedures */}
       {showProcedures && observation.procedures && observation.procedures.length > 0 && (
         <Box sx={{ mb: 2 }}>
-          {observation.procedures.map((procedure, index) => (
-            <Paper
-              key={procedure.id}
-              elevation={1}
-              sx={{
-                p: 2,
-                mb: 2,
-                border: 1,
-                borderColor: 'success.main',
-                borderRadius: 1,
-                bgcolor: 'success.50',
-              }}
-            >
-              {/* Procedure Header */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle2" fontWeight="bold" color="success.dark">
-                  Procedure {index + 1}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => handleRemoveProcedure(procedure.id)}
-                  sx={{ color: 'error.main' }}
-                  title="Remove procedure"
-                >
-                  <DeleteIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Box>
+          {observation.procedures.map((procedure, index) => {
+            // Check if procedure is completed (readonly)
+            const isCompleted = procedure.procedureStatus?.toLowerCase() === 'completed';
+
+            return (
+              <Paper
+                key={procedure.id}
+                elevation={1}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  border: 2,
+                  borderColor: isCompleted ? 'success.main' : 'success.light',
+                  borderRadius: 1,
+                  bgcolor: isCompleted ? 'success.50' : 'grey.50',
+                  opacity: isCompleted ? 0.85 : 1,
+                }}
+              >
+                {/* Procedure Header */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="bold" color={isCompleted ? 'success.dark' : 'primary.dark'}>
+                      Procedure {index + 1}
+                    </Typography>
+                    {isCompleted && (
+                      <Chip
+                        label="✓ Completed"
+                        size="small"
+                        color="success"
+                        sx={{ fontWeight: 600, fontSize: '0.65rem', height: 20 }}
+                      />
+                    )}
+                  </Box>
+                  {!isCompleted && (
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveProcedure(procedure.id)}
+                      sx={{ color: 'error.main' }}
+                      title="Remove procedure"
+                    >
+                      <DeleteIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  )}
+                </Box>
 
               <Divider sx={{ mb: 1.5 }} />
 
@@ -392,8 +444,9 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                     border: '1px solid',
                     borderColor: 'divider',
                     borderRadius: 1,
-                    bgcolor: 'white',
+                    bgcolor: isCompleted ? 'grey.100' : 'white',
                     minHeight: 36,
+                    pointerEvents: isCompleted ? 'none' : 'auto',
                   }}
                 >
                   {observation.selectedTeeth.map((tooth) => (
@@ -401,25 +454,25 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                       key={tooth}
                       label={`#${tooth}`}
                       size="small"
-                      onClick={() => handleToggleProcedureTooth(procedure.id, tooth)}
+                      onClick={() => !isCompleted && handleToggleProcedureTooth(procedure.id, tooth)}
                       color={procedure.selectedTeeth.includes(tooth) ? 'success' : 'default'}
                       variant={procedure.selectedTeeth.includes(tooth) ? 'filled' : 'outlined'}
                       sx={{
                         fontSize: '0.7rem',
                         fontWeight: procedure.selectedTeeth.includes(tooth) ? 600 : 400,
-                        cursor: 'pointer',
+                        cursor: isCompleted ? 'not-allowed' : 'pointer',
                         height: 24,
                       }}
                     />
                   ))}
                 </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.5, display: 'block' }}>
-                  Click teeth to select/deselect for this procedure
+                  {isCompleted ? 'Procedure completed - fields are readonly' : 'Click teeth to select/deselect for this procedure'}
                 </Typography>
               </Box>
 
               {/* Procedure Selection - Button Grid (3 columns) */}
-              <Box sx={{ mb: 1.5 }}>
+              <Box sx={{ mb: 1.5, pointerEvents: isCompleted ? 'none' : 'auto', opacity: isCompleted ? 0.7 : 1 }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
                   Procedure *
                 </Typography>
@@ -436,11 +489,14 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                       key={proc.code}
                       variant={procedure.procedureCode === proc.code ? 'contained' : 'outlined'}
                       color={procedure.procedureCode === proc.code ? 'success' : 'inherit'}
+                      disabled={isCompleted}
                       onClick={() => {
-                        handleUpdateProcedure(procedure.id, 'procedureCode', proc.code);
-                        handleUpdateProcedure(procedure.id, 'procedureName', proc.name);
-                        if (proc.code !== 'CUSTOM') {
-                          handleUpdateProcedure(procedure.id, 'customProcedureName', '');
+                        if (!isCompleted) {
+                          handleUpdateProcedure(procedure.id, 'procedureCode', proc.code);
+                          handleUpdateProcedure(procedure.id, 'procedureName', proc.name);
+                          if (proc.code !== 'CUSTOM') {
+                            handleUpdateProcedure(procedure.id, 'customProcedureName', '');
+                          }
                         }
                       }}
                       sx={{
@@ -465,7 +521,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                     </Button>
                   ))}
                 </Box>
-                {COMMON_PROCEDURES.length > 9 && (
+                {COMMON_PROCEDURES.length > 9 && !isCompleted && (
                   <Button
                     variant="text"
                     size="small"
@@ -487,6 +543,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                   placeholder="Enter custom procedure name..."
                   size="small"
                   required
+                  disabled={isCompleted}
                   sx={{ mb: 1.5 }}
                 />
               )}
@@ -498,6 +555,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                 value={procedure.procedureStatus}
                 onChange={(val) => handleUpdateProcedure(procedure.id, 'procedureStatus', val)}
                 color="success"
+                disabled={isCompleted}
               />
 
               {/* Date and Time - Same Row */}
@@ -507,6 +565,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                     label="Date"
                     value={procedure.procedureDate}
                     onChange={(newValue) => handleUpdateProcedure(procedure.id, 'procedureDate', newValue)}
+                    disabled={isCompleted}
                     slotProps={{
                       textField: {
                         size: 'small',
@@ -518,6 +577,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                     label="Time"
                     value={procedure.procedureTime}
                     onChange={(newValue) => handleUpdateProcedure(procedure.id, 'procedureTime', newValue)}
+                    disabled={isCompleted}
                     slotProps={{
                       textField: {
                         size: 'small',
@@ -538,9 +598,11 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                 onChange={(e) => handleUpdateProcedure(procedure.id, 'procedureNotes', e.target.value)}
                 placeholder="Enter procedure notes..."
                 size="small"
+                disabled={isCompleted}
               />
             </Paper>
-          ))}
+          );
+          })}
 
           {/* Add Another Procedure Button */}
           <Button

@@ -86,8 +86,8 @@ else
     rm -f "$BACKEND_LOG"
 
     # Start backend
-    DATABASE_URL="postgresql://postgres:prescription123@localhost:5432/prescription_management" \
-    python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT > "$BACKEND_LOG" 2>&1 &
+    DATABASE_URL="postgresql://prescription_user:prescription_password@localhost:5432/prescription_management" \
+    DEBUG=True python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT > "$BACKEND_LOG" 2>&1 &
 
     BACKEND_PID=$!
     echo -e "   ${YELLOW}Backend starting with PID: $BACKEND_PID${NC}"

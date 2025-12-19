@@ -23,6 +23,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   CalendarToday as CalendarIcon,
   AccessTime as TimeIcon,
   CheckCircle as CompleteIcon,
@@ -36,17 +37,21 @@ import { type ObservationData } from './ObservationRow';
 interface SavedObservationsPanelProps {
   observations: ObservationData[];
   onEditClick: (observation: ObservationData) => void;
+  onEditInPanel?: (observation: ObservationData) => void;
   onRefresh: () => void;
   onUpdateProcedure?: (obsId: string, procedureData: Partial<ObservationData>) => Promise<void>;
   onDeleteObservation?: (obsId: string) => Promise<void>;
+  editingObservationId?: string | null;
 }
 
 const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
   observations,
   onEditClick,
+  onEditInPanel,
   onRefresh,
   onUpdateProcedure,
   onDeleteObservation,
+  editingObservationId,
 }) => {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [reschedulingProcedures, setReschedulingProcedures] = useState<Set<string>>(new Set());
@@ -309,8 +314,21 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                     </Typography>
                   </Box>
 
-                  {/* Expand/Collapse and Delete */}
+                  {/* Edit, Expand/Collapse and Delete */}
                   <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                    {onEditInPanel && (
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditInPanel(obs);
+                        }}
+                        title="Edit observation"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    )}
                     <IconButton
                       size="small"
                       onClick={(e) => {
@@ -325,10 +343,11 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                       color="error"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (onDeleteObservation && window.confirm('Delete this observation?')) {
+                        if (onDeleteObservation) {
                           onDeleteObservation(obs.id);
                         }
                       }}
+                      title="Delete observation"
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -340,18 +359,48 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                   <CardContent sx={{ pt: 2 }}>
                     {/* Observation Details */}
                     {obs.observationNotes && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          mb: 2,
-                          wordWrap: 'break-word',
-                          overflowWrap: 'break-word',
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {obs.observationNotes}
-                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        {/* Template indicator */}
+                        {obs.selectedTemplateIds && (
+                          <Chip
+                            label="Template Notes"
+                            size="small"
+                            variant="outlined"
+                            color="info"
+                            sx={{ mb: 1, fontSize: '0.65rem' }}
+                          />
+                        )}
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {obs.observationNotes}
+                        </Typography>
+                      </Box>
+                    )}
+                    {/* Custom Notes (if separate from template notes) */}
+                    {obs.customNotes && !obs.observationNotes?.includes(obs.customNotes) && (
+                      <Box sx={{ mb: 2, pl: 1, borderLeft: '2px solid', borderColor: 'primary.light' }}>
+                        <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                          Additional notes:
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {obs.customNotes}
+                        </Typography>
+                      </Box>
                     )}
 
                     {/* Procedures Section - Loop through ALL procedures */}

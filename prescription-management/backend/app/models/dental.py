@@ -8,10 +8,52 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import date as date_type
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, AuditMixin
+from app.models.base import Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin
 
 
-class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class DentalObservationTemplate(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
+    """
+    Pre-defined observation note templates for dental conditions.
+    Doctors can quickly select these based on condition/surface/severity.
+    NULL values act as wildcards (match all).
+    """
+    __tablename__ = "dental_observation_templates"
+
+    # Matching criteria (NULL = wildcard, matches all)
+    condition_type = Column(String(50), nullable=True)  # e.g., "Cavity", NULL = all conditions
+    tooth_surface = Column(String(10), nullable=True)   # e.g., "Occlusal", NULL = all surfaces
+    severity = Column(String(20), nullable=True)        # e.g., "Moderate", NULL = all severities
+
+    # Template content
+    template_text = Column(Text, nullable=False)        # The pre-defined note text
+    short_code = Column(String(20), nullable=True)      # Optional quick code like "CAV01"
+
+    # Metadata
+    display_order = Column(Integer, default=0)          # Sort order for display
+    is_global = Column(Boolean, default=False)          # Available to doctors with same specialization
+    specialization = Column(String(200), nullable=True) # Filter by doctor specialty (e.g., "Dental")
+
+    # Ownership
+    created_by_doctor = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=True)
+
+    # Relationships
+    creator = relationship("Doctor", foreign_keys=[created_by_doctor])
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_dental_template_condition', 'condition_type'),
+        Index('idx_dental_template_surface', 'tooth_surface'),
+        Index('idx_dental_template_severity', 'severity'),
+        Index('idx_dental_template_specialization', 'specialization'),
+        Index('idx_dental_template_global', 'is_global'),
+        Index('idx_dental_template_creator', 'created_by_doctor'),
+    )
+
+    def __repr__(self):
+        return f"<DentalObservationTemplate(condition={self.condition_type}, text={self.template_text[:30]}...)>"
+
+
+class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
     """
     Dental observations for individual teeth
     Tracks conditions, findings, and treatment requirements per tooth
@@ -37,7 +79,11 @@ class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin):
     # Observation details
     condition_type = Column(String(50), nullable=False)  # Cavity, Fracture, Decay, Discoloration, etc.
     severity = Column(String(20), nullable=True)  # Mild, Moderate, Severe
-    observation_notes = Column(Text, nullable=True)
+    observation_notes = Column(Text, nullable=True)  # Combined: template_notes + custom_notes
+
+    # Template notes support
+    selected_template_ids = Column(Text, nullable=True)  # Comma-separated UUIDs of selected templates
+    custom_notes = Column(Text, nullable=True)           # Doctor's additional custom notes
 
     # Treatment tracking
     treatment_required = Column(Boolean, default=True, nullable=False)
@@ -62,7 +108,7 @@ class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin):
         return f"<DentalObservation(tooth={self.tooth_number}, condition={self.condition_type})>"
 
 
-class DentalProcedure(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class DentalProcedure(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
     """
     Dental procedures and treatments
     Tracks planned, in-progress, and completed dental procedures

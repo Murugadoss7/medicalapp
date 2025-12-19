@@ -20,9 +20,14 @@ from app.schemas.dental import (
     DentalObservationListResponse, DentalProcedureCreate, DentalProcedureUpdate,
     DentalProcedureResponse, DentalProcedureListResponse, DentalChartResponse,
     BulkDentalObservationCreate, BulkDentalProcedureCreate, DentalSearchParams,
-    DentalStatistics
+    DentalStatistics,
+    # Observation Template schemas
+    DentalObservationTemplateCreate, DentalObservationTemplateUpdate,
+    DentalObservationTemplateResponse, DentalObservationTemplateListResponse
 )
 from app.services.dental_service import get_dental_service
+from app.services.dental_template_service import dental_template_service
+from app.models.doctor import Doctor
 from app.core.exceptions import ValidationError, BusinessRuleError
 
 logger = logging.getLogger(__name__)
@@ -638,3 +643,214 @@ async def get_dental_statistics(
     service = get_dental_service(db)
     stats = service.get_dental_statistics(mobile_number, first_name)
     return DentalStatistics(**stats)
+
+
+# ==================== Observation Note Template Endpoints ====================
+
+@router.get("/templates/match", response_model=DentalObservationTemplateListResponse)
+async def get_matching_templates(
+    condition: str = Query(..., description="Condition type to match"),
+    surface: Optional[str] = Query(None, description="Tooth surface to match"),
+    severity: Optional[str] = Query(None, description="Severity to match"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Get observation note templates matching the given criteria.
+
+    **Matching Logic (Wildcard Support):**
+    - Exact match on all fields = score 3
+    - Match on 2 fields + wildcard = score 2
+    - Match on 1 field + wildcards = score 1
+
+    **Returns:**
+    - Templates sorted by match score (highest first)
+    - Includes global templates for same specialization + own templates
+    """
+    # Get doctor's specialization
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+    doctor_id = doctor.id if doctor else None
+    specialization = doctor.specialization if doctor else None
+
+    templates = dental_template_service.get_matching_templates(
+        db=db,
+        condition_type=condition,
+        tooth_surface=surface,
+        severity=severity,
+        doctor_id=doctor_id,
+        specialization=specialization
+    )
+
+    return DentalObservationTemplateListResponse(
+        templates=templates,
+        total=len(templates)
+    )
+
+
+@router.get("/templates", response_model=DentalObservationTemplateListResponse)
+async def list_templates(
+    condition_type: Optional[str] = Query(None, description="Filter by condition type"),
+    is_global: Optional[bool] = Query(None, description="Filter by global status"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    List all observation note templates accessible by the current doctor.
+
+    **Returns:**
+    - Global templates for same specialization
+    - Doctor's own templates
+    """
+    # Get doctor info
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+    doctor_id = doctor.id if doctor else None
+    specialization = doctor.specialization if doctor else None
+
+    templates = dental_template_service.get_all_templates(
+        db=db,
+        doctor_id=doctor_id,
+        specialization=specialization,
+        condition_type=condition_type,
+        is_global=is_global
+    )
+
+    return DentalObservationTemplateListResponse(
+        templates=[DentalObservationTemplateResponse.model_validate(t) for t in templates],
+        total=len(templates)
+    )
+
+
+@router.get("/templates/{template_id}", response_model=DentalObservationTemplateResponse)
+async def get_template(
+    template_id: UUID = Path(..., description="Template ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """Get a specific observation note template by ID"""
+    template = dental_template_service.get_template_by_id(db, template_id)
+
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template not found"
+        )
+
+    return DentalObservationTemplateResponse.model_validate(template)
+
+
+@router.post("/templates", response_model=DentalObservationTemplateResponse, status_code=status.HTTP_201_CREATED)
+async def create_template(
+    template_data: DentalObservationTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Create a new observation note template.
+
+    **Features:**
+    - NULL values for condition/surface/severity act as wildcards
+    - Set is_global=true to share with same specialization doctors
+    - short_code for quick reference
+    """
+    # Get doctor info
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can create templates"
+        )
+
+    try:
+        template = dental_template_service.create_template(
+            db=db,
+            data=template_data,
+            doctor_id=doctor.id,
+            specialization=doctor.specialization
+        )
+        return DentalObservationTemplateResponse.model_validate(template)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.put("/templates/{template_id}", response_model=DentalObservationTemplateResponse)
+async def update_template(
+    template_id: UUID = Path(..., description="Template ID"),
+    update_data: DentalObservationTemplateUpdate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Update an observation note template.
+
+    **Note:** Only the creator can update their templates.
+    """
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can update templates"
+        )
+
+    try:
+        template = dental_template_service.update_template(
+            db=db,
+            template_id=template_id,
+            data=update_data,
+            doctor_id=doctor.id
+        )
+
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Template not found"
+            )
+
+        return DentalObservationTemplateResponse.model_validate(template)
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+
+
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(
+    template_id: UUID = Path(..., description="Template ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Delete an observation note template (soft delete).
+
+    **Note:** Only the creator can delete their templates.
+    """
+    doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can delete templates"
+        )
+
+    try:
+        success = dental_template_service.delete_template(
+            db=db,
+            template_id=template_id,
+            doctor_id=doctor.id
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Template not found"
+            )
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )

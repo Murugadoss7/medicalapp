@@ -25,6 +25,9 @@ export interface DentalObservation {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  // Template support
+  selected_template_ids?: string;  // Comma-separated UUIDs stored in DB
+  custom_notes?: string;
 }
 
 export interface DentalProcedure {
@@ -87,8 +90,11 @@ export interface CreateObservationData {
   severity?: string;
   observation_notes?: string;
   treatment_required: boolean;
-  treatment_done: boolean;
+  treatment_done?: boolean;
   treatment_date?: string;
+  // Template support
+  selected_template_ids?: string[];
+  custom_notes?: string;
 }
 
 export interface UpdateObservationData {
@@ -99,6 +105,9 @@ export interface UpdateObservationData {
   treatment_required?: boolean;
   treatment_done?: boolean;
   treatment_date?: string;
+  // Template support
+  selected_template_ids?: string[];
+  custom_notes?: string;
 }
 
 export interface CreateProcedureData {

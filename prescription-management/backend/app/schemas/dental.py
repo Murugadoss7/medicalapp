@@ -92,6 +92,9 @@ class DentalObservationCreate(DentalObservationBase):
     appointment_id: Optional[UUID] = Field(None, description="Related appointment ID")
     patient_mobile_number: str = Field(..., description="Patient mobile number")
     patient_first_name: str = Field(..., description="Patient first name")
+    # Template support
+    selected_template_ids: Optional[List[UUID]] = Field(None, description="Selected template IDs")
+    custom_notes: Optional[str] = Field(None, description="Additional custom notes")
 
 
 class DentalObservationUpdate(BaseModel):
@@ -103,6 +106,9 @@ class DentalObservationUpdate(BaseModel):
     treatment_required: Optional[bool] = None
     treatment_done: Optional[bool] = None
     treatment_date: Optional[date] = None
+    # Template support
+    selected_template_ids: Optional[List[UUID]] = None
+    custom_notes: Optional[str] = None
 
 
 class DentalObservationResponse(DentalObservationBase):
@@ -114,6 +120,9 @@ class DentalObservationResponse(DentalObservationBase):
     patient_first_name: str
     created_at: datetime
     updated_at: datetime
+    # Template support
+    selected_template_ids: Optional[str] = None  # Comma-separated UUIDs stored in DB
+    custom_notes: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -296,3 +305,100 @@ class DentalProcedureTemplateListResponse(BaseModel):
     """Schema for list of procedure templates"""
     templates: List[DentalProcedureTemplate]
     total: int
+
+
+# ==================== Observation Note Templates ====================
+
+class DentalObservationTemplateBase(BaseModel):
+    """Base schema for observation note templates"""
+    condition_type: Optional[str] = Field(None, description="Condition type (NULL = all)")
+    tooth_surface: Optional[str] = Field(None, description="Tooth surface (NULL = all)")
+    severity: Optional[str] = Field(None, description="Severity (NULL = all)")
+    template_text: str = Field(..., min_length=1, max_length=500, description="Template note text")
+    short_code: Optional[str] = Field(None, max_length=20, description="Short code for quick reference")
+    display_order: int = Field(0, ge=0, description="Display order")
+    is_global: bool = Field(False, description="Make available to same specialization doctors")
+
+    @field_validator('condition_type')
+    @classmethod
+    def validate_condition_type(cls, v: Optional[str]) -> Optional[str]:
+        """Validate condition type if provided"""
+        if v and v not in DENTAL_CONDITION_TYPES:
+            raise ValueError(f"Invalid condition type '{v}'. Must be one of: {', '.join(DENTAL_CONDITION_TYPES)}")
+        return v
+
+    @field_validator('tooth_surface')
+    @classmethod
+    def validate_tooth_surface(cls, v: Optional[str]) -> Optional[str]:
+        """Validate tooth surface if provided"""
+        if v and v not in TOOTH_SURFACES:
+            raise ValueError(f"Invalid tooth surface '{v}'. Must be one of: {', '.join(TOOTH_SURFACES)}")
+        return v
+
+    @field_validator('severity')
+    @classmethod
+    def validate_severity(cls, v: Optional[str]) -> Optional[str]:
+        """Validate severity if provided"""
+        if v:
+            v_lower = v.lower()
+            if v_lower not in ["mild", "moderate", "severe"]:
+                raise ValueError("Severity must be: mild, moderate, or severe")
+            return v_lower.capitalize()
+        return v
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "condition_type": "Cavity",
+                "tooth_surface": "Occlusal",
+                "severity": "Moderate",
+                "template_text": "Class I cavity extending into dentin. Restoration required.",
+                "short_code": "CAV-OCC-MOD",
+                "display_order": 1,
+                "is_global": True
+            }
+        }
+    }
+
+
+class DentalObservationTemplateCreate(DentalObservationTemplateBase):
+    """Schema for creating observation note template"""
+    pass
+
+
+class DentalObservationTemplateUpdate(BaseModel):
+    """Schema for updating observation note template"""
+    condition_type: Optional[str] = None
+    tooth_surface: Optional[str] = None
+    severity: Optional[str] = None
+    template_text: Optional[str] = None
+    short_code: Optional[str] = None
+    display_order: Optional[int] = None
+    is_global: Optional[bool] = None
+
+
+class DentalObservationTemplateResponse(DentalObservationTemplateBase):
+    """Schema for observation note template response"""
+    id: UUID
+    specialization: Optional[str] = None
+    created_by_doctor: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool = True
+    # Computed fields
+    match_score: Optional[int] = Field(None, description="Match score for wildcard matching")
+
+    model_config = {"from_attributes": True}
+
+
+class DentalObservationTemplateListResponse(BaseModel):
+    """Schema for list of observation note templates"""
+    templates: List[DentalObservationTemplateResponse]
+    total: int
+
+
+class DentalObservationTemplateMatchRequest(BaseModel):
+    """Schema for requesting matching templates"""
+    condition_type: str = Field(..., description="Condition type to match")
+    tooth_surface: Optional[str] = Field(None, description="Tooth surface to match")
+    severity: Optional[str] = Field(None, description="Severity to match")

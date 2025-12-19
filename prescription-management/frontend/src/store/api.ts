@@ -145,6 +145,55 @@ export interface DentalProcedure {
   updated_at?: string;
 }
 
+// Dental Observation Template Types
+export interface DentalObservationTemplate {
+  id: string;
+  condition_type?: string;  // NULL = wildcard (matches all)
+  tooth_surface?: string;   // NULL = wildcard
+  severity?: string;        // NULL = wildcard
+  template_text: string;
+  short_code?: string;
+  display_order: number;
+  is_global: boolean;
+  specialization?: string;
+  created_by_doctor?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  match_score?: number;  // Calculated during matching
+}
+
+export interface DentalObservationTemplateCreate {
+  condition_type?: string;
+  tooth_surface?: string;
+  severity?: string;
+  template_text: string;
+  short_code?: string;
+  display_order?: number;
+  is_global?: boolean;
+}
+
+export interface DentalObservationTemplateUpdate {
+  condition_type?: string;
+  tooth_surface?: string;
+  severity?: string;
+  template_text?: string;
+  short_code?: string;
+  display_order?: number;
+  is_global?: boolean;
+}
+
+export interface DentalObservationTemplateMatchParams {
+  condition_type: string;
+  tooth_surface?: string;
+  severity?: string;
+}
+
+export interface DentalObservationTemplateListResponse {
+  templates: DentalObservationTemplate[];
+  total: number;
+}
+
 export interface DentalProcedureListResponse {
   procedures: DentalProcedure[];
   total: number;
@@ -582,7 +631,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription'],
+  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription', 'DentalTemplate'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<LoginResponse, LoginRequest>({
@@ -690,6 +739,64 @@ export const api = createApi({
     getDoctorTodayProcedures: builder.query<DentalProcedureListResponse, string>({
       query: (doctorId) => `/dental/procedures/doctor/${doctorId}/today`,
       providesTags: ['Prescription'], // Using prescription tag for invalidation
+    }),
+
+    // Dental Observation Template endpoints
+    getMatchingTemplates: builder.query<DentalObservationTemplateListResponse, DentalObservationTemplateMatchParams>({
+      query: ({ condition_type, tooth_surface, severity }) => ({
+        url: '/dental/templates/match',
+        params: {
+          condition: condition_type,  // Backend expects 'condition' not 'condition_type'
+          surface: tooth_surface || undefined,     // Backend expects 'surface' not 'tooth_surface'
+          severity: severity || undefined,
+        },
+      }),
+      providesTags: ['DentalTemplate'],
+    }),
+
+    listObservationTemplates: builder.query<DentalObservationTemplateListResponse, {
+      condition_type?: string;
+      is_global?: boolean
+    } | void>({
+      query: (params) => ({
+        url: '/dental/templates',
+        params: params || undefined,
+      }),
+      providesTags: ['DentalTemplate'],
+    }),
+
+    getObservationTemplate: builder.query<DentalObservationTemplate, string>({
+      query: (templateId) => `/dental/templates/${templateId}`,
+      providesTags: ['DentalTemplate'],
+    }),
+
+    createObservationTemplate: builder.mutation<DentalObservationTemplate, DentalObservationTemplateCreate>({
+      query: (templateData) => ({
+        url: '/dental/templates',
+        method: 'POST',
+        body: templateData,
+      }),
+      invalidatesTags: ['DentalTemplate'],
+    }),
+
+    updateObservationTemplate: builder.mutation<DentalObservationTemplate, {
+      templateId: string;
+      templateData: DentalObservationTemplateUpdate
+    }>({
+      query: ({ templateId, templateData }) => ({
+        url: `/dental/templates/${templateId}`,
+        method: 'PUT',
+        body: templateData,
+      }),
+      invalidatesTags: ['DentalTemplate'],
+    }),
+
+    deleteObservationTemplate: builder.mutation<void, string>({
+      query: (templateId) => ({
+        url: `/dental/templates/${templateId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['DentalTemplate'],
     }),
 
     // Office Stats endpoint
@@ -1238,6 +1345,13 @@ export const {
   useGetDoctorUpcomingAppointmentsQuery,
   // Dental Procedures hooks
   useGetDoctorTodayProceduresQuery,
+  // Dental Observation Template hooks
+  useGetMatchingTemplatesQuery,
+  useListObservationTemplatesQuery,
+  useGetObservationTemplateQuery,
+  useCreateObservationTemplateMutation,
+  useUpdateObservationTemplateMutation,
+  useDeleteObservationTemplateMutation,
   // Office Stats hooks
   useGetDoctorOfficeStatsQuery,
   // Appointment Management hooks

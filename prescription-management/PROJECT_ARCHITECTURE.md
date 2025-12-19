@@ -3,11 +3,16 @@
 
 ---
 
-**📅 Last Updated**: December 2, 2025
+**📅 Last Updated**: December 15, 2025
 **🎯 Purpose**: Complete technical architecture and folder structure documentation
-**📋 Status**: Backend Complete (118+ endpoints across 9 modules), Frontend 98% Complete
+**📋 Status**: Backend Complete (123+ endpoints across 9 modules), Frontend 98% Complete
 **🚀 Recent Updates**:
-- **iPad UI Optimizations**: Fixed page freeze on iPad with useTransition and module-level guards ⭐ NEW
+- **Template Notes System**: Pre-defined observation note templates with multi-select ⭐ NEW
+  - TemplateNotesSelector.tsx component for quick template selection
+  - 36 seeded templates covering all dental conditions
+  - Wildcard matching and match scoring (exact/good/general)
+  - dental_templates.py seed script in backend/app/seeds/
+- **iPad UI Optimizations**: Fixed page freeze on iPad with useTransition and module-level guards
 - **Responsive Layout System**: Side-by-side layout (55/45%) on tablet, stacked on mobile ⭐ NEW
 - **Observation Side Panel**: Replaced tabs with fixed side panel for observations ⭐ NEW
 - **ObservationRow Component**: Inline observation form with optional procedure expansion ⭐ NEW
@@ -167,7 +172,11 @@ backend/
 │   │   ├── 📄 short_key.py               # Short key management models
 │   │   ├── 📄 appointment.py             # Appointment scheduling model
 │   │   ├── 📄 prescription.py            # Prescription management models
+│   │   ├── 📄 dental.py                  # Dental observations & procedures ⭐ NEW
 │   │   └── 📄 audit_log.py               # Audit logging model
+│   ├── 📁 seeds/                         # Database seed data ⭐ NEW
+│   │   ├── 📄 __init__.py                # Seed module exports
+│   │   └── 📄 dental_templates.py        # Pre-defined observation templates (36 templates)
 │   ├── 📁 schemas/                       # Pydantic validation schemas
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 auth.py                    # Authentication schemas
@@ -266,10 +275,16 @@ frontend/
 │   │       ├── 📄 DentalProcedureForm.tsx # Manage dental procedures
 │   │       ├── 📄 ToothHistoryViewer.tsx # Timeline view of tooth history
 │   │       ├── 📄 DentalSummaryTable.tsx # Holistic view of all teeth/procedures ⭐ NEW
-│   │       ├── 📄 ObservationRow.tsx     # Inline observation form with procedure ⭐ NEW
+│   │       ├── 📄 ObservationRow.tsx     # Inline observation form with procedure ⭐ UPDATED
 │   │       │   # Collapsible observation cards
 │   │       │   # Optional procedure expansion within observation
 │   │       │   # Save/edit state management
+│   │       │   # Template notes integration (selectedTemplateIds, customNotes)
+│   │       ├── 📄 TemplateNotesSelector.tsx # Quick notes template selector ⭐ NEW
+│   │       │   # Multi-select checkbox templates
+│   │       │   # Match scoring (exact/good/general)
+│   │       │   # Create new template form
+│   │       │   # Custom notes field
 │   │       ├── 📄 PrescriptionViewer.tsx # Prescription display with print
 │   │       └── 📄 index.ts               # Module exports
 │   │
@@ -416,6 +431,12 @@ frontend/
   - **Side-by-side Layout**: Chart (55%) | Observations (45%) on tablet
   - **ObservationRow Component**: Inline forms with optional procedure expansion
   - **Treatment Summary Dialog**: DentalSummaryTable for holistic patient view
+  - **Template Notes System**: Quick pre-defined observation notes ⭐ NEW
+    - TemplateNotesSelector.tsx for multi-select template choosing
+    - 36 pre-defined templates seeded for all conditions
+    - Match scoring: exact (3), good (2), general (1)
+    - Wildcard matching (NULL = match all surfaces/severities)
+    - Custom notes field for additional observations
   - Status chip showing real-time appointment status (Scheduled/In Progress/Completed)
   - "Complete Consultation" button for finalizing appointments
   - Navigation guard with exit dialog for in-progress consultations
