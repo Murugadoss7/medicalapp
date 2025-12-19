@@ -3,7 +3,27 @@
  * API calls for treatment dashboard features
  */
 
-import api from './api';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+// Get auth token from localStorage
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('access_token');
+};
+
+// Axios instance with auth
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+axiosInstance.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export interface PatientSummary {
   patient: {
@@ -77,7 +97,7 @@ export interface PatientListParams {
  * Get list of patients with treatment summary
  */
 export const fetchPatients = async (params: PatientListParams = {}) => {
-  const response = await api.get('/treatments/patients', { params });
+  const response = await axiosInstance.get('/treatments/patients', { params });
   return response.data;
 };
 
@@ -88,7 +108,7 @@ export const fetchPatientTimeline = async (
   mobile: string,
   firstName: string
 ) => {
-  const response = await api.get(
+  const response = await axiosInstance.get(
     `/treatments/patients/${mobile}/${firstName}/timeline`
   );
   return response.data;
@@ -101,7 +121,7 @@ export const fetchPatientProcedures = async (
   mobile: string,
   firstName: string
 ) => {
-  const response = await api.get(
+  const response = await axiosInstance.get(
     `/treatments/patients/${mobile}/${firstName}/procedures`
   );
   return response.data;
