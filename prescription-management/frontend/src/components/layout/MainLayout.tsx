@@ -31,6 +31,7 @@ import {
   Settings,
   LocalHospital,
   EventNote,
+  Timeline,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -115,6 +116,12 @@ export const MainLayout = () => {
       icon: <VpnKey />,
       path: '/short-keys',
       roles: ['doctor'],
+    },
+    {
+      text: 'Treatments',
+      icon: <Timeline />,
+      path: '/treatments',
+      roles: ['doctor', 'admin'],
     },
   ];
 
