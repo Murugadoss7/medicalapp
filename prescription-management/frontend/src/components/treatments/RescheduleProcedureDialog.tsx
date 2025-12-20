@@ -13,7 +13,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
-import { StandardDatePicker } from '../common/StandardDatePicker';
+import StandardDatePicker from '../common/StandardDatePicker';
 import { dentalProcedureAPI } from '../../services/dentalService';
 
 interface RescheduleProcedureDialogProps {

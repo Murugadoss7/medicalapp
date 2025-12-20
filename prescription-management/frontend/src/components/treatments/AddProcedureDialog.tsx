@@ -17,7 +17,7 @@ import {
   Typography,
   CircularProgress,
 } from '@mui/material';
-import { StandardDatePicker } from '../common/StandardDatePicker';
+import StandardDatePicker from '../common/StandardDatePicker';
 import { dentalProcedureAPI } from '../../services/dentalService';
 import axios from 'axios';
 
