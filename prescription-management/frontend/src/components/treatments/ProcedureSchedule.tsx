@@ -1,7 +1,7 @@
 /**
  * Procedure Schedule Component
  * Shows procedures grouped by status: Upcoming | Completed | Cancelled
- * iPad-friendly collapsible sections
+ * iPad-friendly collapsible sections with action buttons
  */
 
 import { useState, useEffect } from 'react';
@@ -18,10 +18,26 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  Button,
+  ButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import {
+  ExpandMore as ExpandMoreIcon,
+  Add as AddIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Schedule as ScheduleIcon,
+} from '@mui/icons-material';
 import { ProcedureGroup } from '../../services/treatmentService';
 import treatmentService from '../../services/treatmentService';
+import { dentalProcedureAPI } from '../../services/dentalService';
+import { RescheduleProcedureDialog } from './RescheduleProcedureDialog';
+import { AddProcedureDialog } from './AddProcedureDialog';
 
 interface ProcedureScheduleProps {
   patientMobile: string;
@@ -33,6 +49,16 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string>('upcoming'); // Default expanded
+
+  // Dialog states
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [addProcedureDialogOpen, setAddProcedureDialogOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedProcedure, setSelectedProcedure] = useState<any>(null);
+  const [confirmAction, setConfirmAction] = useState<'complete' | 'cancel' | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadProcedures();
@@ -61,6 +87,79 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
     setExpanded(isExpanded ? panel : '');
   };
 
+  // Action Handlers
+  const handleCompleteClick = (procedure: any) => {
+    setSelectedProcedure(procedure);
+    setConfirmAction('complete');
+    setConfirmDialogOpen(true);
+  };
+
+  const handleCancelClick = (procedure: any) => {
+    setSelectedProcedure(procedure);
+    setConfirmAction('cancel');
+    setConfirmDialogOpen(true);
+  };
+
+  const handleRescheduleClick = (procedure: any) => {
+    setSelectedProcedure(procedure);
+    setRescheduleDialogOpen(true);
+  };
+
+  const handleAddProcedureClick = () => {
+    setAddProcedureDialogOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!selectedProcedure || !confirmAction) return;
+
+    try {
+      setActionLoading(true);
+
+      const newStatus = confirmAction === 'complete' ? 'completed' : 'cancelled';
+      const notes = confirmAction === 'complete'
+        ? 'Procedure completed via treatment dashboard'
+        : 'Procedure cancelled via treatment dashboard';
+
+      await dentalProcedureAPI.updateStatus(selectedProcedure.id, newStatus, notes);
+
+      setSuccessMessage(`Procedure ${confirmAction === 'complete' ? 'completed' : 'cancelled'} successfully`);
+      setConfirmDialogOpen(false);
+      setSelectedProcedure(null);
+      setConfirmAction(null);
+
+      // Reload procedures
+      await loadProcedures();
+    } catch (err: any) {
+      console.error('Error updating procedure:', err);
+      setErrorMessage(err.response?.data?.detail || `Failed to ${confirmAction} procedure`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRescheduleSuccess = () => {
+    setSuccessMessage('Procedure rescheduled successfully');
+    setSelectedProcedure(null);
+    loadProcedures();
+  };
+
+  const handleAddProcedureSuccess = () => {
+    setSuccessMessage('Procedure added successfully');
+    loadProcedures();
+  };
+
+  const handleError = (message: string) => {
+    setErrorMessage(message);
+  };
+
+  const handleCloseSuccessAlert = () => {
+    setSuccessMessage(null);
+  };
+
+  const handleCloseErrorAlert = () => {
+    setErrorMessage(null);
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -83,88 +182,150 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
     );
   }
 
-  const renderProcedureCard = (proc: any) => (
-    <Card key={proc.id} sx={{ mb: 2, minHeight: 60 }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        {/* Procedure Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              {proc.procedure_name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Code: {proc.procedure_code}
-              {proc.tooth_numbers && ` • Tooth #${proc.tooth_numbers}`}
-            </Typography>
-          </Box>
-          <Chip
-            label={proc.status}
-            color={
-              proc.status === 'completed'
-                ? 'success'
-                : proc.status === 'cancelled'
-                ? 'error'
-                : 'warning'
-            }
-            size="small"
-            sx={{ textTransform: 'capitalize' }}
-          />
-        </Box>
+  const renderProcedureCard = (proc: any) => {
+    // Determine if actions should be shown (not for completed/cancelled)
+    const showActions = proc.status !== 'completed' && proc.status !== 'cancelled';
 
-        {/* Description */}
-        {proc.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {proc.description}
-          </Typography>
-        )}
-
-        {/* Procedure Details */}
-        <Stack direction="row" spacing={2} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
-          {proc.procedure_date && (
-            <Typography variant="caption" color="text.secondary">
-              Date: {new Date(proc.procedure_date).toLocaleDateString()}
-            </Typography>
-          )}
-          {proc.completed_date && (
-            <Typography variant="caption" color="text.secondary">
-              Completed: {new Date(proc.completed_date).toLocaleDateString()}
-            </Typography>
-          )}
-          {proc.duration_minutes && (
-            <Typography variant="caption" color="text.secondary">
-              Duration: {proc.duration_minutes} min
-            </Typography>
-          )}
-        </Stack>
-
-        {/* Cost */}
-        {(proc.estimated_cost || proc.actual_cost) && (
-          <Box sx={{ mt: 1 }}>
-            {proc.estimated_cost && (
+    return (
+      <Card key={proc.id} sx={{ mb: 2, minHeight: 60 }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          {/* Procedure Header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {proc.procedure_name}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Estimated: ${proc.estimated_cost.toFixed(2)}
+                Code: {proc.procedure_code}
+                {proc.tooth_numbers && ` • Tooth #${proc.tooth_numbers}`}
               </Typography>
-            )}
-            {proc.actual_cost && (
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-                Actual: ${proc.actual_cost.toFixed(2)}
-              </Typography>
-            )}
+            </Box>
+            <Chip
+              label={proc.status}
+              color={
+                proc.status === 'completed'
+                  ? 'success'
+                  : proc.status === 'cancelled'
+                  ? 'error'
+                  : 'warning'
+              }
+              size="small"
+              sx={{ textTransform: 'capitalize' }}
+            />
           </Box>
-        )}
 
-        {/* Notes */}
-        {proc.procedure_notes && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}>
-            Notes: {proc.procedure_notes}
-          </Typography>
-        )}
-      </CardContent>
-    </Card>
-  );
+          {/* Description */}
+          {proc.description && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {proc.description}
+            </Typography>
+          )}
+
+          {/* Procedure Details */}
+          <Stack direction="row" spacing={2} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
+            {proc.procedure_date && (
+              <Typography variant="caption" color="text.secondary">
+                Date: {new Date(proc.procedure_date).toLocaleDateString()}
+              </Typography>
+            )}
+            {proc.completed_date && (
+              <Typography variant="caption" color="text.secondary">
+                Completed: {new Date(proc.completed_date).toLocaleDateString()}
+              </Typography>
+            )}
+            {proc.duration_minutes && (
+              <Typography variant="caption" color="text.secondary">
+                Duration: {proc.duration_minutes} min
+              </Typography>
+            )}
+          </Stack>
+
+          {/* Cost */}
+          {(proc.estimated_cost || proc.actual_cost) && (
+            <Box sx={{ mt: 1 }}>
+              {proc.estimated_cost && (
+                <Typography variant="caption" color="text.secondary">
+                  Estimated: ${proc.estimated_cost.toFixed(2)}
+                </Typography>
+              )}
+              {proc.actual_cost && (
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+                  Actual: ${proc.actual_cost.toFixed(2)}
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* Notes */}
+          {proc.procedure_notes && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}>
+              Notes: {proc.procedure_notes}
+            </Typography>
+          )}
+
+          {/* Action Buttons */}
+          {showActions && (
+            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircleIcon />}
+                onClick={() => handleCompleteClick(proc)}
+                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
+              >
+                Complete
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<CancelIcon />}
+                onClick={() => handleCancelClick(proc)}
+                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ScheduleIcon />}
+                onClick={() => handleRescheduleClick(proc)}
+                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
+              >
+                Reschedule
+              </Button>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <Stack spacing={2}>
+      {/* Success/Error Alerts */}
+      {successMessage && (
+        <Alert severity="success" onClose={handleCloseSuccessAlert}>
+          {successMessage}
+        </Alert>
+      )}
+      {errorMessage && (
+        <Alert severity="error" onClose={handleCloseErrorAlert}>
+          {errorMessage}
+        </Alert>
+      )}
+
+      {/* Add Procedure Button */}
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={handleAddProcedureClick}
+        sx={{ minHeight: 44 }}
+      >
+        Add New Procedure
+      </Button>
+
       {/* Upcoming Procedures */}
       <Accordion
         expanded={expanded === 'upcoming'}
@@ -234,6 +395,64 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
           </AccordionDetails>
         </Accordion>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onClose={() => !actionLoading && setConfirmDialogOpen(false)}>
+        <DialogTitle>
+          {confirmAction === 'complete' ? 'Complete Procedure?' : 'Cancel Procedure?'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {selectedProcedure && (
+              <>
+                Are you sure you want to {confirmAction} the procedure:{' '}
+                <strong>{selectedProcedure.procedure_name}</strong> (Code: {selectedProcedure.procedure_code})?
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setConfirmDialogOpen(false)}
+            disabled={actionLoading}
+            variant="outlined"
+            sx={{ minHeight: 44 }}
+          >
+            No, Go Back
+          </Button>
+          <Button
+            onClick={handleConfirmAction}
+            disabled={actionLoading}
+            variant="contained"
+            color={confirmAction === 'complete' ? 'success' : 'error'}
+            sx={{ minHeight: 44 }}
+          >
+            {actionLoading ? 'Processing...' : `Yes, ${confirmAction === 'complete' ? 'Complete' : 'Cancel'}`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <RescheduleProcedureDialog
+        open={rescheduleDialogOpen}
+        procedure={selectedProcedure}
+        onClose={() => {
+          setRescheduleDialogOpen(false);
+          setSelectedProcedure(null);
+        }}
+        onSuccess={handleRescheduleSuccess}
+        onError={handleError}
+      />
+
+      {/* Add Procedure Dialog */}
+      <AddProcedureDialog
+        open={addProcedureDialogOpen}
+        patientMobile={patientMobile}
+        patientFirstName={patientFirstName}
+        onClose={() => setAddProcedureDialogOpen(false)}
+        onSuccess={handleAddProcedureSuccess}
+        onError={handleError}
+      />
     </Stack>
   );
 };
