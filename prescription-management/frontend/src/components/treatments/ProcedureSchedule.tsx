@@ -38,6 +38,7 @@ import treatmentService from '../../services/treatmentService';
 import { dentalProcedureAPI } from '../../services/dentalService';
 import { RescheduleProcedureDialog } from './RescheduleProcedureDialog';
 import { AddProcedureDialog } from './AddProcedureDialog';
+import { useToast } from '../common/Toast';
 
 interface ProcedureScheduleProps {
   patientMobile: string;
@@ -45,6 +46,7 @@ interface ProcedureScheduleProps {
 }
 
 const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureScheduleProps) => {
+  const toast = useToast();
   const [procedures, setProcedures] = useState<ProcedureGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +59,6 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
   const [selectedProcedure, setSelectedProcedure] = useState<any>(null);
   const [confirmAction, setConfirmAction] = useState<'complete' | 'cancel' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadProcedures();
@@ -122,7 +122,7 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
 
       await dentalProcedureAPI.updateStatus(selectedProcedure.id, newStatus, notes);
 
-      setSuccessMessage(`Procedure ${confirmAction === 'complete' ? 'completed' : 'cancelled'} successfully`);
+      toast.success(`Procedure ${confirmAction === 'complete' ? 'completed' : 'cancelled'} successfully`);
       setConfirmDialogOpen(false);
       setSelectedProcedure(null);
       setConfirmAction(null);
@@ -131,33 +131,21 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
       await loadProcedures();
     } catch (err: any) {
       console.error('Error updating procedure:', err);
-      setErrorMessage(err.response?.data?.detail || `Failed to ${confirmAction} procedure`);
+      toast.error(err.response?.data?.detail || `Failed to ${confirmAction} procedure`);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRescheduleSuccess = () => {
-    setSuccessMessage('Procedure rescheduled successfully');
+    toast.success('Procedure rescheduled successfully');
     setSelectedProcedure(null);
     loadProcedures();
   };
 
   const handleAddProcedureSuccess = () => {
-    setSuccessMessage('Procedure added successfully');
+    toast.success('Procedure added successfully');
     loadProcedures();
-  };
-
-  const handleError = (message: string) => {
-    setErrorMessage(message);
-  };
-
-  const handleCloseSuccessAlert = () => {
-    setSuccessMessage(null);
-  };
-
-  const handleCloseErrorAlert = () => {
-    setErrorMessage(null);
   };
 
   if (loading) {
@@ -304,18 +292,6 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
 
   return (
     <Stack spacing={2}>
-      {/* Success/Error Alerts */}
-      {successMessage && (
-        <Alert severity="success" onClose={handleCloseSuccessAlert}>
-          {successMessage}
-        </Alert>
-      )}
-      {errorMessage && (
-        <Alert severity="error" onClose={handleCloseErrorAlert}>
-          {errorMessage}
-        </Alert>
-      )}
-
       {/* Add Procedure Button */}
       <Button
         variant="contained"
@@ -441,7 +417,6 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
           setSelectedProcedure(null);
         }}
         onSuccess={handleRescheduleSuccess}
-        onError={handleError}
       />
 
       {/* Add Procedure Dialog */}
@@ -451,7 +426,6 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
         patientFirstName={patientFirstName}
         onClose={() => setAddProcedureDialogOpen(false)}
         onSuccess={handleAddProcedureSuccess}
-        onError={handleError}
       />
     </Stack>
   );

@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import StandardDatePicker from '../common/StandardDatePicker';
 import { dentalProcedureAPI } from '../../services/dentalService';
+import { useToast } from '../common/Toast';
 import axios from 'axios';
 
 interface AddProcedureDialogProps {
@@ -27,7 +28,6 @@ interface AddProcedureDialogProps {
   patientFirstName: string;
   onClose: () => void;
   onSuccess: () => void;
-  onError: (message: string) => void;
 }
 
 interface Appointment {
@@ -46,8 +46,8 @@ export const AddProcedureDialog = ({
   patientFirstName,
   onClose,
   onSuccess,
-  onError,
 }: AddProcedureDialogProps) => {
+  const toast = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,7 +92,7 @@ export const AddProcedureDialog = ({
       setAppointments(response.data.appointments || []);
     } catch (err: any) {
       console.error('Error fetching appointments:', err);
-      onError('Failed to load appointments');
+      toast.error('Failed to load appointments');
     } finally {
       setLoadingAppointments(false);
     }
@@ -108,11 +108,11 @@ export const AddProcedureDialog = ({
   const handleSubmit = async () => {
     // Validation
     if (!formData.appointment_id) {
-      onError('Please select an appointment');
+      toast.error('Please select an appointment');
       return;
     }
     if (!formData.procedure_code || !formData.procedure_name) {
-      onError('Please provide procedure code and name');
+      toast.error('Please provide procedure code and name');
       return;
     }
 
@@ -156,7 +156,7 @@ export const AddProcedureDialog = ({
       onClose();
     } catch (err: any) {
       console.error('Error creating procedure:', err);
-      onError(err.response?.data?.detail || 'Failed to create procedure');
+      toast.error(err.response?.data?.detail || 'Failed to create procedure');
     } finally {
       setLoading(false);
     }

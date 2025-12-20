@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import StandardDatePicker from '../common/StandardDatePicker';
 import { dentalProcedureAPI } from '../../services/dentalService';
+import { useToast } from '../common/Toast';
 
 interface RescheduleProcedureDialogProps {
   open: boolean;
@@ -26,7 +27,6 @@ interface RescheduleProcedureDialogProps {
   } | null;
   onClose: () => void;
   onSuccess: () => void;
-  onError: (message: string) => void;
 }
 
 export const RescheduleProcedureDialog = ({
@@ -34,8 +34,8 @@ export const RescheduleProcedureDialog = ({
   procedure,
   onClose,
   onSuccess,
-  onError,
 }: RescheduleProcedureDialogProps) => {
+  const toast = useToast();
   const [newDate, setNewDate] = useState<Date | null>(
     procedure?.procedure_date ? new Date(procedure.procedure_date) : new Date()
   );
@@ -58,7 +58,7 @@ export const RescheduleProcedureDialog = ({
       onClose();
     } catch (err: any) {
       console.error('Error rescheduling procedure:', err);
-      onError(err.response?.data?.detail || 'Failed to reschedule procedure');
+      toast.error(err.response?.data?.detail || 'Failed to reschedule procedure');
     } finally {
       setLoading(false);
     }
