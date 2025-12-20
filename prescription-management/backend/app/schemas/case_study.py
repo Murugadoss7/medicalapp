@@ -57,6 +57,7 @@ class CaseStudyCreate(BaseModel):
     appointment_ids: Optional[List[UUID4]] = None
     prescription_ids: Optional[List[UUID4]] = None
     procedure_ids: Optional[List[UUID4]] = None
+    observation_ids: Optional[List[UUID4]] = None
 
     # Optional: Date range filter
     treatment_start_date: Optional[date] = None
@@ -79,6 +80,7 @@ class CaseStudyGenerateRequest(BaseModel):
     appointment_ids: Optional[List[UUID4]] = None
     prescription_ids: Optional[List[UUID4]] = None
     procedure_ids: Optional[List[UUID4]] = None
+    observation_ids: Optional[List[UUID4]] = None
 
     # Optional: Date range filter
     treatment_start_date: Optional[date] = None
@@ -134,6 +136,7 @@ class CaseStudyResponse(CaseStudyBase):
     appointment_ids: Optional[str] = None
     prescription_ids: Optional[str] = None
     procedure_ids: Optional[str] = None
+    observation_ids: Optional[str] = None
 
     # Metadata
     generation_prompt: Optional[str] = None

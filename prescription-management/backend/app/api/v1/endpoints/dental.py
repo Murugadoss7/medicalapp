@@ -8,7 +8,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Body, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.api.deps.database import get_db
@@ -853,4 +853,152 @@ async def delete_template(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e)
+        )
+
+
+# ==================== File Attachment Endpoints ====================
+
+@router.post("/observations/{observation_id}/attachments", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def upload_observation_attachment(
+    observation_id: UUID,
+    file: UploadFile = File(...),
+    file_type: str = Form(...),
+    caption: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Upload file attachment for dental observation
+
+    **File Types:** xray, photo_before, photo_after, test_result, document, other
+    **Allowed Formats:** JPG, PNG, PDF, DICOM
+    **Max Size:** 10MB
+    """
+    from app.services.attachment_service import get_attachment_service
+
+    service = get_attachment_service(db)
+
+    try:
+        attachment = await service.upload_observation_attachment(
+            observation_id=observation_id,
+            file=file,
+            file_type=file_type,
+            caption=caption,
+            user_id=current_user.id
+        )
+        return attachment.model_dump()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading observation attachment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload attachment"
+        )
+
+
+@router.post("/procedures/{procedure_id}/attachments", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def upload_procedure_attachment(
+    procedure_id: UUID,
+    file: UploadFile = File(...),
+    file_type: str = Form(...),
+    caption: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """
+    Upload file attachment for dental procedure
+
+    **File Types:** photo_before, photo_after, test_result, document, other
+    **Allowed Formats:** JPG, PNG, PDF, DICOM
+    **Max Size:** 10MB
+    """
+    from app.services.attachment_service import get_attachment_service
+
+    service = get_attachment_service(db)
+
+    try:
+        attachment = await service.upload_procedure_attachment(
+            procedure_id=procedure_id,
+            file=file,
+            file_type=file_type,
+            caption=caption,
+            user_id=current_user.id
+        )
+        return attachment.model_dump()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading procedure attachment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload attachment"
+        )
+
+
+@router.get("/observations/{observation_id}/attachments", response_model=List[dict])
+async def get_observation_attachments(
+    observation_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """Get all attachments for a dental observation"""
+    from app.services.attachment_service import get_attachment_service
+
+    service = get_attachment_service(db)
+
+    try:
+        attachments = service.get_observation_attachments(observation_id)
+        return [a.model_dump() for a in attachments]
+    except Exception as e:
+        logger.error(f"Error getting observation attachments: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve attachments"
+        )
+
+
+@router.get("/procedures/{procedure_id}/attachments", response_model=List[dict])
+async def get_procedure_attachments(
+    procedure_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """Get all attachments for a dental procedure"""
+    from app.services.attachment_service import get_attachment_service
+
+    service = get_attachment_service(db)
+
+    try:
+        attachments = service.get_procedure_attachments(procedure_id)
+        return [a.model_dump() for a in attachments]
+    except Exception as e:
+        logger.error(f"Error getting procedure attachments: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve attachments"
+        )
+
+
+@router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_attachment(
+    attachment_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff)
+):
+    """Delete attachment (soft delete in database + remove from cloud storage)"""
+    from app.services.attachment_service import get_attachment_service
+
+    service = get_attachment_service(db)
+
+    try:
+        service.delete_attachment(attachment_id, current_user.id)
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting attachment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete attachment"
         )

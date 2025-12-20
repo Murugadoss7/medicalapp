@@ -90,7 +90,27 @@ class Settings(BaseSettings):
     # File Upload Configuration
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
     UPLOAD_DIR: str = "./uploads"
-    ALLOWED_FILE_TYPES: List[str] = ["pdf", "jpg", "jpeg", "png"]
+    ALLOWED_FILE_TYPES: List[str] = ["pdf", "jpg", "jpeg", "png", "dcm", "dicom"]
+
+    # Cloud Storage Configuration (Cloudflare R2)
+    CLOUD_STORAGE_PROVIDER: str = "cloudflare"  # "cloudflare" or "gcs"
+    CLOUDFLARE_R2_ACCESS_KEY: Optional[str] = None
+    CLOUDFLARE_R2_SECRET_KEY: Optional[str] = None
+    CLOUDFLARE_R2_BUCKET: str = "dental-attachments"
+    CLOUDFLARE_R2_ENDPOINT: Optional[str] = None  # e.g., https://xxxxx.r2.cloudflarestorage.com
+    CLOUDFLARE_R2_PUBLIC_URL: Optional[str] = None  # Public URL for accessing files
+
+    # Google Cloud Storage (Alternative)
+    GCS_PROJECT_ID: Optional[str] = None
+    GCS_BUCKET: str = "dental-attachments"
+    GCS_CREDENTIALS_PATH: Optional[str] = None
+
+    # OpenAI Configuration (for AI Case Study Generation)
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"  # Can be changed to "gpt-5-nano" when available
+    OPENAI_MAX_TOKENS: int = 4000
+    OPENAI_TEMPERATURE: float = 0.7
+    AI_MAX_COST_PER_CASE_STUDY: float = 1.0  # USD
     
     # PDF Generation (for prescriptions as per ERD)
     PDF_TEMPLATE_DIR: str = "./templates/pdf"

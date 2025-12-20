@@ -94,6 +94,7 @@ class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin
     prescription = relationship("Prescription", back_populates="dental_observations")
     appointment = relationship("Appointment", back_populates="dental_observations")
     procedures = relationship("DentalProcedure", back_populates="observation", cascade="all, delete-orphan")
+    attachments = relationship("DentalAttachment", back_populates="observation", cascade="all, delete-orphan")
 
     # Indexes for performance
     __table_args__ = (
@@ -149,6 +150,7 @@ class DentalProcedure(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
     observation = relationship("DentalObservation", back_populates="procedures")
     prescription = relationship("Prescription", back_populates="dental_procedures")
     appointment = relationship("Appointment", back_populates="dental_procedures")
+    attachments = relationship("DentalAttachment", back_populates="procedure", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -259,3 +261,154 @@ def get_quadrant(tooth_number: str) -> int:
         return num // 10
     except ValueError:
         return 0
+
+
+class DentalAttachment(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
+    """
+    File attachments for dental observations, procedures, and case studies
+    Supports X-rays, photos (before/after), test results, and documents
+    Stored in cloud storage (Cloudflare R2 or Google Cloud Storage)
+    """
+    __tablename__ = "dental_attachments"
+
+    # Foreign key relationships (exactly one must be set)
+    observation_id = Column(UUID(as_uuid=True), ForeignKey("dental_observations.id", ondelete="CASCADE"), nullable=True)
+    procedure_id = Column(UUID(as_uuid=True), ForeignKey("dental_procedures.id", ondelete="CASCADE"), nullable=True)
+    case_study_id = Column(UUID(as_uuid=True), ForeignKey("case_studies.id", ondelete="CASCADE"), nullable=True)
+
+    # Patient composite key (for easier queries)
+    patient_mobile_number = Column(String(20), nullable=False)
+    patient_first_name = Column(String(100), nullable=False)
+
+    # File information
+    file_type = Column(String(20), nullable=False)  # xray, photo_before, photo_after, test_result, document, other
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(Text, nullable=False)  # Cloud storage URL or path
+    file_size = Column(Integer, nullable=False)  # Size in bytes
+    mime_type = Column(String(100), nullable=False)  # image/jpeg, application/pdf, etc.
+
+    # Metadata
+    caption = Column(Text, nullable=True)  # Optional description
+    taken_date = Column(Date, nullable=True)  # When photo/xray was taken
+
+    # Audit fields
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    observation = relationship("DentalObservation", back_populates="attachments")
+    procedure = relationship("DentalProcedure", back_populates="attachments")
+    case_study = relationship("CaseStudy", back_populates="attachments", foreign_keys=[case_study_id])
+    uploader = relationship("User")
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_dental_attach_observation', 'observation_id'),
+        Index('idx_dental_attach_procedure', 'procedure_id'),
+        Index('idx_dental_attach_case_study', 'case_study_id'),
+        Index('idx_dental_attach_patient', 'patient_mobile_number', 'patient_first_name'),
+        Index('idx_dental_attach_file_type', 'file_type'),
+        Index('idx_dental_attach_created', 'created_at'),
+        Index('idx_dental_attach_active', 'is_active'),
+    )
+
+    def __repr__(self):
+        return f"<DentalAttachment(file_name={self.file_name}, type={self.file_type})>"
+
+
+class CaseStudy(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
+    """
+    AI-generated case studies combining observations, procedures, and attachments
+    Used for clinical documentation, teaching, and treatment outcome analysis
+    """
+    __tablename__ = "case_studies"
+
+    # Case study identifier
+    case_study_number = Column(String(100), nullable=False, unique=True)
+
+    # Patient reference
+    patient_mobile_number = Column(String(20), nullable=False)
+    patient_first_name = Column(String(100), nullable=False)
+    patient_uuid = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+
+    # Doctor reference
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
+
+    # Related entities (JSON arrays of UUIDs)
+    appointment_ids = Column(Text, nullable=True)
+    prescription_ids = Column(Text, nullable=True)
+    procedure_ids = Column(Text, nullable=True)
+    observation_ids = Column(Text, nullable=True)  # Added in migration
+
+    # Case study content
+    title = Column(String(500), nullable=False)
+    chief_complaint = Column(Text, nullable=False)
+
+    # Pre-treatment assessment (AI-generated)
+    pre_treatment_summary = Column(Text, nullable=True)
+    initial_diagnosis = Column(Text, nullable=True)
+    treatment_goals = Column(Text, nullable=True)
+
+    # Treatment timeline (AI-generated)
+    treatment_summary = Column(Text, nullable=True)
+    procedures_performed = Column(Text, nullable=True)
+
+    # Post-treatment outcome (AI-generated)
+    outcome_summary = Column(Text, nullable=True)
+    success_metrics = Column(Text, nullable=True)
+    patient_feedback = Column(Text, nullable=True)
+
+    # Full narrative (AI-generated)
+    full_narrative = Column(Text, nullable=True)
+
+    # AI metadata
+    generation_prompt = Column(Text, nullable=True)
+    generation_model = Column(String(100), nullable=True)
+
+    # Timeline
+    treatment_start_date = Column(Date, nullable=True)
+    treatment_end_date = Column(Date, nullable=True)
+
+    # Status
+    status = Column(String(20), nullable=False, default='draft')  # draft, reviewed, published, archived
+
+    # Export/presentation
+    is_exported = Column(Boolean, default=False, nullable=False)
+    exported_format = Column(String(20), nullable=True)
+    exported_at = Column(Date, nullable=True)
+
+    # Relationships
+    patient = relationship("Patient")
+    doctor = relationship("Doctor")
+    attachments = relationship("DentalAttachment", back_populates="case_study",
+                              foreign_keys="DentalAttachment.case_study_id")
+
+    # Indexes (already created in migration)
+    __table_args__ = (
+        Index('idx_case_studies_patient', 'patient_mobile_number', 'patient_first_name'),
+        Index('idx_case_studies_doctor', 'doctor_id'),
+        Index('idx_case_studies_status', 'status'),
+        Index('idx_case_studies_created_at', 'created_at'),
+        Index('idx_case_studies_is_active', 'is_active'),
+    )
+
+    def __repr__(self):
+        return f"<CaseStudy(number={self.case_study_number}, title={self.title})>"
+
+
+# File type constants
+ATTACHMENT_FILE_TYPES = [
+    "xray",
+    "photo_before",
+    "photo_after",
+    "test_result",
+    "document",
+    "other"
+]
+
+# Case study status constants
+CASE_STUDY_STATUSES = [
+    "draft",
+    "reviewed",
+    "published",
+    "archived"
+]
