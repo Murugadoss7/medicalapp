@@ -631,7 +631,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription', 'DentalTemplate'],
+  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription', 'DentalTemplate', 'DentalAttachment'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<LoginResponse, LoginRequest>({
@@ -797,6 +797,62 @@ export const api = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['DentalTemplate'],
+    }),
+
+    // Dental Attachment endpoints
+    uploadObservationAttachment: builder.mutation<any, { observationId: string; formData: FormData }>({
+      query: ({ observationId, formData }) => ({
+        url: `/dental/observations/${observationId}/attachments`,
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['DentalAttachment'],
+    }),
+
+    getObservationAttachments: builder.query<any[], string>({
+      query: (observationId) => `/dental/observations/${observationId}/attachments`,
+      providesTags: ['DentalAttachment'],
+    }),
+
+    deleteAttachment: builder.mutation<void, string>({
+      query: (attachmentId) => ({
+        url: `/dental/attachments/${attachmentId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['DentalAttachment'],
+    }),
+
+    // Case Study endpoints
+    generateCaseStudy: builder.mutation<any, {
+      patient_mobile_number: string;
+      patient_first_name: string;
+      observation_ids?: string[];
+      procedure_ids?: string[];
+      title?: string;
+    }>({
+      query: (data) => ({
+        url: '/case-studies/generate',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    // Get patient's case studies
+    getPatientCaseStudies: builder.query<any, {
+      mobile: string;
+      firstName: string;
+      page?: number;
+      perPage?: number;
+    }>({
+      query: ({ mobile, firstName, page = 1, perPage = 10 }) => ({
+        url: `/case-studies/patient/${mobile}/${firstName}`,
+        params: { page, per_page: perPage },
+      }),
+    }),
+
+    // Get single case study by ID
+    getCaseStudy: builder.query<any, string>({
+      query: (id) => `/case-studies/${id}`,
     }),
 
     // Office Stats endpoint
@@ -1352,6 +1408,10 @@ export const {
   useCreateObservationTemplateMutation,
   useUpdateObservationTemplateMutation,
   useDeleteObservationTemplateMutation,
+  // Case Study hooks
+  useGenerateCaseStudyMutation,
+  useGetPatientCaseStudiesQuery,
+  useGetCaseStudyQuery,
   // Office Stats hooks
   useGetDoctorOfficeStatsQuery,
   // Appointment Management hooks
@@ -1413,4 +1473,8 @@ export const {
   // Appointment Creation hooks
   useCreateAppointmentMutation,
   useCheckAppointmentConflictMutation,
+  // Dental Attachment hooks
+  useUploadObservationAttachmentMutation,
+  useGetObservationAttachmentsQuery,
+  useDeleteAttachmentMutation,
 } = api;

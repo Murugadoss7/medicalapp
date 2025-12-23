@@ -16,6 +16,7 @@ import {
   Divider,
   IconButton,
   Paper,
+  Collapse,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -23,28 +24,33 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Close as CloseIcon,
+  AttachFile as AttachFileIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ButtonGroupSelect from '../common/ButtonGroupSelect';
 import TemplateNotesSelector from './TemplateNotesSelector';
+import FileUpload from '../common/FileUpload';
+import FileGallery from '../common/FileGallery';
+import PostProcedureUploadDialog from '../common/PostProcedureUploadDialog';
 import { type ObservationData, type ProcedureData } from './ObservationRow';
 
-// Dental conditions (from ObservationRow.tsx)
+// Dental conditions - MUST match backend DENTAL_CONDITION_TYPES (models/dental.py:169)
 const DENTAL_CONDITIONS = [
   'Cavity',
   'Decay',
   'Fracture',
-  'Missing',
-  'Filling',
-  'Crown',
-  'Root Canal',
+  'Crack',
+  'Discoloration',
+  'Wear',
+  'Erosion',
   'Abscess',
   'Gum Disease',
-  'Plaque',
-  'Calculus',
-  'Stain',
-  'Mobility',
+  'Root Exposure',
+  'Sensitivity',
+  'Missing',
+  'Impacted',
   'Other',
 ];
 
@@ -87,6 +93,17 @@ const COMMON_PROCEDURES = [
 // Procedure statuses
 const PROCEDURE_STATUSES = ['Planned', 'Completed', 'Cancelled'];
 
+interface FileAttachment {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: 'xray' | 'photo_before' | 'photo_after' | 'test_result' | 'document' | 'other';
+  file_size: number;
+  mime_type: string;
+  caption?: string;
+  created_at: string;
+}
+
 interface NewObservationFormProps {
   observation: ObservationData;
   onUpdate: (obs: ObservationData) => void;
@@ -94,6 +111,11 @@ interface NewObservationFormProps {
   onClear: () => void;
   saving?: boolean;
   isEditMode?: boolean;
+  // Attachments (only for saved observations with IDs)
+  attachments?: FileAttachment[];
+  onUploadAttachment?: (file: File, fileType: string, caption?: string) => Promise<void>;
+  onDeleteAttachment?: (attachmentId: string) => Promise<void>;
+  isUploadingAttachment?: boolean;
 }
 
 const NewObservationForm: React.FC<NewObservationFormProps> = ({
@@ -103,11 +125,21 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   onClear,
   saving = false,
   isEditMode = false,
+  attachments = [],
+  onUploadAttachment,
+  onDeleteAttachment,
+  isUploadingAttachment = false,
 }) => {
   // Auto-show procedures section when in edit mode with existing procedures
   const hasProcedures = observation.procedures && observation.procedures.length > 0;
   const [showProcedures, setShowProcedures] = useState(isEditMode && hasProcedures);
   const [showAllProcedures, setShowAllProcedures] = useState(false);
+  // Auto-expand attachments section in edit mode or if attachments exist
+  const [showAttachments, setShowAttachments] = useState(isEditMode || attachments.length > 0);
+
+  // NEW: Post-procedure upload dialog
+  const [showPostProcedureDialog, setShowPostProcedureDialog] = useState(false);
+  const [completedProcedure, setCompletedProcedure] = useState<ProcedureData | null>(null);
 
   // Update showProcedures when edit mode changes
   React.useEffect(() => {
@@ -115,6 +147,13 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
       setShowProcedures(true);
     }
   }, [isEditMode, observation.procedures, observation.hasProcedure]);
+
+  // Auto-expand attachments when in edit mode
+  React.useEffect(() => {
+    if (isEditMode) {
+      setShowAttachments(true);
+    }
+  }, [isEditMode]);
 
   const handleChange = (field: keyof ObservationData, value: any) => {
     onUpdate({ ...observation, [field]: value });
@@ -170,6 +209,15 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
       p.id === procedureId ? { ...p, [field]: value } : p
     );
     onUpdate({ ...observation, procedures: updatedProcedures });
+
+    // NEW: If status changed to 'completed', show post-procedure upload dialog
+    if (field === 'procedureStatus' && value.toLowerCase() === 'completed') {
+      const procedure = observation.procedures.find(p => p.id === procedureId);
+      if (procedure && onUploadAttachment) {
+        setCompletedProcedure({ ...procedure, procedureStatus: 'completed' });
+        setShowPostProcedureDialog(true);
+      }
+    }
   };
 
   // Toggle tooth selection for a procedure
@@ -616,6 +664,100 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
             Add Another Procedure
           </Button>
         </Box>
+      )}
+
+      {/* Attachments Section - Always visible, with different states */}
+      <Box sx={{ mt: 2 }}>
+        <Divider sx={{ my: 2 }} />
+
+        {/* Attachments Header */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1,
+            cursor: 'pointer',
+            bgcolor: 'primary.main',
+            color: 'white',
+            p: 1.5,
+            borderRadius: 1,
+          }}
+          onClick={() => setShowAttachments(!showAttachments)}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AttachFileIcon sx={{ fontSize: '1.2rem' }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+              Attachments ({attachments.length})
+            </Typography>
+          </Box>
+          <IconButton
+            size="small"
+            sx={{
+              transform: showAttachments ? 'rotate(180deg)' : 'none',
+              color: 'white',
+            }}
+          >
+            <ExpandMoreIcon />
+          </IconButton>
+        </Box>
+
+        <Collapse in={showAttachments}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            {/* Show message if observation not saved yet */}
+            {!isEditMode && (
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'info.light', borderRadius: 1, border: '1px solid', borderColor: 'info.main' }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, color: 'info.dark' }}>
+                  💡 Upload files (X-rays, photos, documents). Observation will be auto-saved if needed.
+                </Typography>
+              </Box>
+            )}
+
+            {/* File Upload - Always enabled, will auto-save observation if needed */}
+            {onUploadAttachment && (
+              <Box sx={{ mb: 2 }}>
+                <FileUpload
+                  maxFiles={5}
+                  maxSizeBytes={10 * 1024 * 1024}
+                  acceptedTypes={['image/jpeg', 'image/png', 'application/pdf', 'application/dicom']}
+                  defaultFileType="photo_before" // Smart default for initial assessments
+                  allowCaption={true} // Enable caption field
+                  onUploadSuccess={(file, fileType, caption) => onUploadAttachment(file, fileType, caption)}
+                  disabled={isUploadingAttachment || saving}
+                />
+              </Box>
+            )}
+
+            {/* File Gallery */}
+            {attachments.length > 0 ? (
+              <FileGallery
+                attachments={attachments}
+                onDelete={onDeleteAttachment}
+                readOnly={!onDeleteAttachment}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                No files uploaded yet. Drag & drop or click above to upload.
+              </Typography>
+            )}
+          </Box>
+        </Collapse>
+      </Box>
+
+      {/* Post-Procedure Upload Dialog */}
+      {completedProcedure && (
+        <PostProcedureUploadDialog
+          open={showPostProcedureDialog}
+          procedureName={completedProcedure.procedureName || completedProcedure.customProcedureName || 'Procedure'}
+          toothNumbers={completedProcedure.selectedTeeth}
+          onClose={() => setShowPostProcedureDialog(false)}
+          onUploadComplete={async (file, fileType, caption) => {
+            if (onUploadAttachment) {
+              await onUploadAttachment(file, fileType, caption);
+            }
+          }}
+          onSkip={() => setShowPostProcedureDialog(false)}
+        />
       )}
     </Box>
   );

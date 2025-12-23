@@ -6,11 +6,13 @@
 
 #### **1. DOCUMENTATION FIRST**
 - **ALWAYS** read these files BEFORE any action:
+  - `LESSONS_LEARNED.md` - **START HERE!** Common mistakes and how to avoid them
+  - `PRE_IMPLEMENTATION_CHECKLIST.md` - Quick reference checklist
   - `ENTITY_RELATIONSHIP_DIAGRAM.md` - Database schema authority
   - `API_REFERENCE_GUIDE.md` - API endpoints and field mappings
   - `FRONTEND_DEVELOPMENT_PLAN.md` - Page specifications
   - `PROJECT_ARCHITECTURE.md` - Folder structure
-  - `DATE_STANDARDIZATION_PLAN.md` - date structure
+  - `DATE_STANDARDIZATION_PLAN.md` - Date handling standards
 
 #### **2. NO RANDOM FILE CREATION**
 - **NEVER** create files in random locations

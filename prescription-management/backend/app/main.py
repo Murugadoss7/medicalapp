@@ -6,9 +6,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import time
 import logging
+from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import init_db, check_db_connection, check_redis_connection
@@ -85,6 +87,13 @@ app.add_middleware(
 
 # Compression middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+# Static files - Mount uploads directory for serving uploaded files
+uploads_dir = Path(settings.UPLOAD_DIR)
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+logger.info(f"📁 Static files mounted at /uploads -> {uploads_dir}")
 
 
 # Request/Response middleware for logging and audit

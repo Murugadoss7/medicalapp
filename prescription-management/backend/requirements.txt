@@ -28,6 +28,9 @@ celery==5.3.4
 reportlab==4.0.7
 weasyprint==60.2
 
+# AI/LLM Integration
+openai>=1.0.0
+
 # Utilities
 python-dotenv==1.0.0
 typer==0.9.0

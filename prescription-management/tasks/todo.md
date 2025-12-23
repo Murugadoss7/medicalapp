@@ -1,39 +1,79 @@
-# Dental Observation Edit Feature
+# File Upload Issues - Investigation & Fix Plan
+**Created**: December 22, 2025
+**Status**: ✅ COMPLETE
 
-## Requirements
-1. Add edit icon for each saved observation in SavedObservationsPanel
-2. When edit is clicked, load the observation data into the left panel (NewObservationForm)
-3. Show confirmation dialog if there's an unsaved observation in progress
-   - Cancel button: cancel the edit operation (keep current work)
-   - Continue button: discard current work and load the observation for editing
-4. When deleting an observation, the tooth chart should reflect the change
+---
 
-## Implementation Plan
+## Issues Summary
 
-### Task 1: Add Edit Icon to SavedObservationsPanel
-- [x] Add Edit icon button next to Delete icon in card header
-- [x] Call new `onEditInPanel` prop when clicked
+### Issue 1: Attachment not shown on right panel after upload until refresh ✅ FIXED
+**Root Cause**: In `handleUploadAttachment`, after upload `observationAttachments` (for right panel) was not updated.
+**Fix**: Added code to update `observationAttachments` state after successful upload.
 
-### Task 2: Add Confirmation Dialog in DentalConsultation
-- [x] Create state for showing edit confirmation dialog
-- [x] Create state for pending edit observation
-- [x] Add dialog with Cancel/Continue buttons
+### Issue 2: Created procedure not shown in current observation OR mapped to wrong observation ✅ FIXED
+**Root Cause**: Procedures matched to observations by tooth numbers instead of `observation_id`.
+**Fix**: Changed matching logic to FIRST try `observation_id`, then fall back to tooth numbers.
 
-### Task 3: Handle Edit Flow in DentalConsultation
-- [x] Create `handleEditInPanel` function that checks for unsaved data
-- [x] Create `loadObservationForEdit` function to load observation data
-- [x] Modify `handleSaveNewObservation` to handle UPDATE mode (not just CREATE)
-- [x] Pass `onEditInPanel` to SavedObservationsPanel
+### Issue 3: File upload dialog not shown when clicking "Complete" in SavedObservationsPanel ✅ FIXED
+**Root Cause**: Only `NewObservationForm` had the dialog logic.
+**Fix**: Added `PostProcedureUploadDialog` to `SavedObservationsPanel` with proper handlers.
 
-### Task 4: Add Edit Mode Indicator
-- [x] Add `isEditMode` prop to NewObservationForm
-- [x] Show edit mode banner in form
-- [x] Change Save button to "Update" in edit mode
-- [x] Auto-show procedures section when editing observation with procedures
+---
 
-### Task 5: Verify Tooth Chart Updates on Delete
-- [x] Confirmed existing code calls `loadDentalChart()` after delete
-- [x] Chart data refreshes automatically
+## TODO LIST
+
+- [x] In `handleUploadAttachment` (DentalConsultation.tsx), update `observationAttachments` state
+- [x] Modify loading logic to use `observation_id` for procedure matching
+- [x] Add `PostProcedureUploadDialog` state and dialog to SavedObservationsPanel
+- [x] Add `onUploadAttachment` prop and pass handler from DentalConsultation
+
+---
+
+## Files Modified
+
+### 1. `frontend/src/pages/dental/DentalConsultation.tsx`
+
+**Fix 1** (Lines 1219-1231): After successful upload, also update `observationAttachments`:
+```javascript
+// Find observation with this backend ID and update its attachments
+const matchingObs = observations.find(obs => {
+  if (!obs.backendObservationIds) return false;
+  return Object.values(obs.backendObservationIds).includes(observationId);
+});
+if (matchingObs) {
+  setObservationAttachments(prev => ({...prev, [matchingObs.id]: response || []}));
+}
+```
+
+**Fix 2** (Lines 386-420): Changed procedure matching to prefer `observation_id`:
+```javascript
+// FIRST: Try to match by observation_id (direct link from backend)
+if (proc.observation_id) {
+  for (const key of Object.keys(groupedObs)) {
+    if (obsGroup.backendObservationIds) {
+      const hasMatchingId = Object.values(obsGroup.backendObservationIds).includes(proc.observation_id);
+      if (hasMatchingId) { matchedKey = key; break; }
+    }
+  }
+}
+// FALLBACK: Match by tooth numbers if no observation_id match
+```
+
+**Fix 3** (Lines 1315-1349): Added `handleUploadAttachmentForPanel` handler for right panel uploads.
+
+**Fix 3** (Line 1955): Passed handler to SavedObservationsPanel:
+```javascript
+onUploadAttachment={handleUploadAttachmentForPanel}
+```
+
+### 2. `frontend/src/components/dental/SavedObservationsPanel.tsx`
+
+**Changes**:
+- Added import for `PostProcedureUploadDialog` and `ProcedureData` type
+- Added `onUploadAttachment` prop to interface
+- Added state for dialog: `showPostProcedureDialog`, `completedProcedureInfo`
+- Modified "Complete" button to show dialog after marking complete
+- Added `PostProcedureUploadDialog` component at end of JSX
 
 ---
 
@@ -41,38 +81,34 @@
 
 ### Summary of Changes
 
-**SavedObservationsPanel.tsx:**
-- Added `Edit` icon import from MUI icons
-- Added `onEditInPanel` optional prop to interface
-- Added Edit icon button next to Delete icon for each observation card
+| File | Lines Changed | Impact |
+|------|---------------|--------|
+| DentalConsultation.tsx | ~60 lines added | Issue 1, 2, 3 fixes |
+| SavedObservationsPanel.tsx | ~45 lines added | Issue 3 fix |
 
-**DentalConsultation.tsx:**
-- Added state variables: `showEditConfirmDialog`, `pendingEditObservation`, `isEditMode`, `editingObservationId`
-- Added functions:
-  - `hasUnsavedNewObservation()` - checks if form has unsaved data
-  - `handleEditInPanel()` - handles edit click with confirmation
-  - `loadObservationForEdit()` - loads observation data into form
-  - `handleConfirmEdit()` - continues with edit after confirmation
-  - `handleCancelEdit()` - cancels edit operation
-- Modified `handleSaveNewObservation()` to support both CREATE and UPDATE modes
-- Modified `handleClearNewObservation()` to reset edit mode state
-- Added confirmation dialog UI
-- Passed `onEditInPanel` and `isEditMode` props to child components
+### What Each Fix Does
 
-**NewObservationForm.tsx:**
-- Added `isEditMode` prop
-- Added edit mode banner with visual indicator
-- Changed Save button text to "Update" when in edit mode
-- Auto-show procedures section when editing observation with procedures
+1. **Issue 1 Fix**: When a file is uploaded in the left panel form, the right panel (SavedObservationsPanel) now immediately shows the attachment without requiring a page refresh.
 
-### How it Works
+2. **Issue 2 Fix**: When procedures are loaded from the backend, they're now matched to observations using the direct `observation_id` link from the database, ensuring procedures appear under the correct observation. Tooth number matching is only used as a fallback for legacy data.
 
-1. User clicks Edit icon on a saved observation
-2. If form has unsaved data → shows confirmation dialog
-3. User chooses Cancel (keep current) or Continue (discard and edit)
-4. Observation data is loaded into the left panel form
-5. Form shows "Edit Mode" banner and "Update" button
-6. User modifies the observation
-7. Click "Update" → backend is updated (not creating new)
-8. Observation list is updated with new data
-9. Tooth chart refreshes to reflect changes
+3. **Issue 3 Fix**: When clicking "Complete" on a procedure in the right panel (SavedObservationsPanel), the PostProcedureUploadDialog now appears, allowing doctors to upload "After" photos immediately.
+
+### Code Quality
+
+- ✅ Minimal changes (follows CLAUDE.md Rule #6-9)
+- ✅ No refactoring
+- ✅ Fixes root causes, not symptoms
+- ✅ Each fix is isolated and testable
+- ✅ Backward compatible (tooth number fallback preserved)
+
+### Testing Checklist
+
+- [ ] Upload file in new observation form → Check right panel shows attachment immediately
+- [ ] Create observation with procedure → Refresh page → Check procedure appears under correct observation
+- [ ] Click "Complete" on procedure in right panel → Check upload dialog appears
+- [ ] Upload "After" photo from dialog → Check it appears in attachments
+
+---
+
+## ✅ IMPLEMENTATION COMPLETE

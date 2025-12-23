@@ -21,31 +21,49 @@ import {
   Image as ImageIcon,
   PictureAsPdf as PdfIcon,
   Description as DocumentIcon,
+  CameraAlt as BeforeIcon,
+  CheckCircle as AfterIcon,
+  LocalHospital as XrayIcon,
+  Science as TestIcon,
+  Attachment as OtherIcon,
 } from '@mui/icons-material';
 import { useToast } from './Toast';
+import { TextField, ButtonGroup } from '@mui/material';
+
+type FileTypeOption = 'xray' | 'photo_before' | 'photo_after' | 'test_result' | 'document' | 'other';
 
 interface FileUploadProps {
   maxFiles?: number;
   maxSizeBytes?: number;
-  acceptedTypes?: string[];  // ['image/jpeg', 'image/png', 'application/pdf']
-  fileType?: 'xray' | 'photo_before' | 'photo_after' | 'test_result' | 'document' | 'other';
-  onUploadSuccess?: (file: File, fileType: string) => void;
+  acceptedTypes?: string[];
+  // Legacy prop (kept for backward compatibility)
+  fileType?: FileTypeOption;
+  // NEW: Smart default file type based on context
+  defaultFileType?: FileTypeOption;
+  // NEW: Allow caption per file
+  allowCaption?: boolean;
+  // Legacy callback (kept for backward compatibility)
+  onUploadSuccess?: (file: File, fileType: string, caption?: string) => void;
   onUploadError?: (error: string) => void;
   disabled?: boolean;
 }
 
 interface UploadedFile {
   file: File;
-  preview?: string;  // For image previews
+  preview?: string;
   progress: number;
   error?: string;
+  fileType: FileTypeOption; // NEW: Type per file
+  caption?: string; // NEW: Caption per file
 }
 
 export const FileUpload = ({
   maxFiles = 5,
   maxSizeBytes = 10 * 1024 * 1024,  // 10MB
   acceptedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/dicom'],
-  fileType = 'document',
+  fileType = 'document', // Legacy
+  defaultFileType, // NEW
+  allowCaption = true, // NEW
   onUploadSuccess,
   onUploadError,
   disabled = false,
@@ -54,6 +72,11 @@ export const FileUpload = ({
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // NEW: Current default file type (can be changed by user)
+  const [currentDefaultType, setCurrentDefaultType] = useState<FileTypeOption>(
+    defaultFileType || fileType || 'document'
+  );
 
   // Validate file
   const validateFile = (file: File): string | null => {
@@ -100,6 +123,8 @@ export const FileUpload = ({
         file,
         preview,
         progress: 0,
+        fileType: currentDefaultType, // NEW: Initialize with default
+        caption: '', // NEW: Empty caption
       };
 
       setFiles(prev => [...prev, uploadedFile]);
@@ -107,7 +132,21 @@ export const FileUpload = ({
       // Simulate upload progress (in real app, this would be actual upload)
       simulateUpload(uploadedFile);
     });
-  }, [files, disabled, maxFiles, maxSizeBytes, acceptedTypes, toast, onUploadError]);
+  }, [files, disabled, maxFiles, maxSizeBytes, acceptedTypes, toast, onUploadError, currentDefaultType]);
+
+  // NEW: Update file type for specific file
+  const updateFileType = (index: number, newType: FileTypeOption) => {
+    setFiles(prev =>
+      prev.map((f, i) => (i === index ? { ...f, fileType: newType } : f))
+    );
+  };
+
+  // NEW: Update caption for specific file
+  const updateCaption = (index: number, newCaption: string) => {
+    setFiles(prev =>
+      prev.map((f, i) => (i === index ? { ...f, caption: newCaption } : f))
+    );
+  };
 
   // Simulate upload progress
   const simulateUpload = async (uploadedFile: UploadedFile) => {
@@ -122,9 +161,9 @@ export const FileUpload = ({
       );
     }
 
-    // Call success callback
+    // Call success callback with file type and caption
     if (onUploadSuccess) {
-      onUploadSuccess(uploadedFile.file, fileType);
+      onUploadSuccess(uploadedFile.file, uploadedFile.fileType, uploadedFile.caption);
     }
 
     toast.success(`File uploaded: ${uploadedFile.file.name}`);
@@ -173,8 +212,49 @@ export const FileUpload = ({
     return <DocumentIcon />;
   };
 
+  // File type options with icons
+  const fileTypeOptions = [
+    { type: 'photo_before' as FileTypeOption, label: 'Before', icon: <BeforeIcon />, color: '#2196f3' },
+    { type: 'photo_after' as FileTypeOption, label: 'After', icon: <AfterIcon />, color: '#4caf50' },
+    { type: 'xray' as FileTypeOption, label: 'X-ray', icon: <XrayIcon />, color: '#9c27b0' },
+    { type: 'test_result' as FileTypeOption, label: 'Test', icon: <TestIcon />, color: '#ff9800' },
+    { type: 'other' as FileTypeOption, label: 'Other', icon: <OtherIcon />, color: '#757575' },
+  ];
+
   return (
     <Box>
+      {/* File Type Selector */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.secondary' }}>
+          File Type (applies to all new files):
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {fileTypeOptions.map(({ type, label, icon, color }) => (
+            <Button
+              key={type}
+              variant={currentDefaultType === type ? 'contained' : 'outlined'}
+              startIcon={icon}
+              onClick={() => setCurrentDefaultType(type)}
+              disabled={disabled}
+              sx={{
+                minHeight: 44, // iPad-friendly
+                minWidth: 90,
+                fontWeight: currentDefaultType === type ? 600 : 400,
+                bgcolor: currentDefaultType === type ? color : 'transparent',
+                borderColor: currentDefaultType === type ? color : 'divider',
+                color: currentDefaultType === type ? 'white' : 'text.primary',
+                '&:hover': {
+                  bgcolor: currentDefaultType === type ? color : 'action.hover',
+                  borderColor: color,
+                },
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+
       {/* Drop Zone */}
       <Paper
         elevation={isDragging ? 8 : 2}
@@ -301,6 +381,58 @@ export const FileUpload = ({
                       color="success"
                       size="small"
                       sx={{ mt: 0.5 }}
+                    />
+                  )}
+
+                  {/* NEW: Per-file type selector */}
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      Type:
+                    </Typography>
+                    <ButtonGroup size="small" variant="outlined">
+                      <Button
+                        variant={uploadedFile.fileType === 'photo_before' ? 'contained' : 'outlined'}
+                        onClick={() => updateFileType(index, 'photo_before')}
+                        sx={{ minHeight: 36, fontSize: '0.75rem' }}
+                      >
+                        Before
+                      </Button>
+                      <Button
+                        variant={uploadedFile.fileType === 'photo_after' ? 'contained' : 'outlined'}
+                        onClick={() => updateFileType(index, 'photo_after')}
+                        sx={{ minHeight: 36, fontSize: '0.75rem' }}
+                      >
+                        After
+                      </Button>
+                      <Button
+                        variant={uploadedFile.fileType === 'xray' ? 'contained' : 'outlined'}
+                        onClick={() => updateFileType(index, 'xray')}
+                        sx={{ minHeight: 36, fontSize: '0.75rem' }}
+                      >
+                        X-ray
+                      </Button>
+                      <Button
+                        variant={uploadedFile.fileType === 'test_result' ? 'contained' : 'outlined'}
+                        onClick={() => updateFileType(index, 'test_result')}
+                        sx={{ minHeight: 36, fontSize: '0.75rem' }}
+                      >
+                        Test
+                      </Button>
+                    </ButtonGroup>
+                  </Box>
+
+                  {/* NEW: Caption field */}
+                  {allowCaption && (
+                    <TextField
+                      placeholder="Add comment (e.g., 'Deep cavity near pulp')"
+                      value={uploadedFile.caption || ''}
+                      onChange={(e) => updateCaption(index, e.target.value)}
+                      size="small"
+                      fullWidth
+                      multiline
+                      rows={2}
+                      sx={{ mt: 1.5 }}
+                      disabled={disabled}
                     />
                   )}
                 </Box>

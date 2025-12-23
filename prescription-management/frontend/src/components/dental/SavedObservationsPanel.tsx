@@ -29,10 +29,24 @@ import {
   CheckCircle as CompleteIcon,
   Schedule as RescheduleIcon,
   Cancel as CancelIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { type ObservationData } from './ObservationRow';
+import { type ObservationData, type ProcedureData } from './ObservationRow';
+import { FileGallery } from '../common/FileGallery';
+import PostProcedureUploadDialog from '../common/PostProcedureUploadDialog';
+
+interface FileAttachment {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: 'xray' | 'photo_before' | 'photo_after' | 'test_result' | 'document' | 'other';
+  file_size: number;
+  mime_type: string;
+  caption?: string;
+  created_at: string;
+}
 
 interface SavedObservationsPanelProps {
   observations: ObservationData[];
@@ -42,6 +56,11 @@ interface SavedObservationsPanelProps {
   onUpdateProcedure?: (obsId: string, procedureData: Partial<ObservationData>) => Promise<void>;
   onDeleteObservation?: (obsId: string) => Promise<void>;
   editingObservationId?: string | null;
+  // Attachments - mapping of observation ID to attachments array
+  observationAttachments?: Record<string, FileAttachment[]>;
+  onDeleteAttachment?: (attachmentId: string, observationId: string) => Promise<void>;
+  // Upload handler for post-procedure photos
+  onUploadAttachment?: (observationId: string, file: File, fileType: string, caption?: string) => Promise<void>;
 }
 
 const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
@@ -52,9 +71,19 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
   onUpdateProcedure,
   onDeleteObservation,
   editingObservationId,
+  observationAttachments = {},
+  onDeleteAttachment,
+  onUploadAttachment,
 }) => {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [reschedulingProcedures, setReschedulingProcedures] = useState<Set<string>>(new Set());
+
+  // Post-procedure upload dialog state
+  const [showPostProcedureDialog, setShowPostProcedureDialog] = useState(false);
+  const [completedProcedureInfo, setCompletedProcedureInfo] = useState<{
+    observationId: string;
+    procedure: ProcedureData;
+  } | null>(null);
   const [procedureDates, setProcedureDates] = useState<Record<string, Date | null>>({});
 
   const toggleCard = (obsId: string) => {
@@ -293,6 +322,23 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                           color="secondary"
                         />
                       )}
+                      {/* Show attachment count badge if files exist */}
+                      {(() => {
+                        const attachmentCount = observationAttachments[obs.id]?.length || 0;
+                        if (attachmentCount > 0) {
+                          return (
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label={attachmentCount}
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
                     </Box>
 
                     {/* Condition */}
@@ -602,6 +648,14 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                                               });
                                             }
                                           }
+                                          // Show post-procedure upload dialog if handler available
+                                          if (onUploadAttachment) {
+                                            setCompletedProcedureInfo({
+                                              observationId: obs.id,
+                                              procedure: procedure as ProcedureData,
+                                            });
+                                            setShowPostProcedureDialog(true);
+                                          }
                                         }}
                                         sx={{ textTransform: 'none', fontSize: '0.7rem' }}
                                       >
@@ -663,6 +717,27 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                         })}
                       </>
                     )}
+
+                    {/* Attachments Section */}
+                    {(() => {
+                      const attachments = observationAttachments[obs.id] || [];
+                      if (attachments.length > 0) {
+                        return (
+                          <>
+                            <Divider sx={{ my: 2 }} />
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
+                              Attachments ({attachments.length}):
+                            </Typography>
+                            <FileGallery
+                              attachments={attachments}
+                              onDelete={onDeleteAttachment ? (attachmentId) => onDeleteAttachment(attachmentId, obs.id) : undefined}
+                              readOnly={false}
+                            />
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                   </CardContent>
                 </Collapse>
               </Card>
@@ -670,6 +745,38 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
           })
         )}
       </Box>
+
+      {/* Post-Procedure Upload Dialog */}
+      {completedProcedureInfo && (
+        <PostProcedureUploadDialog
+          open={showPostProcedureDialog}
+          procedureName={completedProcedureInfo.procedure.procedureName || completedProcedureInfo.procedure.customProcedureName || 'Procedure'}
+          toothNumbers={completedProcedureInfo.procedure.selectedTeeth}
+          onClose={() => {
+            setShowPostProcedureDialog(false);
+            setCompletedProcedureInfo(null);
+          }}
+          onUploadComplete={async (file, fileType, caption) => {
+            if (onUploadAttachment && completedProcedureInfo) {
+              // Get the real backend observation ID from the observation
+              const obs = observations.find(o => o.id === completedProcedureInfo.observationId);
+              let realObservationId = completedProcedureInfo.observationId;
+
+              // Try to get real UUID from backendObservationIds
+              if (obs?.backendObservationIds) {
+                const firstId = Object.values(obs.backendObservationIds)[0];
+                if (firstId) realObservationId = firstId;
+              }
+
+              await onUploadAttachment(realObservationId, file, fileType, caption);
+            }
+          }}
+          onSkip={() => {
+            setShowPostProcedureDialog(false);
+            setCompletedProcedureInfo(null);
+          }}
+        />
+      )}
     </Paper>
   );
 };

@@ -263,11 +263,13 @@ def get_quadrant(tooth_number: str) -> int:
         return 0
 
 
-class DentalAttachment(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
+class DentalAttachment(Base, UUIDMixin, TimestampMixin, ActiveMixin):
     """
     File attachments for dental observations, procedures, and case studies
     Supports X-rays, photos (before/after), test results, and documents
     Stored in cloud storage (Cloudflare R2 or Google Cloud Storage)
+
+    Note: Uses uploaded_by instead of AuditMixin's created_by
     """
     __tablename__ = "dental_attachments"
 
@@ -313,86 +315,6 @@ class DentalAttachment(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin)
 
     def __repr__(self):
         return f"<DentalAttachment(file_name={self.file_name}, type={self.file_type})>"
-
-
-class CaseStudy(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
-    """
-    AI-generated case studies combining observations, procedures, and attachments
-    Used for clinical documentation, teaching, and treatment outcome analysis
-    """
-    __tablename__ = "case_studies"
-
-    # Case study identifier
-    case_study_number = Column(String(100), nullable=False, unique=True)
-
-    # Patient reference
-    patient_mobile_number = Column(String(20), nullable=False)
-    patient_first_name = Column(String(100), nullable=False)
-    patient_uuid = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
-
-    # Doctor reference
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False)
-
-    # Related entities (JSON arrays of UUIDs)
-    appointment_ids = Column(Text, nullable=True)
-    prescription_ids = Column(Text, nullable=True)
-    procedure_ids = Column(Text, nullable=True)
-    observation_ids = Column(Text, nullable=True)  # Added in migration
-
-    # Case study content
-    title = Column(String(500), nullable=False)
-    chief_complaint = Column(Text, nullable=False)
-
-    # Pre-treatment assessment (AI-generated)
-    pre_treatment_summary = Column(Text, nullable=True)
-    initial_diagnosis = Column(Text, nullable=True)
-    treatment_goals = Column(Text, nullable=True)
-
-    # Treatment timeline (AI-generated)
-    treatment_summary = Column(Text, nullable=True)
-    procedures_performed = Column(Text, nullable=True)
-
-    # Post-treatment outcome (AI-generated)
-    outcome_summary = Column(Text, nullable=True)
-    success_metrics = Column(Text, nullable=True)
-    patient_feedback = Column(Text, nullable=True)
-
-    # Full narrative (AI-generated)
-    full_narrative = Column(Text, nullable=True)
-
-    # AI metadata
-    generation_prompt = Column(Text, nullable=True)
-    generation_model = Column(String(100), nullable=True)
-
-    # Timeline
-    treatment_start_date = Column(Date, nullable=True)
-    treatment_end_date = Column(Date, nullable=True)
-
-    # Status
-    status = Column(String(20), nullable=False, default='draft')  # draft, reviewed, published, archived
-
-    # Export/presentation
-    is_exported = Column(Boolean, default=False, nullable=False)
-    exported_format = Column(String(20), nullable=True)
-    exported_at = Column(Date, nullable=True)
-
-    # Relationships
-    patient = relationship("Patient")
-    doctor = relationship("Doctor")
-    attachments = relationship("DentalAttachment", back_populates="case_study",
-                              foreign_keys="DentalAttachment.case_study_id")
-
-    # Indexes (already created in migration)
-    __table_args__ = (
-        Index('idx_case_studies_patient', 'patient_mobile_number', 'patient_first_name'),
-        Index('idx_case_studies_doctor', 'doctor_id'),
-        Index('idx_case_studies_status', 'status'),
-        Index('idx_case_studies_created_at', 'created_at'),
-        Index('idx_case_studies_is_active', 'is_active'),
-    )
-
-    def __repr__(self):
-        return f"<CaseStudy(number={self.case_study_number}, title={self.title})>"
 
 
 # File type constants

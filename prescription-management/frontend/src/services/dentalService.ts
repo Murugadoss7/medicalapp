@@ -275,6 +275,12 @@ export const dentalProcedureAPI = {
     const response = await axiosInstance.post('/dental/procedures/bulk', { procedures });
     return response.data;
   },
+
+  // Get patient procedures (for case study)
+  getPatientProcedures: async (mobile: string, firstName: string): Promise<any> => {
+    const response = await axiosInstance.get(`/treatments/patients/${mobile}/${firstName}/procedures`);
+    return response.data;
+  },
 };
 
 // ==================== Chart & Statistics API ====================
@@ -319,11 +325,72 @@ export const dentalChartAPI = {
   },
 };
 
+// Dental Attachments API
+const dentalAttachmentAPI = {
+  /**
+   * Get all attachments for an observation
+   */
+  getObservationAttachments: async (observationId: string) => {
+    const response = await axiosInstance.get(`/dental/observations/${observationId}/attachments`);
+    return response.data;
+  },
+
+  /**
+   * Upload attachment for an observation
+   */
+  uploadObservationAttachment: async (observationId: string, formData: FormData) => {
+    const response = await axiosInstance.post(`/dental/observations/${observationId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Delete an attachment
+   */
+  deleteAttachment: async (attachmentId: string) => {
+    const response = await axiosInstance.delete(`/dental/attachments/${attachmentId}`);
+    return response.data;
+  },
+
+  /**
+   * Get all attachments for a patient
+   */
+  getPatientAttachments: async (mobile: string, firstName: string, fileType?: string) => {
+    const params = new URLSearchParams();
+    if (fileType) params.append('file_type', fileType);
+
+    const response = await axiosInstance.get(
+      `/dental/patients/${mobile}/${firstName}/attachments?${params.toString()}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload attachment for a procedure
+   */
+  uploadProcedureAttachment: async (procedureId: string, formData: FormData) => {
+    const response = await axiosInstance.post(`/dental/procedures/${procedureId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+};
+
 // Export all APIs
 export const dentalService = {
   observations: dentalObservationAPI,
   procedures: dentalProcedureAPI,
   chart: dentalChartAPI,
+  attachments: dentalAttachmentAPI,
+  // Backward compatibility - expose attachment methods directly
+  getObservationAttachments: dentalAttachmentAPI.getObservationAttachments,
+  uploadObservationAttachment: dentalAttachmentAPI.uploadObservationAttachment,
+  deleteAttachment: dentalAttachmentAPI.deleteAttachment,
 };
 
 export default dentalService;

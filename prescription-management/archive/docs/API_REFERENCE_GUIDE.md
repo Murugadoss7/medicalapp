@@ -3,30 +3,21 @@
 
 ---
 
-**📅 Last Updated**: December 2, 2025
+**📅 Last Updated**: December 23, 2025
 **🎯 Purpose**: Complete API endpoint reference with request/response formats
-**📋 Status**: All 118+ endpoints implemented and tested including dental module
+**📋 Status**: All 135+ endpoints implemented and tested including dental module and AI case studies
 **🔗 Base URL**: `http://localhost:8000/api/v1`
 **🚀 Recent Updates**:
-- **iPad Performance Optimizations** ⭐ NEW: Module-level guards prevent duplicate API calls, useTransition for non-blocking UI
+- **AI Case Study Generation** ⭐ NEW: GPT-powered case study generation with 8 endpoints
+- **Dental File Attachments** ⭐ NEW: File upload management with 8 endpoints for observations/procedures
+- **Case Study History** ⭐ NEW: View, print, and delete saved case studies
+- **Treatment Journey View** ⭐ NEW: Tooth-grouped treatment data for case study selection
+- **iPad Performance Optimizations**: Module-level guards prevent duplicate API calls, useTransition for non-blocking UI
 - **Dental Consultation Side-by-Side Layout**: Chart (55%) + Observation Panel (45%) on tablet/desktop
-- **ObservationRow Component**: Inline observation form with collapsible procedure section
-- **DentalSummaryTable**: Holistic treatment summary view for all observations
-- **TodayAppointmentsSidebar**: Persistent right sidebar for doctor dashboard
 - **Procedures Sidebar Feature**: Click "Today's Procedures" card to view scheduled procedures in sidebar
-- **GET /dental/procedures/doctor/{id}/today**: Returns today's procedures with `patient_name` field
-- **DentalProcedureResponse**: Added optional `patient_name` field for sidebar display
-- **uiSlice sidebarMode**: Toggle between 'appointments' and 'procedures' views
 - **Appointment Status Transitions Updated**: `scheduled → in_progress` now allowed for direct consultation start
-- **useUpdateAppointmentStatusMutation**: RTK Query hook for appointment status updates with cache invalidation
 - **Toast Notification System**: ToastContext replaces browser alerts throughout frontend
-- **Consultation Status Tracking**: DentalConsultation shows real-time status chip and Complete button
-- Short Key Management UI complete with 6 API mutations (create, update, delete, add medicine, remove medicine, list)
-- Prescription management fixes: DELETE operations filter soft-deleted items, cache invalidation improved
-- Doctor ownership validation enforced for prescriptions (backend validates doctor_id)
-- Prescription items now fully editable (dosage, frequency, duration, quantity, instructions)
-- Short key error handling improved (404 instead of 500 for not found)
-- Dental module complete (19 endpoints)
+- Dental module complete (35 endpoints including attachments and case studies)
 - Login and /auth/me return `specialization` and `doctor_id` fields for doctors
 
 ## ⚠️ Important Field Mapping Notes
@@ -2543,4 +2534,302 @@ Pre-defined observation note templates that doctors can quickly select based on 
 
 ---
 
-**✅ This API Reference Guide provides complete field mappings and request/response formats for all 120+ endpoints including the dental consultation module with FDI tooth charting system and observation note templates.**
+## 📎 Dental Attachments (8 endpoints) ⭐ NEW
+
+File upload management for dental observations, procedures, and case studies.
+
+### **File Upload Endpoints**
+
+#### **1. POST /dental/attachments/observation/{observation_id}** - Upload to Observation
+```javascript
+// Request: FormData
+// - file: File (required)
+// - file_type: string (required) - xray, photo_before, photo_after, test_result, document, other
+// - caption: string (optional)
+// - taken_date: date (optional) - YYYY-MM-DD
+
+// Response (201)
+{
+    "id": "uuid",
+    "observation_id": "uuid",
+    "file_type": "xray",
+    "file_name": "tooth_26_xray.jpg",
+    "file_path": "https://storage.example.com/attachments/uuid.jpg",
+    "file_size": 245678,
+    "mime_type": "image/jpeg",
+    "caption": "Pre-treatment X-ray of tooth 26",
+    "taken_date": "2025-12-23",
+    "created_at": "2025-12-23T10:00:00Z"
+}
+```
+
+#### **2. POST /dental/attachments/procedure/{procedure_id}** - Upload to Procedure
+```javascript
+// Request: FormData (same as observation upload)
+// Used for: Post-procedure uploads (photo_after)
+
+// Response (201) - Same structure as observation upload
+```
+
+#### **3. GET /dental/attachments/observation/{observation_id}** - List Observation Attachments
+```javascript
+// Response (200)
+{
+    "attachments": [
+        {
+            "id": "uuid",
+            "file_type": "xray",
+            "file_name": "tooth_26_xray.jpg",
+            "file_path": "https://storage.example.com/...",
+            "file_size": 245678,
+            "caption": "Pre-treatment X-ray",
+            "created_at": "2025-12-23T10:00:00Z"
+        }
+    ],
+    "total": 3
+}
+```
+
+#### **4. GET /dental/attachments/procedure/{procedure_id}** - List Procedure Attachments
+```javascript
+// Response (200) - Same structure as observation attachments
+```
+
+#### **5. GET /dental/attachments/patient/{mobile}/{first_name}** - List All Patient Attachments
+```javascript
+// Response (200)
+{
+    "attachments": [ /* All attachments for patient */ ],
+    "total": 15,
+    "patient_mobile_number": "9876543210",
+    "patient_first_name": "Raj"
+}
+```
+
+#### **6. GET /dental/attachments/{id}** - Get Single Attachment
+```javascript
+// Response (200) - Full attachment object
+```
+
+#### **7. PUT /dental/attachments/{id}** - Update Attachment Metadata
+```javascript
+// Request
+{
+    "caption": "Updated caption",
+    "taken_date": "2025-12-20"
+}
+
+// Response (200) - Updated attachment
+```
+
+#### **8. DELETE /dental/attachments/{id}** - Delete Attachment
+```javascript
+// Response (204 No Content)
+// Soft delete: sets is_active = false
+```
+
+### **File Type Options**
+| File Type | Use Case |
+|-----------|----------|
+| `xray` | X-ray images |
+| `photo_before` | Before treatment photos |
+| `photo_after` | After treatment photos |
+| `test_result` | Lab/test results |
+| `document` | Documents, reports |
+| `other` | Other attachments |
+
+---
+
+## 📊 Case Studies - AI Generation (8 endpoints) ⭐ NEW
+
+AI-powered case study generation from dental treatment data.
+
+### **Case Study Endpoints**
+
+#### **1. POST /case-studies/generate** - Generate AI Case Study
+```javascript
+// Request
+{
+    "patient_mobile_number": "9876543210",
+    "patient_first_name": "Raj",
+    "observation_ids": ["uuid1", "uuid2", "uuid3"],    // Selected observations
+    "procedure_ids": ["uuid4", "uuid5"],               // Selected procedures
+    "title": "Root Canal Treatment - Tooth 26",        // Optional, auto-generated if not provided
+    "chief_complaint": "Severe pain in upper left molar"  // Optional
+}
+
+// Response (201)
+{
+    "id": "uuid",
+    "case_study_number": "CS20251223001",
+    "title": "Root Canal Treatment - Tooth 26",
+    "chief_complaint": "Severe pain in upper left molar",
+
+    // AI-Generated Content
+    "content": {
+        "pre_treatment_summary": "Patient presented with...",
+        "initial_diagnosis": "Irreversible pulpitis in tooth 26...",
+        "treatment_goals": "1. Pain relief 2. Preserve tooth...",
+        "treatment_summary": "Root canal therapy performed...",
+        "procedures_performed": "1. Access opening 2. Biomechanical preparation...",
+        "outcome_summary": "Treatment successful with complete symptom resolution...",
+        "success_metrics": "No post-operative complications...",
+        "full_narrative": "Complete 3-4 paragraph case study..."
+    },
+
+    // Metadata
+    "metadata": {
+        "model": "gpt-4o-mini",
+        "input_tokens": 1250,
+        "output_tokens": 850,
+        "total_tokens": 2100,
+        "estimated_cost_usd": 0.00025,
+        "generated_at": "2025-12-23T10:30:00Z"
+    },
+
+    // Linked Attachments
+    "attachments": [
+        {
+            "id": "uuid",
+            "file_type": "xray",
+            "file_path": "https://storage.example.com/...",
+            "caption": "Pre-treatment X-ray"
+        }
+    ],
+
+    "status": "draft",
+    "created_at": "2025-12-23T10:30:00Z"
+}
+```
+
+#### **2. GET /case-studies/patient/{mobile}/{first_name}** - List Patient's Case Studies
+```javascript
+// Query Parameters: ?page=1&per_page=10
+
+// Response (200)
+{
+    "case_studies": [
+        {
+            "id": "uuid",
+            "case_study_number": "CS20251223001",
+            "title": "Root Canal Treatment - Tooth 26",
+            "status": "draft",
+            "created_at": "2025-12-23T10:30:00Z"
+        }
+    ],
+    "total": 3,
+    "page": 1,
+    "per_page": 10
+}
+```
+
+#### **3. GET /case-studies/{id}** - Get Full Case Study
+```javascript
+// Response (200) - Complete case study with all content
+{
+    "id": "uuid",
+    "case_study_number": "CS20251223001",
+    "title": "Root Canal Treatment - Tooth 26",
+
+    // All AI-generated sections
+    "pre_treatment_summary": "...",
+    "initial_diagnosis": "...",
+    "treatment_goals": "...",
+    "treatment_summary": "...",
+    "procedures_performed": "...",
+    "outcome_summary": "...",
+    "success_metrics": "...",
+    "full_narrative": "...",
+
+    // Related data
+    "observation_ids": ["uuid1", "uuid2"],
+    "procedure_ids": ["uuid3"],
+    "attachments": [ /* attachment objects */ ],
+
+    // Metadata
+    "generation_model": "gpt-4o-mini",
+    "status": "draft",
+    "created_at": "2025-12-23T10:30:00Z"
+}
+```
+
+#### **4. PUT /case-studies/{id}** - Update Case Study
+```javascript
+// Request
+{
+    "title": "Updated Title",
+    "status": "finalized"
+}
+
+// Response (200) - Updated case study
+```
+
+#### **5. DELETE /case-studies/{id}** - Delete Case Study
+```javascript
+// Response (204 No Content)
+// Soft delete: sets is_active = false
+```
+
+#### **6. POST /case-studies/{id}/regenerate-section** - Regenerate Specific Section
+```javascript
+// Request
+{
+    "section_name": "outcome_summary",        // Section to regenerate
+    "additional_instructions": "Focus on long-term prognosis"  // Optional
+}
+
+// Response (200)
+{
+    "section_name": "outcome_summary",
+    "content": "Regenerated content for outcome_summary..."
+}
+```
+
+#### **7. GET /case-studies/doctor/{doctor_id}** - List Doctor's Case Studies
+```javascript
+// Query Parameters: ?page=1&per_page=10&status=draft
+
+// Response (200)
+{
+    "case_studies": [ /* case study summaries */ ],
+    "total": 15,
+    "page": 1
+}
+```
+
+#### **8. POST /case-studies/{id}/export** - Export Case Study
+```javascript
+// Request
+{
+    "format": "pdf"    // pdf, docx, pptx
+}
+
+// Response (200)
+{
+    "download_url": "https://storage.example.com/exports/case_study_uuid.pdf",
+    "format": "pdf",
+    "exported_at": "2025-12-23T11:00:00Z"
+}
+```
+
+### **AI Generation Configuration**
+| Setting | Value | Description |
+|---------|-------|-------------|
+| Model | gpt-4o-mini | OpenAI model for generation |
+| Max Tokens | 2000 | Maximum output tokens |
+| Temperature | 0.7 | Response creativity (0-1) |
+| Max Cost/Study | $0.01 | Cost limit per generation |
+
+### **Case Study Sections**
+1. `pre_treatment_summary` - Patient's initial condition
+2. `initial_diagnosis` - Clinical findings and diagnosis
+3. `treatment_goals` - Treatment objectives
+4. `treatment_summary` - Overview of treatment performed
+5. `procedures_performed` - Detailed procedure list with dates
+6. `outcome_summary` - Results achieved
+7. `success_metrics` - Measurable outcomes
+8. `full_narrative` - Complete professional narrative
+
+---
+
+**✅ This API Reference Guide provides complete field mappings and request/response formats for all 135+ endpoints including dental consultation, file attachments, and AI-powered case study generation.**

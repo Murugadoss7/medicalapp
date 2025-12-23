@@ -37,6 +37,7 @@ class CaseStudy(Base):
     appointment_ids = Column(Text, nullable=True)  # JSON array of UUIDs
     prescription_ids = Column(Text, nullable=True)  # JSON array of UUIDs
     procedure_ids = Column(Text, nullable=True)  # JSON array of UUIDs
+    observation_ids = Column(Text, nullable=True)  # JSON array of UUIDs (added for dental observations)
 
     # Case Study Content
     title = Column(String(500), nullable=False)
@@ -85,6 +86,7 @@ class CaseStudy(Base):
     # Relationships
     patient = relationship("Patient", foreign_keys=[patient_uuid])
     doctor = relationship("Doctor", foreign_keys=[doctor_id])
+    attachments = relationship("DentalAttachment", back_populates="case_study", foreign_keys="DentalAttachment.case_study_id")
 
     def __repr__(self):
         return f"<CaseStudy {self.case_study_number} - {self.title}>"

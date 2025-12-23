@@ -12,6 +12,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import { PatientSummary } from '../../services/treatmentService';
 import TreatmentTimeline from './TreatmentTimeline';
 import ProcedureSchedule from './ProcedureSchedule';
+import CaseStudyView from './CaseStudyView';
 
 interface TreatmentDetailsPanelProps {
   patient: PatientSummary | null;
@@ -104,7 +105,6 @@ const TreatmentDetailsPanel = ({
             value="case-study"
             icon={<DescriptionIcon />}
             iconPosition="start"
-            disabled // Phase 2 feature
           />
         </Tabs>
       </Box>
@@ -126,14 +126,10 @@ const TreatmentDetailsPanel = ({
         )}
 
         {activeTab === 'case-study' && (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              Case Study Feature
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Coming in Phase 2 - AI-powered case study generation
-            </Typography>
-          </Box>
+          <CaseStudyView
+            patientMobile={patient.patient.mobile_number}
+            patientFirstName={patient.patient.first_name}
+          />
         )}
       </Box>
     </Box>

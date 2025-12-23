@@ -121,14 +121,19 @@ async def get_observation_attachments(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff)
 ):
-    """Get all attachments for a dental observation"""
+    """
+    Get all attachments for a dental observation
+
+    **Note:** observation_id must be a valid UUID format.
+    Temporary frontend IDs (e.g., obs_timestamp_random) will be rejected.
+    """
     service = get_attachment_service(db)
 
     try:
         attachments = service.get_observation_attachments(observation_id)
         return attachments
     except Exception as e:
-        logger.error(f"Error getting observation attachments: {e}")
+        logger.error(f"Error getting observation attachments for {observation_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve attachments"

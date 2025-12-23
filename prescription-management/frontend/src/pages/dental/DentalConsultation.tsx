@@ -65,6 +65,12 @@ import PrescriptionViewer from '../../components/dental/PrescriptionViewer';
 // Simple ID generator (replaces uuid)
 const generateId = () => `obs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+// UUID validation helper - checks if ID is a valid UUID format
+const isValidUUID = (id: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
 // Helper to create a new observation
 const createNewObservation = (teeth: string[] = []): ObservationData => ({
   id: generateId(),
@@ -94,6 +100,9 @@ import {
   useGetPatientMedicalHistoryQuery,
   useGetCurrentUserQuery,
   useUpdateAppointmentStatusMutation,
+  useUploadObservationAttachmentMutation,
+  useGetObservationAttachmentsQuery,
+  useDeleteAttachmentMutation,
 } from '../../store/api';
 import { useToast } from '../../components/common/Toast';
 
@@ -138,6 +147,10 @@ const DentalConsultation: React.FC = () => {
 
   // Status update mutation
   const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateAppointmentStatusMutation();
+
+  // Attachment mutations
+  const [uploadAttachment, { isLoading: isUploadingAttachment }] = useUploadObservationAttachmentMutation();
+  const [deleteAttachment] = useDeleteAttachmentMutation();
 
   // Show warning if doctor_id is not available
   React.useEffect(() => {
@@ -275,6 +288,12 @@ const DentalConsultation: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingObservationId, setEditingObservationId] = useState<string | null>(null);
 
+  // Attachments state
+  const [currentAttachments, setCurrentAttachments] = useState<any[]>([]);
+
+  // Attachments for all saved observations (observationId -> attachments[])
+  const [observationAttachments, setObservationAttachments] = useState<Record<string, any[]>>({});
+
   // Delete confirmation dialog state
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [pendingDeleteObservationId, setPendingDeleteObservationId] = useState<string | null>(null);
@@ -364,16 +383,41 @@ const DentalConsultation: React.FC = () => {
               }
             });
 
-            // Match procedures to observations based on tooth numbers
+            // Match procedures to observations - PREFER observation_id over tooth numbers
             procedures.forEach(proc => {
               const procTeeth = proc.tooth_numbers?.split(',') || [];
+              let matchedKey: string | null = null;
 
-              // Find matching observation group by teeth
-              for (const key of Object.keys(groupedObs)) {
-                const obsGroup = groupedObs[key];
-                const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
+              // FIRST: Try to match by observation_id (direct link from backend)
+              if (proc.observation_id) {
+                for (const key of Object.keys(groupedObs)) {
+                  const obsGroup = groupedObs[key];
+                  // Check if this observation has the procedure's observation_id
+                  if (obsGroup.backendObservationIds) {
+                    const hasMatchingId = Object.values(obsGroup.backendObservationIds).includes(proc.observation_id);
+                    if (hasMatchingId) {
+                      matchedKey = key;
+                      break;
+                    }
+                  }
+                }
+              }
 
-                if (hasMatchingTeeth) {
+              // FALLBACK: Match by tooth numbers if no observation_id match
+              if (!matchedKey) {
+                for (const key of Object.keys(groupedObs)) {
+                  const obsGroup = groupedObs[key];
+                  const hasMatchingTeeth = procTeeth.some(t => obsGroup.selectedTeeth.includes(t));
+                  if (hasMatchingTeeth) {
+                    matchedKey = key;
+                    break;
+                  }
+                }
+              }
+
+              // Add procedure to matched observation
+              if (matchedKey) {
+                const obsGroup = groupedObs[matchedKey];
                   // FIX: Add procedure to procedures array (new format) for edit mode
                   const procedureData: ProcedureData = {
                     id: proc.id, // Use backend ID as the ID
@@ -404,8 +448,6 @@ const DentalConsultation: React.FC = () => {
                       obsGroup.customProcedureName = proc.procedure_name;
                     }
                   }
-                  break;
-                }
               }
             });
 
@@ -521,6 +563,50 @@ const DentalConsultation: React.FC = () => {
       loadDentalChart();
     }
   }, [patientData.mobileNumber, patientData.firstName, loadDentalChart]); // Include memoized function
+
+  // Load attachments for all saved observations
+  const loadAllObservationAttachments = useCallback(async (savedObservations: ObservationData[]) => {
+    const attachmentsMap: Record<string, any[]> = {};
+
+    // Load attachments for each saved observation in parallel
+    await Promise.all(
+      savedObservations.map(async (obs) => {
+        try {
+          // Only load attachments for observations with valid UUID (saved to backend)
+          // Skip temporary frontend IDs like "obs_timestamp_random"
+          const observationId = obs.id.replace(/^saved_/, ''); // Remove UI prefix if present
+
+          if (!isValidUUID(observationId)) {
+            // Skip non-UUID IDs (unsaved observations)
+            return;
+          }
+
+          const attachments = await dentalService.getObservationAttachments(observationId);
+          if (attachments && attachments.length > 0) {
+            // Store using the original obs.id as key for UI matching
+            attachmentsMap[obs.id] = attachments;
+          }
+        } catch (error: any) {
+          // Silently ignore 404 errors (no attachments)
+          if (error?.response?.status !== 404) {
+            console.error(`Failed to load attachments for observation ${obs.id}:`, error);
+          }
+        }
+      })
+    );
+
+    setObservationAttachments(attachmentsMap);
+  }, []);
+
+  // Reload attachments when observations change
+  useEffect(() => {
+    const savedObservations = observations.filter(o => o.isSaved);
+    if (savedObservations.length > 0) {
+      loadAllObservationAttachments(savedObservations);
+    } else {
+      setObservationAttachments({});
+    }
+  }, [observations, loadAllObservationAttachments]);
 
   // Handle complete consultation
   const handleCompleteConsultation = async () => {
@@ -874,10 +960,10 @@ const DentalConsultation: React.FC = () => {
   }, []);
 
   // Save new observation (or update if in edit mode)
-  const handleSaveNewObservation = useCallback(async () => {
+  const handleSaveNewObservation = useCallback(async (): Promise<string | null> => {
     if (!newObservation.selectedTeeth.length || !newObservation.conditionType) {
       toast.warning('Please select teeth and condition');
-      return;
+      return null;
     }
 
     try {
@@ -953,9 +1039,13 @@ const DentalConsultation: React.FC = () => {
         // Reset form and edit mode
         setNewObservation(createNewObservation());
         setIsEditMode(false);
+        const updatedObservationId = editingObservationId;
         setEditingObservationId(null);
         toast.success('Observation updated successfully');
         await loadDentalChart(); // Refresh chart
+
+        // Return the updated observation ID
+        return updatedObservationId;
 
       } else {
         // CREATE MODE: Create new observations
@@ -993,8 +1083,14 @@ const DentalConsultation: React.FC = () => {
               ? procedure.customProcedureName
               : procedure.procedureName;
 
+            // CRITICAL FIX: Link procedure to the observation for first tooth
+            // This ensures procedure is linked to THIS observation, not a previous one
+            const firstTooth = procedure.selectedTeeth[0];
+            const observationIdForProcedure = createdIds[firstTooth];
+
             const createdProc = await dentalService.procedures.create({
               appointment_id: appointmentId,
+              observation_id: observationIdForProcedure, // CRITICAL: Link to THIS observation!
               procedure_code: procedure.procedureCode,
               procedure_name: procedureName,
               tooth_numbers: procedure.selectedTeeth.join(','),
@@ -1003,7 +1099,7 @@ const DentalConsultation: React.FC = () => {
               status: procedure.procedureStatus || 'planned',
             });
 
-            console.log('Created procedure with ID:', createdProc.id);
+            console.log('Created procedure with ID:', createdProc.id, 'linked to observation:', observationIdForProcedure);
 
             // Add to procedures array with backend ID
             proceduresArray.push({
@@ -1019,8 +1115,13 @@ const DentalConsultation: React.FC = () => {
             ? newObservation.customProcedureName
             : newObservation.procedureName;
 
+          // CRITICAL FIX: Link to observation for first tooth
+          const firstTooth = newObservation.selectedTeeth[0];
+          const observationIdForProcedure = createdIds[firstTooth];
+
           const createdProc = await dentalService.procedures.create({
             appointment_id: appointmentId,
+            observation_id: observationIdForProcedure, // CRITICAL: Link to THIS observation!
             procedure_code: newObservation.procedureCode,
             procedure_name: procedureName,
             tooth_numbers: newObservation.selectedTeeth.join(','),
@@ -1029,7 +1130,7 @@ const DentalConsultation: React.FC = () => {
             status: newObservation.procedureStatus || 'planned',
           });
 
-          console.log('Created legacy procedure with ID:', createdProc.id);
+          console.log('Created legacy procedure with ID:', createdProc.id, 'linked to observation:', observationIdForProcedure);
 
           // Convert legacy to procedures array format
           proceduresArray = [{
@@ -1061,14 +1162,21 @@ const DentalConsultation: React.FC = () => {
         console.log('Saved observation:', savedObs);
         setObservations(prev => [savedObs, ...prev]);
 
+        // Get first created observation ID (for auto-save scenario)
+        const firstObservationId = Object.values(createdIds)[0];
+
         // Reset form
         setNewObservation(createNewObservation());
         toast.success('Observation saved successfully');
         await loadDentalChart(); // Refresh chart
+
+        // Return the first observation ID for use by upload handler
+        return firstObservationId;
       }
 
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save observation');
+      return null;
     } finally {
       setSavingObservations(false);
     }
@@ -1079,7 +1187,166 @@ const DentalConsultation: React.FC = () => {
     setNewObservation(createNewObservation());
     setIsEditMode(false);
     setEditingObservationId(null);
+    setCurrentAttachments([]); // Clear attachments when clearing form
   }, []);
+
+  // Attachment handlers
+  const handleUploadAttachment = useCallback(async (file: File, fileType: string, caption?: string) => {
+    let observationId = editingObservationId;
+
+    // If no observation ID (new observation), auto-save it first
+    if (!observationId) {
+      // Validate that observation has minimum required data
+      if (newObservation.selectedTeeth.length === 0 || !newObservation.conditionType) {
+        toast.error('Please select teeth and condition type before uploading files');
+        return;
+      }
+
+      try {
+        toast.info('Saving observation before uploading file...');
+
+        // Save the observation first and get the created ID
+        const createdObservationId = await handleSaveNewObservation();
+
+        if (!createdObservationId) {
+          toast.error('Failed to save observation. Please try again.');
+          return;
+        }
+
+        // Use the returned observation ID directly
+        observationId = createdObservationId;
+        setEditingObservationId(observationId);
+        setIsEditMode(true);
+
+        toast.success('Observation saved! Uploading file...');
+      } catch (error) {
+        toast.error('Failed to save observation. Please try again.');
+        return;
+      }
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('file_type', fileType);
+      if (caption) {
+        formData.append('caption', caption);
+      }
+
+      await uploadAttachment({ observationId, formData }).unwrap();
+
+      // Refresh attachments list
+      const response = await dentalService.getObservationAttachments(observationId);
+      setCurrentAttachments(response || []);
+
+      // Also update observationAttachments for right panel (SavedObservationsPanel)
+      // Find the observation in the array that has this backend ID
+      const matchingObs = observations.find(obs => {
+        if (!obs.backendObservationIds) return false;
+        return Object.values(obs.backendObservationIds).includes(observationId);
+      });
+
+      if (matchingObs) {
+        setObservationAttachments(prev => ({
+          ...prev,
+          [matchingObs.id]: response || [],
+        }));
+      }
+
+      toast.success('File uploaded successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+
+      // Extract error message from various possible error structures
+      let errorMessage = 'Failed to upload file';
+
+      if (error?.data?.detail) {
+        // FastAPI validation error format
+        if (Array.isArray(error.data.detail)) {
+          errorMessage = error.data.detail.map((e: any) => e.msg).join(', ');
+        } else if (typeof error.data.detail === 'string') {
+          errorMessage = error.data.detail;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
+    }
+  }, [editingObservationId, newObservation, observations, uploadAttachment, handleSaveNewObservation, toast]);
+
+  const handleDeleteAttachment = useCallback(async (attachmentId: string) => {
+    try {
+      await deleteAttachment(attachmentId).unwrap();
+
+      // Remove from local state
+      setCurrentAttachments(prev => prev.filter(a => a.id !== attachmentId));
+
+      toast.success('File deleted successfully');
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to delete file');
+    }
+  }, [deleteAttachment, toast]);
+
+  // Delete attachment from saved observations panel
+  const handleDeleteAttachmentFromPanel = useCallback(async (attachmentId: string, observationId: string) => {
+    try {
+      await deleteAttachment(attachmentId).unwrap();
+
+      // Remove from observationAttachments state
+      setObservationAttachments(prev => {
+        const updated = { ...prev };
+        if (updated[observationId]) {
+          updated[observationId] = updated[observationId].filter(a => a.id !== attachmentId);
+          // Remove the key if no attachments left
+          if (updated[observationId].length === 0) {
+            delete updated[observationId];
+          }
+        }
+        return updated;
+      });
+
+      toast.success('File deleted successfully');
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to delete file');
+    }
+  }, [deleteAttachment, toast]);
+
+  // Upload attachment from saved observations panel (for post-procedure photos)
+  const handleUploadAttachmentForPanel = useCallback(async (observationId: string, file: File, fileType: string, caption?: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('file_type', fileType);
+      if (caption) {
+        formData.append('caption', caption);
+      }
+
+      await uploadAttachment({ observationId, formData }).unwrap();
+
+      // Refresh attachments for the observation
+      const response = await dentalService.getObservationAttachments(observationId);
+
+      // Update observationAttachments state for right panel
+      // Find the observation in the array that has this backend ID
+      const matchingObs = observations.find(obs => {
+        if (!obs.backendObservationIds) return false;
+        return Object.values(obs.backendObservationIds).includes(observationId);
+      });
+
+      if (matchingObs) {
+        setObservationAttachments(prev => ({
+          ...prev,
+          [matchingObs.id]: response || [],
+        }));
+      }
+
+      toast.success('File uploaded successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error?.data?.detail || 'Failed to upload file');
+    }
+  }, [uploadAttachment, observations, toast]);
 
   // Check if newObservation has unsaved data
   const hasUnsavedNewObservation = useCallback(() => {
@@ -1101,22 +1368,59 @@ const DentalConsultation: React.FC = () => {
   }, [hasUnsavedNewObservation]);
 
   // Load observation data into the form for editing
-  const loadObservationForEdit = useCallback((observation: ObservationData) => {
+  const loadObservationForEdit = useCallback(async (observation: ObservationData) => {
     // Expand the form if collapsed
     setObservationFormCollapsed(false);
 
     // Minimize the tooth chart to save space
     setChartCollapsed(true);
 
+    // CRITICAL FIX: Get real backend UUID, not temp frontend ID
+    // observation.id might be: "obs_timestamp_random" or "saved_{uuid}"
+    // Real UUID is in backendObservationIds for the first tooth
+    let realObservationId: string;
+
+    if (observation.backendObservationIds && Object.keys(observation.backendObservationIds).length > 0) {
+      // Use the first backend observation ID (real UUID from database)
+      realObservationId = Object.values(observation.backendObservationIds)[0];
+      console.log('Edit mode: Using real backend UUID:', realObservationId);
+    } else {
+      // Fallback: strip "saved_" prefix
+      realObservationId = observation.id.replace(/^saved_/, '');
+      console.log('Edit mode: Fallback to stripped ID:', realObservationId);
+    }
+
+    // Validate we have a real UUID before proceeding
+    if (!isValidUUID(realObservationId)) {
+      console.error('Invalid observation ID for edit:', realObservationId, 'Full observation:', observation);
+      toast.error('Cannot edit observation: Invalid ID. Please refresh and try again.');
+      return;
+    }
+
     // Load observation data into newObservation state
     setNewObservation({
       ...observation,
+      id: realObservationId, // Use real UUID
       isSaved: false, // Allow editing
     });
 
     // Track that we're in edit mode
     setIsEditMode(true);
-    setEditingObservationId(observation.id);
+    setEditingObservationId(realObservationId); // Use real UUID
+
+    // Load attachments for this observation
+    try {
+      const attachments = await dentalService.getObservationAttachments(realObservationId);
+      setCurrentAttachments(attachments || []);
+      console.log('Loaded attachments for edit:', attachments);
+    } catch (error: any) {
+      console.error('Failed to load attachments:', error);
+      setCurrentAttachments([]);
+      // Don't show error toast for 404 (no attachments yet)
+      if (error?.response?.status !== 404) {
+        toast.error('Failed to load attachments');
+      }
+    }
 
     // Close dialog if open
     setShowEditConfirmDialog(false);
@@ -1126,7 +1430,7 @@ const DentalConsultation: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     toast.info('Observation loaded for editing. Make changes and click Update.');
-  }, []);
+  }, [toast]);
 
   // Handle confirmation dialog - Continue (discard and edit)
   const handleConfirmEdit = useCallback(() => {
@@ -1622,6 +1926,10 @@ const DentalConsultation: React.FC = () => {
                 onClear={handleClearNewObservation}
                 saving={savingObservations}
                 isEditMode={isEditMode}
+                attachments={currentAttachments}
+                onUploadAttachment={handleUploadAttachment}
+                onDeleteAttachment={handleDeleteAttachment}
+                isUploadingAttachment={isUploadingAttachment}
               />
             </Collapse>
           </Paper>
@@ -1642,6 +1950,9 @@ const DentalConsultation: React.FC = () => {
             onUpdateProcedure={handleUpdateProcedure}
             onDeleteObservation={handleRequestDeleteObservation}
             editingObservationId={editingObservationId}
+            observationAttachments={observationAttachments}
+            onDeleteAttachment={handleDeleteAttachmentFromPanel}
+            onUploadAttachment={handleUploadAttachmentForPanel}
           />
         </Box>
       </Box>

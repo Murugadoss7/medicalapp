@@ -3,27 +3,23 @@
 
 ---
 
-**📅 Last Updated**: December 2, 2025
+**📅 Last Updated**: December 23, 2025
 **🎯 Purpose**: Single source of truth for database schema, field mappings, and relationships
-**📋 Status**: Production Implementation Complete - All 9 modules implemented including dental consultation
+**📋 Status**: Production Implementation Complete - All 10 modules implemented including dental consultation and AI case studies
 **📅 Date Standardization**: Standardized date handling implemented across all modules
 **🚀 Recent Updates**:
-- **iPad Performance Optimizations** ⭐ NEW: useTransition + module-level Set guards prevent page freeze on tablet
-- **Dental Consultation Layout** ⭐ NEW: Side-by-side layout (55% chart / 45% observations) replaces tabs
-- **ObservationRow Component** ⭐ NEW: Inline observation form with collapsible procedure expansion
-- **DentalSummaryTable** ⭐ NEW: Holistic treatment summary showing all teeth and conditions
-- **TodayAppointmentsSidebar** ⭐ NEW: Persistent right sidebar showing today's appointments for doctors
+- **AI Case Study Generation** ⭐ NEW: GPT-powered case study generation from treatment data
+- **Dental File Attachments** ⭐ NEW: File upload on observations and post-procedure uploads
+- **Case Study History** ⭐ NEW: View, print, and delete saved case studies
+- **Treatment Dashboard** ⭐ NEW: Tooth-grouped treatment journey view for case study selection
+- **iPad Performance Optimizations**: useTransition + module-level Set guards prevent page freeze on tablet
+- **Dental Consultation Layout**: Side-by-side layout (55% chart / 45% observations) replaces tabs
+- **ObservationRow Component**: Inline observation form with collapsible procedure expansion
+- **DentalSummaryTable**: Holistic treatment summary showing all teeth and conditions
+- **TodayAppointmentsSidebar**: Persistent right sidebar showing today's appointments for doctors
 - **Appointment Status Transitions**: Backend now allows direct `scheduled → in_progress` transition for consultation workflow
-- **Consultation Status Tracking**: Frontend DentalConsultation.tsx shows real-time status chip (Scheduled/In Progress/Completed)
-- **Complete Consultation Button**: Added for marking appointments as completed from consultation page
-- **Navigation Guard**: Exit dialog appears when navigating away from in_progress consultations
 - **Toast Notification System**: Browser alerts replaced with ToastContext-based notifications
-- **Dashboard Real-time Stats**: Doctor dashboard shows calculated statistics from actual appointment data
-- Short Key Management: Complete frontend UI with inline editing, reordering, CRUD operations
-- Prescription Items: Now fully editable (all fields modifiable in UI and backend)
-- Soft Delete Filtering: DELETE operations now properly filter is_active=false items
-- Backend Error Handling: Short keys return 404 (not 500) for not found errors
-- Dental module complete (2 tables, 15 indexes)
+- Dental module complete (4 tables, 20+ indexes)
 - UserResponse schema includes `doctor_id` and `specialization` for doctors
 - Doctor ownership validation enforced for prescription operations  
 
@@ -31,7 +27,7 @@
 
 ## 🗄️ Database Tables Overview
 
-### **Core Entities (10 Primary Tables)**
+### **Core Entities (12 Primary Tables)**
 1. **users** - Authentication and user management (includes specialization for doctors)
 2. **doctors** - Doctor profiles and specializations
 3. **patients** - Patient records with composite key (mobile + firstName)
@@ -41,7 +37,9 @@
 7. **prescriptions** - Prescription management
 8. **dental_observations** - Tooth-level observations with FDI notation
 9. **dental_procedures** - Dental procedures and treatments
-10. **dental_observation_templates** - Pre-defined observation note templates ⭐ NEW
+10. **dental_observation_templates** - Pre-defined observation note templates
+11. **dental_attachments** - File uploads for observations, procedures, and case studies ⭐ NEW
+12. **case_studies** - AI-generated treatment case studies ⭐ NEW
 
 ### **Junction/Relationship Tables**
 - **short_key_medicines** - Many-to-many: Short keys ↔ Medicines
@@ -1030,6 +1028,236 @@ CREATE TABLE dental_observation_templates (
 
 ---
 
+### **11. DENTAL_ATTACHMENTS Table** ⭐ NEW
+```sql
+CREATE TABLE dental_attachments (
+    -- Primary Key
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Foreign Keys (exactly one must be set)
+    observation_id          UUID REFERENCES dental_observations(id) ON DELETE CASCADE,
+    procedure_id            UUID REFERENCES dental_procedures(id) ON DELETE CASCADE,
+    case_study_id           UUID REFERENCES case_studies(id) ON DELETE CASCADE,
+
+    -- Patient Composite Key
+    patient_mobile_number   VARCHAR(20) NOT NULL,
+    patient_first_name      VARCHAR(100) NOT NULL,
+
+    -- File Information
+    file_type               VARCHAR(20) NOT NULL,     -- xray, photo_before, photo_after, test_result, document, other
+    file_name               VARCHAR(255) NOT NULL,
+    file_path               TEXT NOT NULL,            -- Cloud storage URL
+    file_size               INTEGER NOT NULL,         -- Size in bytes
+    mime_type               VARCHAR(100) NOT NULL,    -- image/jpeg, application/pdf, etc.
+
+    -- Metadata
+    caption                 TEXT,                     -- Optional description
+    taken_date              DATE,                     -- When photo/xray was taken
+
+    -- Audit Fields
+    uploaded_by             UUID REFERENCES users(id),
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active               BOOLEAN DEFAULT TRUE,
+
+    -- Constraint: exactly one FK must be set
+    CONSTRAINT check_dental_attach_single_reference CHECK (
+        (observation_id IS NOT NULL)::int +
+        (procedure_id IS NOT NULL)::int +
+        (case_study_id IS NOT NULL)::int = 1
+    )
+);
+```
+
+**🔗 Frontend Field Mapping:**
+```javascript
+// API Response Format
+{
+    "id": "uuid",
+    "observation_id": "uuid|null",
+    "procedure_id": "uuid|null",
+    "case_study_id": "uuid|null",
+
+    // Patient
+    "patient_mobile_number": "string",
+    "patient_first_name": "string",
+
+    // File Info
+    "file_type": "xray|photo_before|photo_after|test_result|document|other",
+    "file_name": "string",
+    "file_path": "string",              // Cloud storage URL
+    "file_size": number,                // Bytes
+    "mime_type": "string",              // e.g., "image/jpeg"
+
+    // Metadata
+    "caption": "string|null",
+    "taken_date": "date|null",          // "YYYY-MM-DD"
+
+    // Audit
+    "uploaded_by": "uuid",
+    "created_at": "datetime",
+    "is_active": boolean
+}
+```
+
+**File Type Options (6):**
+- `xray` - X-ray images
+- `photo_before` - Before treatment photos
+- `photo_after` - After treatment photos (post-procedure uploads)
+- `test_result` - Lab/test results
+- `document` - Documents and reports
+- `other` - Other attachments
+
+**Upload Workflows:**
+1. **Observation Upload**: Attach files during observation creation
+2. **Post-Procedure Upload**: Upload results after completing a procedure
+3. **Case Study Images**: Include images in AI-generated case studies
+
+---
+
+### **12. CASE_STUDIES Table** ⭐ NEW
+```sql
+CREATE TABLE case_studies (
+    -- Primary Key
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Unique Identifier
+    case_study_number       VARCHAR(100) UNIQUE NOT NULL,
+
+    -- Patient Reference
+    patient_mobile_number   VARCHAR(15) NOT NULL,
+    patient_first_name      VARCHAR(100) NOT NULL,
+    patient_uuid            UUID NOT NULL REFERENCES patients(id),
+
+    -- Doctor Reference
+    doctor_id               UUID NOT NULL REFERENCES doctors(id),
+
+    -- Related Entities (JSON arrays as text)
+    appointment_ids         TEXT,                     -- JSON array of appointment UUIDs
+    prescription_ids        TEXT,                     -- JSON array of prescription UUIDs
+    procedure_ids           TEXT,                     -- JSON array of procedure UUIDs
+    observation_ids         TEXT,                     -- JSON array of observation UUIDs
+
+    -- Case Study Content
+    title                   VARCHAR(500) NOT NULL,
+    chief_complaint         TEXT NOT NULL,
+
+    -- AI-Generated Sections
+    pre_treatment_summary   TEXT,
+    initial_diagnosis       TEXT,
+    treatment_goals         TEXT,
+    treatment_summary       TEXT,
+    procedures_performed    TEXT,
+    outcome_summary         TEXT,
+    success_metrics         TEXT,
+    patient_feedback        TEXT,
+    full_narrative          TEXT,                     -- Complete case study narrative
+
+    -- Generation Metadata
+    generation_prompt       TEXT,                     -- Prompt used for AI
+    generation_model        VARCHAR(100),             -- e.g., "gpt-4o-mini"
+
+    -- Timeline
+    treatment_start_date    DATE,
+    treatment_end_date      DATE,
+
+    -- Status
+    status                  VARCHAR(20) DEFAULT 'draft',  -- draft, finalized, archived
+
+    -- Export
+    is_exported             BOOLEAN DEFAULT FALSE,
+    exported_format         VARCHAR(20),              -- pdf, docx, pptx
+    exported_at             TIMESTAMP,
+
+    -- Audit Fields
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by              UUID,
+    is_active               BOOLEAN DEFAULT TRUE
+);
+```
+
+**🔗 Frontend Field Mapping:**
+```javascript
+// API Response Format
+{
+    "id": "uuid",
+    "case_study_number": "string",      // "CS20251223001"
+
+    // Patient
+    "patient_mobile_number": "string",
+    "patient_first_name": "string",
+    "patient_uuid": "uuid",
+
+    // Doctor
+    "doctor_id": "uuid",
+
+    // Related Entities
+    "observation_ids": ["uuid", ...],   // Selected observations
+    "procedure_ids": ["uuid", ...],     // Selected procedures
+
+    // Content
+    "title": "string",
+    "chief_complaint": "string",
+
+    // AI-Generated Sections
+    "content": {
+        "pre_treatment_summary": "string",
+        "initial_diagnosis": "string",
+        "treatment_goals": "string",
+        "treatment_summary": "string",
+        "procedures_performed": "string",
+        "outcome_summary": "string",
+        "success_metrics": "string",
+        "full_narrative": "string"
+    },
+
+    // Metadata
+    "metadata": {
+        "model": "string",              // AI model used
+        "input_tokens": number,
+        "output_tokens": number,
+        "total_tokens": number,
+        "estimated_cost_usd": number
+    },
+
+    // Timeline
+    "treatment_start_date": "date",
+    "treatment_end_date": "date",
+
+    // Status
+    "status": "draft|finalized|archived",
+
+    // Attachments
+    "attachments": [
+        {
+            "id": "uuid",
+            "file_type": "string",
+            "file_path": "string",
+            "caption": "string"
+        }
+    ],
+
+    // Audit
+    "created_at": "datetime",
+    "updated_at": "datetime"
+}
+```
+
+**Case Study Generation Flow:**
+1. **Selection**: Doctor selects visits/images from treatment journey
+2. **Generation**: AI generates case study from observations + procedures
+3. **Review**: Case study saved with `draft` status
+4. **Export**: Print or save as PDF with images
+
+**AI Integration:**
+- **Model**: GPT-4o-mini (configurable)
+- **Prompt**: Dental-specific system prompt with terminology
+- **Output**: Structured JSON with all sections
+- **Cost Tracking**: Token usage and estimated cost per generation
+
+---
+
 ## 🔗 Entity Relationships
 
 ### **Primary Relationships**
@@ -1052,9 +1280,21 @@ dental_observations (1) ←→ (many) dental_procedures
 prescriptions (1) ←→ (many) dental_procedures
 appointments (1) ←→ (many) dental_procedures
 
-⭐ NEW: Template Relationships
+⭐ Template Relationships
 doctors (1) ←→ (many) dental_observation_templates
 dental_observation_templates (many) ←→ (many) dental_observations [via selected_template_ids]
+
+⭐ File Attachment Relationships
+dental_observations (1) ←→ (many) dental_attachments
+dental_procedures (1) ←→ (many) dental_attachments
+case_studies (1) ←→ (many) dental_attachments
+users (1) ←→ (many) dental_attachments [uploaded_by]
+
+⭐ Case Study Relationships
+patients (1) ←→ (many) case_studies
+doctors (1) ←→ (many) case_studies
+case_studies (many) ←→ (many) dental_observations [via observation_ids]
+case_studies (many) ←→ (many) dental_procedures [via procedure_ids]
 ```
 
 ### **Composite Key Relationships**

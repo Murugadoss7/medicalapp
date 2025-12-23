@@ -5,7 +5,7 @@ Includes all endpoint modules with proper prefixes and tags
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental, treatments
+from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental, dental_attachments, treatments, case_studies
 
 # Main API router
 api_router = APIRouter()
@@ -73,11 +73,25 @@ api_router.include_router(
     tags=["Dental Management"]
 )
 
+# Dental attachments endpoints (file uploads)
+api_router.include_router(
+    dental_attachments.router,
+    prefix="/dental",
+    tags=["Dental Attachments"]
+)
+
 # Treatment dashboard endpoints
 api_router.include_router(
     treatments.router,
     prefix="/treatments",
     tags=["Treatment Dashboard"]
+)
+
+# Case study endpoints (AI-powered)
+api_router.include_router(
+    case_studies.router,
+    prefix="/case-studies",
+    tags=["Case Studies"]
 )
 
 # Temporary endpoint for testing
@@ -95,6 +109,7 @@ async def api_root():
             "appointments": "/appointments",
             "prescriptions": "/prescriptions",
             "dental": "/dental",
-            "treatments": "/treatments"
+            "treatments": "/treatments",
+            "case-studies": "/case-studies"
         }
     }

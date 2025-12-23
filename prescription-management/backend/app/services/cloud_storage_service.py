@@ -1,10 +1,13 @@
 """
 Cloud Storage Service
-Abstract interface with implementations for Cloudflare R2 and Google Cloud Storage
+Abstract interface with implementations for Local FileSystem, Cloudflare R2 and Google Cloud Storage
 """
 
 import logging
+import os
+import shutil
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional, BinaryIO
 from datetime import datetime, timedelta
 import boto3
@@ -183,6 +186,103 @@ class CloudflareR2Service(CloudStorageService):
                 raise
 
 
+class LocalFileSystemService(CloudStorageService):
+    """Local filesystem storage implementation for development/testing"""
+
+    def __init__(self):
+        """Initialize local file storage"""
+        self.base_dir = Path(settings.UPLOAD_DIR)
+        self.base_url = settings.BASE_URL or "http://localhost:8000"
+
+        # Create upload directory if it doesn't exist
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Local file storage initialized at: {self.base_dir}")
+
+    def upload_file(self, file_obj: BinaryIO, file_path: str, content_type: str) -> str:
+        """
+        Upload file to local filesystem
+
+        Args:
+            file_obj: File object to upload
+            file_path: Relative path (e.g., "patients/123/xray_2025.jpg")
+            content_type: MIME type (e.g., "image/jpeg")
+
+        Returns:
+            Public URL of uploaded file
+        """
+        try:
+            # Create full file path
+            full_path = self.base_dir / file_path
+
+            # Create parent directories if they don't exist
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write file to disk
+            with open(full_path, 'wb') as f:
+                file_obj.seek(0)  # Ensure we're at the start
+                shutil.copyfileobj(file_obj, f)
+
+            logger.info(f"File uploaded successfully to: {full_path}")
+
+            # Return public URL
+            return f"{self.base_url}/uploads/{file_path}"
+
+        except Exception as e:
+            logger.error(f"Failed to upload file {file_path}: {e}")
+            raise
+
+    def delete_file(self, file_path: str) -> bool:
+        """
+        Delete file from local filesystem
+
+        Args:
+            file_path: Relative path in storage
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            full_path = self.base_dir / file_path
+
+            if full_path.exists():
+                full_path.unlink()
+                logger.info(f"File deleted successfully: {full_path}")
+                return True
+            else:
+                logger.warning(f"File not found for deletion: {full_path}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete file {file_path}: {e}")
+            return False
+
+    def get_signed_url(self, file_path: str, expires_in: int = 3600) -> str:
+        """
+        Get URL for file access (no signing needed for local files)
+
+        Args:
+            file_path: Relative path in storage
+            expires_in: Ignored for local storage
+
+        Returns:
+            Public URL
+        """
+        return f"{self.base_url}/uploads/{file_path}"
+
+    def file_exists(self, file_path: str) -> bool:
+        """
+        Check if file exists in local filesystem
+
+        Args:
+            file_path: Relative path in storage
+
+        Returns:
+            True if file exists, False otherwise
+        """
+        full_path = self.base_dir / file_path
+        return full_path.exists()
+
+
 class GoogleCloudStorageService(CloudStorageService):
     """Google Cloud Storage implementation (placeholder for future)"""
 
@@ -212,7 +312,9 @@ def get_cloud_storage_service() -> CloudStorageService:
     """
     provider = settings.CLOUD_STORAGE_PROVIDER.lower()
 
-    if provider == "cloudflare":
+    if provider == "local":
+        return LocalFileSystemService()
+    elif provider == "cloudflare":
         return CloudflareR2Service()
     elif provider == "gcs":
         return GoogleCloudStorageService()

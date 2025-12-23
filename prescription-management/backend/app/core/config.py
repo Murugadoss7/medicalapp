@@ -92,8 +92,14 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     ALLOWED_FILE_TYPES: List[str] = ["pdf", "jpg", "jpeg", "png", "dcm", "dicom"]
 
-    # Cloud Storage Configuration (Cloudflare R2)
-    CLOUD_STORAGE_PROVIDER: str = "cloudflare"  # "cloudflare" or "gcs"
+    # Base URL for file access
+    BASE_URL: Optional[str] = "http://localhost:8000"  # Override in production
+
+    # Cloud Storage Configuration
+    # Use "local" for development/testing, "cloudflare" for production
+    CLOUD_STORAGE_PROVIDER: str = "local"  # Options: "local", "cloudflare", "gcs"
+
+    # Cloudflare R2 Settings (only needed when CLOUD_STORAGE_PROVIDER = "cloudflare")
     CLOUDFLARE_R2_ACCESS_KEY: Optional[str] = None
     CLOUDFLARE_R2_SECRET_KEY: Optional[str] = None
     CLOUDFLARE_R2_BUCKET: str = "dental-attachments"
@@ -106,11 +112,12 @@ class Settings(BaseSettings):
     GCS_CREDENTIALS_PATH: Optional[str] = None
 
     # OpenAI Configuration (for AI Case Study Generation)
+    # Get your API key from: https://platform.openai.com/api-keys
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4o-mini"  # Can be changed to "gpt-5-nano" when available
+    OPENAI_MODEL: str = "gpt-5-nano"  # GPT-5 nano: $0.05/1M input, $0.40/1M output
     OPENAI_MAX_TOKENS: int = 4000
     OPENAI_TEMPERATURE: float = 0.7
-    AI_MAX_COST_PER_CASE_STUDY: float = 1.0  # USD
+    AI_MAX_COST_PER_CASE_STUDY: float = 1.0  # USD limit per case study
     
     # PDF Generation (for prescriptions as per ERD)
     PDF_TEMPLATE_DIR: str = "./templates/pdf"

@@ -38,6 +38,8 @@ import treatmentService from '../../services/treatmentService';
 import { dentalProcedureAPI } from '../../services/dentalService';
 import { RescheduleProcedureDialog } from './RescheduleProcedureDialog';
 import { AddProcedureDialog } from './AddProcedureDialog';
+import PostProcedureUploadDialog from '../common/PostProcedureUploadDialog';
+import dentalService from '../../services/dentalService';
 import { useToast } from '../common/Toast';
 
 interface ProcedureScheduleProps {
@@ -59,6 +61,10 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
   const [selectedProcedure, setSelectedProcedure] = useState<any>(null);
   const [confirmAction, setConfirmAction] = useState<'complete' | 'cancel' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // NEW: Post-procedure upload dialog
+  const [showPostProcedureDialog, setShowPostProcedureDialog] = useState(false);
+  const [completedProcedureForUpload, setCompletedProcedureForUpload] = useState<any>(null);
 
   useEffect(() => {
     loadProcedures();
@@ -124,6 +130,13 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
 
       toast.success(`Procedure ${confirmAction === 'complete' ? 'completed' : 'cancelled'} successfully`);
       setConfirmDialogOpen(false);
+
+      // NEW: If completed, show post-procedure upload dialog
+      if (confirmAction === 'complete') {
+        setCompletedProcedureForUpload(selectedProcedure);
+        setShowPostProcedureDialog(true);
+      }
+
       setSelectedProcedure(null);
       setConfirmAction(null);
 
@@ -146,6 +159,32 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
   const handleAddProcedureSuccess = () => {
     toast.success('Procedure added successfully');
     loadProcedures();
+  };
+
+  // NEW: Handle post-procedure photo upload
+  const handlePostProcedureUpload = async (file: File, fileType: string, caption?: string) => {
+    if (!completedProcedureForUpload) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('file_type', fileType);
+      if (caption) {
+        formData.append('caption', caption);
+      }
+
+      // Upload to procedure attachments endpoint
+      await dentalService.attachments.uploadProcedureAttachment(
+        completedProcedureForUpload.id,
+        formData
+      );
+
+      toast.success('Post-procedure photo uploaded successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error?.response?.data?.detail || 'Failed to upload photo');
+      throw error; // Re-throw to let dialog handle
+    }
   };
 
   if (loading) {
@@ -427,6 +466,24 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
         onClose={() => setAddProcedureDialogOpen(false)}
         onSuccess={handleAddProcedureSuccess}
       />
+
+      {/* Post-Procedure Upload Dialog */}
+      {completedProcedureForUpload && (
+        <PostProcedureUploadDialog
+          open={showPostProcedureDialog}
+          procedureName={completedProcedureForUpload.procedure_name}
+          toothNumbers={completedProcedureForUpload.tooth_numbers?.split(',') || []}
+          onClose={() => {
+            setShowPostProcedureDialog(false);
+            setCompletedProcedureForUpload(null);
+          }}
+          onUploadComplete={handlePostProcedureUpload}
+          onSkip={() => {
+            setShowPostProcedureDialog(false);
+            setCompletedProcedureForUpload(null);
+          }}
+        />
+      )}
     </Stack>
   );
 };
