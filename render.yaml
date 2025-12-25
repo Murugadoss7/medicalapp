@@ -92,3 +92,31 @@ services:
         value: ""
       - key: KEYCLOAK_CLIENT_SECRET
         value: ""
+
+      # Cloud Storage - Cloudflare R2
+      - key: CLOUD_STORAGE_PROVIDER
+        value: cloudflare
+      - key: BASE_URL
+        sync: false  # Set to your Render URL
+      - key: CLOUDFLARE_R2_ACCESS_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: CLOUDFLARE_R2_SECRET_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: CLOUDFLARE_R2_BUCKET
+        value: dental-attachments
+      - key: CLOUDFLARE_R2_ENDPOINT
+        value: https://f42317fc96bdacba47587301bd7ed6b6.r2.cloudflarestorage.com
+      - key: CLOUDFLARE_R2_PUBLIC_URL
+        value: ""
+
+      # OpenAI - AI Case Study Generation
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_MAX_TOKENS
+        value: 4000
+      - key: OPENAI_TEMPERATURE
+        value: 0.7
+      - key: AI_MAX_COST_PER_CASE_STUDY
+        value: 1.0

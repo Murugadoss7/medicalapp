@@ -10,11 +10,11 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, BinaryIO
 from datetime import datetime, timedelta
-import boto3
-from botocore.exceptions import ClientError
-from botocore.client import Config
 
 from app.core.config import settings
+
+# Lazy imports for cloud providers (only import when needed)
+# boto3 is only required for Cloudflare R2, not for local storage
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,16 @@ class CloudflareR2Service(CloudStorageService):
 
     def __init__(self):
         """Initialize Cloudflare R2 client"""
+        # Lazy import boto3 only when Cloudflare is used
+        try:
+            import boto3
+            from botocore.client import Config
+        except ImportError:
+            raise ImportError(
+                "boto3 is required for Cloudflare R2 storage. "
+                "Install it with: pip install boto3"
+            )
+
         if not settings.CLOUDFLARE_R2_ACCESS_KEY or not settings.CLOUDFLARE_R2_SECRET_KEY:
             raise ValueError("Cloudflare R2 credentials not configured")
 
@@ -71,6 +81,7 @@ class CloudflareR2Service(CloudStorageService):
 
     def _ensure_bucket_exists(self):
         """Create bucket if it doesn't exist"""
+        from botocore.exceptions import ClientError
         try:
             self.client.head_bucket(Bucket=self.bucket)
             logger.info(f"Bucket '{self.bucket}' exists")
@@ -100,6 +111,7 @@ class CloudflareR2Service(CloudStorageService):
         Returns:
             Public URL of uploaded file
         """
+        from botocore.exceptions import ClientError
         try:
             # Upload file
             self.client.upload_fileobj(
@@ -135,6 +147,7 @@ class CloudflareR2Service(CloudStorageService):
         Returns:
             True if successful, False otherwise
         """
+        from botocore.exceptions import ClientError
         try:
             self.client.delete_object(Bucket=self.bucket, Key=file_path)
             logger.info(f"File deleted successfully: {file_path}")
@@ -154,6 +167,7 @@ class CloudflareR2Service(CloudStorageService):
         Returns:
             Signed URL
         """
+        from botocore.exceptions import ClientError
         try:
             url = self.client.generate_presigned_url(
                 'get_object',
@@ -175,6 +189,7 @@ class CloudflareR2Service(CloudStorageService):
         Returns:
             True if file exists, False otherwise
         """
+        from botocore.exceptions import ClientError
         try:
             self.client.head_object(Bucket=self.bucket, Key=file_path)
             return True
