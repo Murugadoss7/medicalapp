@@ -4,12 +4,12 @@ Business logic for managing dental file attachments
 """
 
 import logging
+import mimetypes
 from typing import List, Optional, BinaryIO
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
-import magic
 import os
 
 from app.models.dental import DentalAttachment, DentalObservation, DentalProcedure
@@ -38,7 +38,7 @@ class AttachmentService:
         Returns:
             Tuple of (mime_type, file_size)
         """
-        # Read file to get size and MIME type
+        # Read file to get size
         file_content = file.file.read()
         file_size = len(file_content)
         file.file.seek(0)  # Reset file pointer
@@ -50,15 +50,32 @@ class AttachmentService:
                 detail=f"File size {file_size} bytes exceeds maximum allowed size of {settings.MAX_FILE_SIZE} bytes (10MB)"
             )
 
-        # Detect MIME type using magic
-        mime = magic.Magic(mime=True)
-        mime_type = mime.from_buffer(file_content)
+        # Detect MIME type from filename extension (no system dependencies)
+        mime_type, _ = mimetypes.guess_type(file.filename or "")
+
+        # Fallback mapping for common extensions
+        extension_mime_map = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.pdf': 'application/pdf',
+            '.dcm': 'application/dicom',
+            '.dicom': 'application/dicom',
+        }
+
+        if not mime_type and file.filename:
+            ext = os.path.splitext(file.filename.lower())[1]
+            mime_type = extension_mime_map.get(ext, 'application/octet-stream')
+
+        if not mime_type:
+            mime_type = file.content_type or 'application/octet-stream'
 
         # Validate MIME type
         allowed_types = [
             'image/jpeg', 'image/jpg', 'image/png',
             'application/pdf',
-            'application/dicom', 'application/x-dicom'
+            'application/dicom', 'application/x-dicom',
+            'application/octet-stream'  # Allow unknown for flexibility
         ]
 
         if mime_type not in allowed_types:
