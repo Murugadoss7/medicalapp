@@ -485,25 +485,36 @@ async def get_doctor_today_procedures(
     - Dental doctor overview
     - Sidebar procedures list with patient names
     """
-    service = get_dental_service(db)
-    procedures = service.get_doctor_today_procedures(doctor_id)
+    try:
+        service = get_dental_service(db)
+        procedures = service.get_doctor_today_procedures(doctor_id)
 
-    # Build response with patient_name from appointment
-    procedure_responses = []
-    for proc in procedures:
-        proc_dict = DentalProcedureResponse.model_validate(proc).model_dump()
-        # Get patient name from appointment if available
-        if proc.appointment_id:
-            appointment = db.query(Appointment).filter(Appointment.id == proc.appointment_id).first()
-            if appointment:
-                # Appointment table has patient_first_name (not last_name or full_name)
-                proc_dict['patient_name'] = appointment.patient_first_name or 'Unknown Patient'
-        procedure_responses.append(DentalProcedureResponse(**proc_dict))
+        # Build response with patient_name from appointment
+        procedure_responses = []
+        for proc in procedures:
+            try:
+                proc_dict = DentalProcedureResponse.model_validate(proc).model_dump()
+                # Get patient name from appointment if available
+                if proc.appointment_id:
+                    appointment = db.query(Appointment).filter(Appointment.id == proc.appointment_id).first()
+                    if appointment:
+                        # Appointment table has patient_first_name (not last_name or full_name)
+                        proc_dict['patient_name'] = appointment.patient_first_name or 'Unknown Patient'
+                procedure_responses.append(DentalProcedureResponse(**proc_dict))
+            except Exception as proc_error:
+                logging.error(f"Error processing procedure {proc.id}: {proc_error}")
+                continue
 
-    return DentalProcedureListResponse(
-        procedures=procedure_responses,
-        total=len(procedures)
-    )
+        return DentalProcedureListResponse(
+            procedures=procedure_responses,
+            total=len(procedure_responses)
+        )
+    except Exception as e:
+        logging.error(f"Error in get_doctor_today_procedures: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching today's procedures: {str(e)}"
+        )
 
 
 @router.post("/procedures/bulk", response_model=List[DentalProcedureResponse], status_code=status.HTTP_201_CREATED)
