@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     # OpenAI Configuration (for AI Case Study Generation)
     # Get your API key from: https://platform.openai.com/api-keys
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-5-nano"  # GPT-5 nano: $0.05/1M input, $0.40/1M output
+    OPENAI_MODEL: str = "gpt-4o-mini"  # Fast and affordable: $0.15/1M input, $0.60/1M output
     OPENAI_MAX_TOKENS: int = 4000
     OPENAI_TEMPERATURE: float = 0.7
     AI_MAX_COST_PER_CASE_STUDY: float = 1.0  # USD limit per case study
