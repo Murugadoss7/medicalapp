@@ -10,7 +10,20 @@ import {
   Checkbox,
   Link,
   CircularProgress,
+  IconButton,
+  InputAdornment,
+  Divider,
+  Fade,
+  Zoom,
 } from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  Google,
+  Microsoft,
+  Email,
+  Lock,
+} from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -42,6 +55,7 @@ export const LoginPage = () => {
   const dispatch = useAppDispatch();
   const [login, { isLoading }] = useLoginMutation();
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Get welcome message from registration redirect
   const welcomeMessage = location.state?.message;
@@ -64,7 +78,7 @@ export const LoginPage = () => {
     try {
       setErrorMessage('');
       const response = await login(data).unwrap();
-      
+
       dispatch(setCredentials({
         user: response.user,
         tokens: response.tokens,
@@ -90,100 +104,376 @@ export const LoginPage = () => {
     }
   };
 
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <Typography
-        variant="h5"
-        component="h2"
-        gutterBottom
-        sx={{ textAlign: 'center', mb: 3 }}
-      >
-        Sign In
-      </Typography>
+      {/* Header */}
+      <Fade in timeout={600}>
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography
+            variant="h4"
+            component="h2"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              mb: 1,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Welcome Back
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: 'text.secondary',
+              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+              fontWeight: 500,
+            }}
+          >
+            Sign in to access your healthcare dashboard
+          </Typography>
+        </Box>
+      </Fade>
 
+      {/* Alerts */}
       {welcomeMessage && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {welcomeMessage}
-        </Alert>
+        <Zoom in>
+          <Alert
+            severity="success"
+            sx={{
+              mb: 3,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+            }}
+          >
+            {welcomeMessage}
+          </Alert>
+        </Zoom>
       )}
 
       {errorMessage && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {errorMessage}
-        </Alert>
+        <Zoom in>
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(244, 67, 54, 0.15)',
+            }}
+          >
+            {errorMessage}
+          </Alert>
+        </Zoom>
       )}
 
-      <Controller
-        name="email"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            fullWidth
-            label="Email Address"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            margin="normal"
-            error={!!errors.email}
-            helperText={errors.email?.message}
+      {/* Social Login Buttons */}
+      <Fade in timeout={800}>
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Google />}
+              sx={{
+                py: 1.5,
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.primary',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  borderColor: '#667eea',
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 16px rgba(102, 126, 234, 0.2)',
+                },
+              }}
+            >
+              Google
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Microsoft />}
+              sx={{
+                py: 1.5,
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.primary',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  borderColor: '#667eea',
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 16px rgba(102, 126, 234, 0.2)',
+                },
+              }}
+            >
+              Microsoft
+            </Button>
+          </Box>
+
+          <Divider sx={{ position: 'relative' }}>
+            <Typography
+              variant="body2"
+              sx={{
+                px: 2,
+                color: 'text.secondary',
+                fontWeight: 500,
+                fontSize: '0.8125rem',
+              }}
+            >
+              OR CONTINUE WITH EMAIL
+            </Typography>
+          </Divider>
+        </Box>
+      </Fade>
+
+      {/* Email Field */}
+      <Fade in timeout={1000}>
+        <Box sx={{ mb: 2 }}>
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Email Address"
+                type="email"
+                autoComplete="email"
+                autoFocus
+                error={!!errors.email}
+                helperText={errors.email?.message}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Email sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#667eea',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderWidth: 2,
+                        borderColor: '#667eea',
+                        boxShadow: '0 0 0 4px rgba(102, 126, 234, 0.1)',
+                      },
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                }}
+              />
+            )}
           />
-        )}
-      />
+        </Box>
+      </Fade>
 
-      <Controller
-        name="password"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            fullWidth
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            margin="normal"
-            error={!!errors.password}
-            helperText={errors.password?.message}
+      {/* Password Field */}
+      <Fade in timeout={1200}>
+        <Box sx={{ mb: 2 }}>
+          <Controller
+            name="password"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                error={!!errors.password}
+                helperText={errors.password?.message}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={handleTogglePasswordVisibility}
+                        edge="end"
+                        sx={{
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            background: 'rgba(102, 126, 234, 0.1)',
+                          },
+                        }}
+                      >
+                        {showPassword ? (
+                          <VisibilityOff sx={{ fontSize: 20 }} />
+                        ) : (
+                          <Visibility sx={{ fontSize: 20 }} />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#667eea',
+                      },
+                    },
+                    '&.Mui-focused': {
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderWidth: 2,
+                        borderColor: '#667eea',
+                        boxShadow: '0 0 0 4px rgba(102, 126, 234, 0.1)',
+                      },
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                }}
+              />
+            )}
           />
-        )}
-      />
+        </Box>
+      </Fade>
 
-      <Controller
-        name="remember_me"
-        control={control}
-        render={({ field }) => (
-          <FormControlLabel
-            control={<Checkbox {...field} color="primary" />}
-            label="Remember me"
-            sx={{ mt: 1 }}
-          />
-        )}
-      />
-
-      <Button
-        type="submit"
-        fullWidth
-        variant="contained"
-        sx={{ mt: 3, mb: 2, py: 1.5 }}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <CircularProgress size={24} color="inherit" />
-        ) : (
-          'Sign In'
-        )}
-      </Button>
-
-      <Box sx={{ textAlign: 'center' }}>
-        <Link
-          component={RouterLink}
-          to="/auth/register"
-          variant="body2"
-          underline="hover"
+      {/* Remember Me & Forgot Password */}
+      <Fade in timeout={1400}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 3,
+          }}
         >
-          Don't have an account? Sign Up
-        </Link>
-      </Box>
+          <Controller
+            name="remember_me"
+            control={control}
+            render={({ field }) => (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    {...field}
+                    sx={{
+                      color: '#667eea',
+                      '&.Mui-checked': {
+                        color: '#667eea',
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                    Remember me
+                  </Typography>
+                }
+              />
+            )}
+          />
+          <Link
+            href="#"
+            underline="hover"
+            sx={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#667eea',
+              transition: 'all 0.2s',
+              '&:hover': {
+                color: '#764ba2',
+              },
+            }}
+          >
+            Forgot Password?
+          </Link>
+        </Box>
+      </Fade>
+
+      {/* Sign In Button */}
+      <Fade in timeout={1600}>
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          disabled={isLoading}
+          sx={{
+            py: 1.75,
+            mb: 3,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            fontSize: '1rem',
+            fontWeight: 700,
+            textTransform: 'none',
+            boxShadow: '0 8px 24px rgba(102, 126, 234, 0.35)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 12px 32px rgba(102, 126, 234, 0.45)',
+            },
+            '&:active': {
+              transform: 'translateY(0)',
+            },
+            '&.Mui-disabled': {
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              opacity: 0.6,
+            },
+          }}
+        >
+          {isLoading ? (
+            <CircularProgress size={24} sx={{ color: 'white' }} />
+          ) : (
+            'Sign In'
+          )}
+        </Button>
+      </Fade>
+
+      {/* Sign Up Link */}
+      <Fade in timeout={1800}>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+            Don't have an account?{' '}
+            <Link
+              component={RouterLink}
+              to="/auth/register"
+              underline="hover"
+              sx={{
+                fontWeight: 700,
+                color: '#667eea',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  color: '#764ba2',
+                },
+              }}
+            >
+              Sign Up
+            </Link>
+          </Typography>
+        </Box>
+      </Fade>
     </Box>
   );
 };
