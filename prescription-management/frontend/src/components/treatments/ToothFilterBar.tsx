@@ -20,13 +20,17 @@ const ToothFilterBar: React.FC<ToothFilterBarProps> = ({
   const sortedTeeth = sortToothNumbers([...availableTeeth]);
 
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: 2 }}>
       <Typography
-        variant="subtitle2"
+        variant="caption"
         sx={{
-          mb: 1.5,
+          mb: 1,
           fontWeight: 600,
           color: 'text.secondary',
+          fontSize: '0.75rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          display: 'block',
         }}
       >
         Filter by Tooth:
@@ -36,32 +40,72 @@ const ToothFilterBar: React.FC<ToothFilterBarProps> = ({
         sx={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 1,
+          gap: 0.75,
         }}
       >
-        {/* All button */}
+        {/* All button - Themed */}
         <Button
           variant={selectedTooth === 'all' ? 'contained' : 'outlined'}
           onClick={() => onToothChange('all')}
           sx={{
-            minWidth: 70,
-            minHeight: 44, // iPad-friendly touch target
-            fontWeight: selectedTooth === 'all' ? 600 : 400,
+            minWidth: 60,
+            minHeight: 32,
+            px: 2,
+            borderRadius: 8,
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            ...(selectedTooth === 'all' ? {
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+              },
+            } : {
+              borderColor: '#667eea',
+              color: '#667eea',
+              '&:hover': {
+                borderColor: '#5568d3',
+                background: 'rgba(102, 126, 234, 0.05)',
+              },
+            }),
           }}
         >
           All
         </Button>
 
-        {/* Individual tooth buttons */}
+        {/* Individual tooth buttons - Compact pills */}
         {sortedTeeth.map(tooth => (
           <Button
             key={tooth}
             variant={selectedTooth === tooth ? 'contained' : 'outlined'}
             onClick={() => onToothChange(tooth)}
             sx={{
-              minWidth: 60,
-              minHeight: 44, // iPad-friendly touch target
-              fontWeight: selectedTooth === tooth ? 600 : 400,
+              minWidth: 50,
+              minHeight: 32,
+              px: 1.5,
+              borderRadius: 8,
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              ...(selectedTooth === tooth ? {
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                },
+              } : {
+                borderColor: 'rgba(102, 126, 234, 0.5)',
+                color: '#667eea',
+                '&:hover': {
+                  borderColor: '#667eea',
+                  background: 'rgba(102, 126, 234, 0.05)',
+                },
+              }),
             }}
           >
             {tooth}

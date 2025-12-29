@@ -13,6 +13,8 @@ import {
   Typography,
   IconButton,
   Chip,
+  Fade,
+  Avatar,
 } from '@mui/material';
 import {
   Group as FamilyIcon,
@@ -24,6 +26,7 @@ import {
   Cake as AgeIcon,
 } from '@mui/icons-material';
 import type { FamilyExistsResponse, Patient } from '../../store/api';
+import theme from '../../theme/medicalFuturismTheme';
 
 interface FamilyExistsAlertProps {
   familyData: FamilyExistsResponse;
@@ -70,159 +73,314 @@ export const FamilyExistsAlert = ({
   const { primary_member, family_members, total_members, mobile_number } = familyData;
 
   return (
-    <Alert 
-      severity="info" 
-      sx={{ 
-        mb: 3,
-        '& .MuiAlert-message': { width: '100%' }
-      }}
-    >
-      <AlertTitle sx={{ display: 'flex', alignItems: 'center' }}>
-        <FamilyIcon sx={{ mr: 1 }} />
-        Family Found for Mobile Number: {mobile_number}
-      </AlertTitle>
+    <Fade in timeout={800}>
+      <Alert
+        severity="info"
+        sx={{
+          mb: 2,
+          borderRadius: 3,
+          border: `2px solid ${theme.colors.primary.main}`,
+          background: `linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.08) 100%)`,
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 8px 24px rgba(102, 126, 234, 0.2)',
+          '& .MuiAlert-message': { width: '100%' },
+          '& .MuiAlert-icon': {
+            color: theme.colors.primary.main,
+          },
+        }}
+      >
+        <AlertTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            color: theme.colors.primary.main,
+            fontWeight: 700,
+          }}
+        >
+          <FamilyIcon sx={{ mr: 1 }} />
+          Family Found: {mobile_number}
+        </AlertTitle>
 
-      <Typography variant="body2" sx={{ mb: 2 }}>
-        This mobile number is already registered with {total_members} family member{total_members > 1 ? 's' : ''}.
-      </Typography>
+        <Typography variant="caption" sx={{ mb: 2, display: 'block' }}>
+          This mobile number is already registered with {total_members} family member{total_members > 1 ? 's' : ''}.
+        </Typography>
 
-      {/* Primary Member Info */}
-      {primary_member && (
-        <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-          <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <PersonIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
-            Primary Member
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-            <Typography variant="body2" fontWeight="medium">
-              {primary_member.full_name}
-            </Typography>
-            <Chip
-              icon={<AgeIcon />}
-              label={`${calculateAge(primary_member.date_of_birth)} years`}
-              size="small"
-              variant="outlined"
-            />
-            <Chip
-              label={formatGender(primary_member.gender)}
-              size="small"
-              variant="outlined"
-            />
-            {primary_member.relationship_to_primary && (
-              <Chip
-                label={formatRelationship(primary_member.relationship_to_primary)}
-                size="small"
-                variant="outlined"
-                color="primary"
-              />
-            )}
-          </Box>
-        </Box>
-      )}
-
-      {/* Family Members List (Collapsible) */}
-      {family_members.length > 0 && (
-        <Box sx={{ mb: 2 }}>
-          <Button
-            startIcon={expanded ? <CollapseIcon /> : <ExpandIcon />}
-            onClick={() => setExpanded(!expanded)}
-            size="small"
-            sx={{ mb: 1 }}
+        {/* Primary Member Info */}
+        {primary_member && (
+          <Box
+            sx={{
+              mb: 2,
+              p: { xs: 1.5, sm: 2 },
+              background: theme.colors.background.glass,
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${theme.colors.primary.border}`,
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.1)',
+            }}
           >
-            {expanded ? 'Hide' : 'Show'} Other Family Members ({family_members.length})
-          </Button>
-          
-          <Collapse in={expanded}>
-            <List dense sx={{ bgcolor: 'action.hover', borderRadius: 1 }}>
-              {family_members.map((member: Patient, index: number) => (
-                <ListItem key={member.id} divider={index < family_members.length - 1}>
-                  <ListItemIcon>
-                    <PersonIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {member.full_name}
-                        </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: theme.colors.primary.gradient,
+                  color: 'white',
+                  mr: 1,
+                }}
+              >
+                <PersonIcon sx={{ fontSize: 16 }} />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                  color: theme.colors.primary.main,
+                }}
+              >
+                Primary Member
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Avatar
+                sx={{
+                  ...theme.components.avatar,
+                  width: 36,
+                  height: 36,
+                  mr: 1.5,
+                }}
+              >
+                {primary_member.full_name.charAt(0)}
+              </Avatar>
+              <Typography variant="body2" fontWeight="600">
+                {primary_member.full_name}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+              <Chip
+                icon={<AgeIcon sx={{ fontSize: 14 }} />}
+                label={`${calculateAge(primary_member.date_of_birth)} years`}
+                size="small"
+                sx={{
+                  ...theme.components.chip,
+                  height: 24,
+                  fontSize: '0.6875rem',
+                }}
+              />
+              <Chip
+                label={formatGender(primary_member.gender)}
+                size="small"
+                sx={{
+                  textTransform: 'capitalize',
+                  fontWeight: 600,
+                  fontSize: '0.6875rem',
+                  height: 24,
+                  background: theme.colors.primary.light,
+                  color: theme.colors.primary.main,
+                  border: `1px solid ${theme.colors.primary.border}`,
+                }}
+              />
+              {primary_member.relationship_to_primary && (
+                <Chip
+                  label={formatRelationship(primary_member.relationship_to_primary)}
+                  size="small"
+                  sx={{
+                    ...theme.components.chip,
+                    height: 24,
+                    fontSize: '0.6875rem',
+                  }}
+                />
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {/* Family Members List (Collapsible) */}
+        {family_members.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Button
+              startIcon={expanded ? <CollapseIcon /> : <ExpandIcon />}
+              onClick={() => setExpanded(!expanded)}
+              size="small"
+              sx={{
+                mb: 1,
+                color: theme.colors.primary.main,
+                fontWeight: 600,
+                '&:hover': {
+                  background: theme.colors.primary.light,
+                },
+              }}
+            >
+              {expanded ? 'Hide' : 'Show'} Other Family Members ({family_members.length})
+            </Button>
+
+            <Collapse in={expanded}>
+              <Box
+                sx={{
+                  background: theme.colors.background.glass,
+                  backdropFilter: 'blur(10px)',
+                  border: `1px solid ${theme.colors.primary.border}`,
+                  borderRadius: 2,
+                  p: 1,
+                }}
+              >
+                {family_members.map((member: Patient, index: number) => (
+                  <Box
+                    key={member.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      p: 1,
+                      mb: index < family_members.length - 1 ? 1 : 0,
+                      borderBottom:
+                        index < family_members.length - 1
+                          ? `1px solid ${theme.colors.primary.border}`
+                          : 'none',
+                    }}
+                  >
+                    <Avatar
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        mr: 1.5,
+                        background: theme.colors.primary.light,
+                        color: theme.colors.primary.main,
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {member.full_name.charAt(0)}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" fontWeight="600">
+                        {member.full_name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                         <Chip
-                          icon={<AgeIcon />}
+                          icon={<AgeIcon sx={{ fontSize: 12 }} />}
                           label={`${calculateAge(member.date_of_birth)} years`}
                           size="small"
-                          variant="outlined"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.625rem',
+                            fontWeight: 600,
+                            background: theme.colors.primary.light,
+                            color: theme.colors.primary.main,
+                            '& .MuiChip-icon': {
+                              color: theme.colors.primary.main,
+                            },
+                          }}
                         />
                         <Chip
                           label={formatGender(member.gender)}
                           size="small"
-                          variant="outlined"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.625rem',
+                            fontWeight: 600,
+                            background: theme.colors.primary.light,
+                            color: theme.colors.primary.main,
+                            textTransform: 'capitalize',
+                          }}
                         />
                         {member.relationship_to_primary && (
                           <Chip
                             label={formatRelationship(member.relationship_to_primary)}
                             size="small"
-                            variant="outlined"
-                            color="secondary"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.625rem',
+                              fontWeight: 700,
+                              background: theme.colors.primary.gradient,
+                              color: 'white',
+                              textTransform: 'capitalize',
+                            }}
                           />
                         )}
                       </Box>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-        </Box>
-      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Collapse>
+          </Box>
+        )}
 
-      <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2, borderColor: theme.colors.primary.border }} />
 
-      {/* Action Buttons */}
-      <Typography variant="body2" sx={{ mb: 2 }}>
-        <strong>What would you like to do?</strong>
-      </Typography>
-
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {/* Add to existing family */}
-        <Button
-          variant="contained"
-          startIcon={<AddMemberIcon />}
-          onClick={onAddToFamily}
-          disabled={loading}
-          size="small"
-        >
-          Add New Family Member to This Family
-        </Button>
-
-        {/* View existing family */}
-        <Button
-          variant="outlined"
-          startIcon={<NavigateIcon />}
-          onClick={onViewFamily}
-          disabled={loading}
-          size="small"
-        >
-          View & Manage Existing Family
-        </Button>
-
-        {/* Continue with new registration */}
-        <Button
-          variant="text"
-          onClick={onContinueNewRegistration}
-          disabled={loading}
-          size="small"
-          sx={{ mt: 1 }}
-        >
-          Continue with New Registration (Different Family)
-        </Button>
-      </Box>
-
-      <Box sx={{ mt: 2, p: 1, bgcolor: 'warning.light', borderRadius: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          <strong>Note:</strong> If you're registering a new person who should be part of this existing family, 
-          choose "Add New Family Member". If this is a completely different family that happens to use 
-          the same phone number, choose "Continue with New Registration".
+        {/* Action Buttons */}
+        <Typography variant="caption" sx={{ mb: 1.5, display: 'block', fontWeight: 700 }}>
+          What would you like to do?
         </Typography>
-      </Box>
-    </Alert>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Add to existing family */}
+          <Button
+            variant="contained"
+            startIcon={<AddMemberIcon />}
+            onClick={onAddToFamily}
+            disabled={loading}
+            sx={{
+              ...theme.components.primaryButton,
+              minHeight: 44,
+            }}
+          >
+            Add New Family Member
+          </Button>
+
+          {/* View existing family */}
+          <Button
+            variant="outlined"
+            startIcon={<NavigateIcon />}
+            onClick={onViewFamily}
+            disabled={loading}
+            sx={{
+              ...theme.components.outlinedButton,
+              minHeight: 44,
+            }}
+          >
+            View & Manage Family
+          </Button>
+
+          {/* Continue with new registration */}
+          <Button
+            variant="text"
+            onClick={onContinueNewRegistration}
+            disabled={loading}
+            sx={{
+              minHeight: 40,
+              color: 'text.secondary',
+              fontWeight: 600,
+              '&:hover': {
+                background: theme.colors.primary.light,
+                color: theme.colors.primary.main,
+              },
+            }}
+          >
+            Continue with New Registration
+          </Button>
+        </Box>
+
+        <Box
+          sx={{
+            mt: 2,
+            p: 1.5,
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            <strong>Note:</strong> Choose "Add New Family Member" if registering someone in this existing family.
+            Choose "Continue with New Registration" for a different family using the same phone number.
+          </Typography>
+        </Box>
+      </Alert>
+    </Fade>
   );
 };

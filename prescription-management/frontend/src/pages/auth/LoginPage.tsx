@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useLocation, Link as RouterLink, useOutletContext } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -56,6 +56,9 @@ export const LoginPage = () => {
   const [login, { isLoading }] = useLoginMutation();
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Get dark mode state from AuthLayout via Outlet context
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
 
   // Get welcome message from registration redirect
   const welcomeMessage = location.state?.message;
@@ -184,8 +187,8 @@ export const LoginPage = () => {
               sx={{
                 py: 1.5,
                 borderRadius: 2,
-                borderColor: 'divider',
-                color: 'text.primary',
+                borderColor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'divider',
+                color: darkMode ? '#ffffff' : 'text.primary',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.9375rem',
@@ -207,8 +210,8 @@ export const LoginPage = () => {
               sx={{
                 py: 1.5,
                 borderRadius: 2,
-                borderColor: 'divider',
-                color: 'text.primary',
+                borderColor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'divider',
+                color: darkMode ? '#ffffff' : 'text.primary',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.9375rem',
@@ -225,12 +228,12 @@ export const LoginPage = () => {
             </Button>
           </Box>
 
-          <Divider sx={{ position: 'relative' }}>
+          <Divider sx={{ position: 'relative', borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : undefined }}>
             <Typography
               variant="body2"
               sx={{
                 px: 2,
-                color: 'text.secondary',
+                color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary',
                 fontWeight: 500,
                 fontSize: '0.8125rem',
               }}
@@ -257,17 +260,28 @@ export const LoginPage = () => {
                 autoFocus
                 error={!!errors.email}
                 helperText={errors.email?.message}
+                InputLabelProps={{
+                  sx: {
+                    color: darkMode ? 'rgba(255, 255, 255, 0.7)' : undefined,
+                  },
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Email sx={{ color: 'text.secondary', fontSize: 20 }} />
+                      <Email sx={{ color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', fontSize: 20 }} />
                     </InputAdornment>
                   ),
+                  sx: {
+                    color: darkMode ? '#ffffff' : undefined,
+                  },
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: darkMode ? 'rgba(255, 255, 255, 0.2)' : undefined,
+                    },
                     '&:hover': {
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: '#667eea',
@@ -283,6 +297,9 @@ export const LoginPage = () => {
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
                     color: '#667eea',
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: darkMode && !errors.email ? 'rgba(255, 255, 255, 0.7)' : undefined,
                   },
                 }}
               />
@@ -306,10 +323,15 @@ export const LoginPage = () => {
                 autoComplete="current-password"
                 error={!!errors.password}
                 helperText={errors.password?.message}
+                InputLabelProps={{
+                  sx: {
+                    color: darkMode ? 'rgba(255, 255, 255, 0.7)' : undefined,
+                  },
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Lock sx={{ color: 'text.secondary', fontSize: 20 }} />
+                      <Lock sx={{ color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                   endAdornment: (
@@ -318,6 +340,7 @@ export const LoginPage = () => {
                         onClick={handleTogglePasswordVisibility}
                         edge="end"
                         sx={{
+                          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : undefined,
                           transition: 'all 0.2s',
                           '&:hover': {
                             background: 'rgba(102, 126, 234, 0.1)',
@@ -332,11 +355,17 @@ export const LoginPage = () => {
                       </IconButton>
                     </InputAdornment>
                   ),
+                  sx: {
+                    color: darkMode ? '#ffffff' : undefined,
+                  },
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: darkMode ? 'rgba(255, 255, 255, 0.2)' : undefined,
+                    },
                     '&:hover': {
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: '#667eea',
@@ -352,6 +381,9 @@ export const LoginPage = () => {
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
                     color: '#667eea',
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: darkMode && !errors.password ? 'rgba(255, 255, 255, 0.7)' : undefined,
                   },
                 }}
               />
@@ -379,7 +411,7 @@ export const LoginPage = () => {
                   <Checkbox
                     {...field}
                     sx={{
-                      color: '#667eea',
+                      color: darkMode ? 'rgba(255, 255, 255, 0.7)' : '#667eea',
                       '&.Mui-checked': {
                         color: '#667eea',
                       },
@@ -387,7 +419,7 @@ export const LoginPage = () => {
                   />
                 }
                 label={
-                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.875rem', color: darkMode ? '#ffffff' : undefined }}>
                     Remember me
                   </Typography>
                 }
@@ -454,7 +486,7 @@ export const LoginPage = () => {
       {/* Sign Up Link */}
       <Fade in timeout={1800}>
         <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+          <Typography variant="body2" sx={{ color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', fontSize: '0.875rem' }}>
             Don't have an account?{' '}
             <Link
               component={RouterLink}

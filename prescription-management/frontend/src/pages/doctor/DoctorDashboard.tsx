@@ -1,3 +1,9 @@
+/**
+ * Doctor Dashboard - Medical Futurism Design
+ * Enhanced with glassmorphism, gradients, and smooth animations
+ * iPad-friendly responsive design
+ */
+
 import { useEffect, useMemo } from 'react';
 import {
   Box,
@@ -9,6 +15,7 @@ import {
   Paper,
   Divider,
   Chip,
+  Fade,
 } from '@mui/material';
 import {
   Today,
@@ -21,6 +28,9 @@ import {
   MedicalServices,
   CalendarMonth,
   Search,
+  Healing,
+  Vaccines,
+  MonitorHeart,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../hooks';
@@ -33,15 +43,40 @@ import {
 import { StatCard } from '../../components/dashboard/StatCard';
 import { getCurrentDoctorId } from '../../utils/doctorUtils';
 import { setSelectedOfficeId, setAppointmentsSidebarOpen, setSidebarMode, setSidebarOpen } from '../../store/slices/uiSlice';
+import { ResponsiveButton } from '../../components/common/ResponsiveButton';
 
-// Office color palette for easy identification
+// Office color palette - Medical Futurism gradients
 const OFFICE_COLORS = [
-  { bg: '#e3f2fd', border: '#1976d2', text: '#0d47a1' }, // Blue
-  { bg: '#e8f5e9', border: '#4caf50', text: '#1b5e20' }, // Green
-  { bg: '#fff3e0', border: '#ff9800', text: '#e65100' }, // Orange
-  { bg: '#f3e5f5', border: '#9c27b0', text: '#4a148c' }, // Purple
-  { bg: '#e0f7fa', border: '#00bcd4', text: '#006064' }, // Cyan
-  { bg: '#fce4ec', border: '#e91e63', text: '#880e4f' }, // Pink
+  {
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    glow: 'rgba(102, 126, 234, 0.25)',
+    color: '#667eea',
+  }, // Purple
+  {
+    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    glow: 'rgba(16, 185, 129, 0.25)',
+    color: '#10b981',
+  }, // Green
+  {
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    glow: 'rgba(245, 158, 11, 0.25)',
+    color: '#f59e0b',
+  }, // Orange
+  {
+    gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    glow: 'rgba(59, 130, 246, 0.25)',
+    color: '#3b82f6',
+  }, // Blue
+  {
+    gradient: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+    glow: 'rgba(0, 212, 255, 0.25)',
+    color: '#00d4ff',
+  }, // Cyan
+  {
+    gradient: 'linear-gradient(135deg, #ff6b9d 0%, #c9184a 100%)',
+    glow: 'rgba(255, 107, 157, 0.25)',
+    color: '#ff6b9d',
+  }, // Pink
 ];
 
 export const DoctorDashboard = () => {
@@ -258,109 +293,217 @@ export const DoctorDashboard = () => {
         display: 'flex',
         flexDirection: 'column',
         gap: { xs: 2, sm: 2.5, md: 3 },
-        overflow: 'visible', // Allow parent to handle scroll
-        // Minimum width for tablet to ensure content is readable
+        overflow: 'visible',
         minWidth: { xs: 'auto', md: 500, lg: 'auto' },
+        position: 'relative',
       }}
     >
-      {/* Header */}
+      {/* Background Gradient Orbs - Medical Futurism */}
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: 2,
-          pb: 1,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          position: 'fixed',
+          top: '10%',
+          left: '5%',
+          width: { xs: 200, sm: 300, md: 400 },
+          height: { xs: 200, sm: 300, md: 400 },
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          opacity: 0.05,
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 8s ease-in-out infinite',
+          '@keyframes float': {
+            '0%, 100%': { transform: 'translate(0, 0)' },
+            '50%': { transform: 'translate(30px, -30px)' },
+          },
+        }}
+      />
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: '10%',
+          right: '10%',
+          width: { xs: 150, sm: 250, md: 350 },
+          height: { xs: 150, sm: 250, md: 350 },
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          opacity: 0.05,
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float-reverse 10s ease-in-out infinite',
+          '@keyframes float-reverse': {
+            '0%, 100%': { transform: 'translate(0, 0)' },
+            '50%': { transform: 'translate(-30px, 30px)' },
+          },
+        }}
+      />
+
+      {/* Floating Medical Icons */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: '20%',
+          right: '15%',
+          color: '#667eea',
+          opacity: 0.08,
+          fontSize: { xs: 80, sm: 120 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 12s ease-in-out infinite',
         }}
       >
-        <Box>
-          <Typography
-            variant="h4"
-            component="h1"
-            sx={{
-              fontWeight: 600,
-              color: 'text.primary',
-              fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
-            }}
-          >
-            Welcome back, Dr. {user?.first_name}
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'text.secondary',
-              mt: 0.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <CalendarMonth sx={{ fontSize: 18 }} />
-            {new Date().toLocaleDateString('en-IN', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/appointments/book')}
-            sx={{
-              px: 2.5,
-              py: 1,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 500,
-              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.25)',
-            }}
-          >
-            New Appointment
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={handleRefreshAll}
-            disabled={appointmentsLoading}
-            sx={{
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 500,
-            }}
-          >
-            Refresh
-          </Button>
-        </Box>
+        <Healing sx={{ fontSize: 'inherit' }} />
       </Box>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: '25%',
+          left: '10%',
+          color: '#10b981',
+          opacity: 0.08,
+          fontSize: { xs: 70, sm: 100 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float-reverse 14s ease-in-out infinite',
+        }}
+      >
+        <Vaccines sx={{ fontSize: 'inherit' }} />
+      </Box>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: '50%',
+          left: '5%',
+          color: '#f59e0b',
+          opacity: 0.06,
+          fontSize: { xs: 60, sm: 90 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 16s ease-in-out infinite',
+        }}
+      >
+        <MonitorHeart sx={{ fontSize: 'inherit' }} />
+      </Box>
+      {/* Header - Enhanced Medical Futurism */}
+      <Fade in timeout={600}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: 2,
+            pb: 2,
+            borderBottom: '2px solid',
+            borderColor: 'rgba(102, 126, 234, 0.15)',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  bgcolor: '#667eea',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                }}
+              >
+                <MedicalServices sx={{ fontSize: 24, color: 'white' }} />
+              </Box>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                  color: '#667eea',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Welcome back, Dr. {user?.first_name}
+              </Typography>
+            </Box>
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontWeight: 500,
+              }}
+            >
+              <CalendarMonth sx={{ fontSize: 18, color: '#667eea' }} />
+              {new Date().toLocaleDateString('en-IN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <ResponsiveButton
+              label="New Appointment"
+              icon={<AddIcon />}
+              onClick={() => navigate('/appointments/book')}
+              variant="contained"
+              color="primary"
+            />
+            <ResponsiveButton
+              label="Refresh"
+              icon={<Refresh />}
+              onClick={handleRefreshAll}
+              disabled={appointmentsLoading}
+              variant="outlined"
+              color="primary"
+            />
+          </Box>
+        </Box>
+      </Fade>
 
       {/* Error Messages */}
       {appointmentsError && (
-        <Alert severity="error" sx={{ borderRadius: 2 }}>
-          There was an error loading appointment data. Please try refreshing.
-        </Alert>
+        <Fade in timeout={800}>
+          <Alert
+            severity="error"
+            sx={{
+              borderRadius: 3,
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            There was an error loading appointment data. Please try refreshing.
+          </Alert>
+        </Fade>
       )}
 
-      {/* Statistics Cards - Responsive grid that works with sidebars */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',                              // 1 column on mobile
-            sm: 'repeat(2, 1fr)',                   // 2 columns on small tablets
-            md: 'repeat(2, 1fr)',                   // 2 columns on tablets (with sidebars open)
-            lg: `repeat(${statCardCount}, 1fr)`,    // All columns on desktop
-          },
-          gap: { xs: 1.5, sm: 2, md: 2 },
-        }}
-      >
+      {/* Statistics Cards - Responsive grid with staggered animations */}
+      <Fade in timeout={1000}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(2, 1fr)',
+              lg: `repeat(${statCardCount}, 1fr)`,
+            },
+            gap: { xs: 1.5, sm: 2, md: 2 },
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
         <StatCard
           title="Today's Appointments"
           value={statistics.total}
@@ -396,115 +539,152 @@ export const DoctorDashboard = () => {
             onClick={handleProceduresClick}
           />
         )}
-      </Box>
+        </Box>
+      </Fade>
 
       {/* Bottom Section - Office Locations and Quick Actions */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', lg: 'row' },
-          gap: 2.5,
-          flexShrink: 0,
-        }}
-      >
-        {/* Office-wise Appointments */}
-        {officeStats.length > 0 && (
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              bgcolor: 'white',
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              flex: { lg: 1.5 },
-              minWidth: 0,
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Fade in timeout={1200}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', lg: 'row' },
+            gap: { xs: 2.5, md: 2, lg: 2.5 }, // Tighter spacing on iPad
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* Office-wise Appointments - Enhanced Glassmorphism */}
+          {officeStats.length > 0 && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 3, md: 2, lg: 3 }, // Compact padding on iPad
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: 4,
+                border: '1px solid rgba(102, 126, 234, 0.15)',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+                flex: { lg: 1.5 },
+                minWidth: 0,
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                },
+              }}
+            >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: { xs: 2.5, md: 1.5, lg: 2.5 } }}>
               <Typography
                 variant="h6"
                 sx={{
-                  fontWeight: 600,
+                  fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
-                  fontSize: '1rem',
+                  fontSize: { xs: '1.125rem', md: '1rem', lg: '1.125rem' }, // Smaller on iPad
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
                 }}
               >
-                <LocationOn color="primary" sx={{ fontSize: 22 }} />
+                <LocationOn sx={{ fontSize: { xs: 22, md: 20, lg: 22 }, color: '#667eea' }} />
                 Office Locations
               </Typography>
               <Chip
                 label="Click to filter"
                 size="small"
-                variant="outlined"
                 sx={{
-                  height: 24,
-                  fontSize: '0.7rem',
-                  borderColor: 'grey.300',
+                  height: 26,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                  border: '1px solid rgba(102, 126, 234, 0.3)',
+                  color: '#667eea',
                 }}
               />
             </Box>
-            <Divider sx={{ mb: 2 }} />
+            <Divider sx={{ mb: { xs: 2.5, md: 1.5, lg: 2.5 }, borderColor: 'rgba(102, 126, 234, 0.1)' }} />
             <Box
               sx={{
                 display: 'grid',
                 gridTemplateColumns: {
                   xs: 'repeat(2, 1fr)',
                   sm: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  md: 'repeat(2, 1fr)', // Fixed 2 columns on iPad for compact layout
+                  lg: 'repeat(auto-fit, minmax(180px, 1fr))',
                 },
-                gap: 2,
+                gap: { xs: 2, md: 1.5, lg: 2 }, // Tighter gap on iPad
               }}
             >
               {officeStats.map((office) => {
-                const colors = OFFICE_COLORS[office.colorIndex];
+                const styles = OFFICE_COLORS[office.colorIndex];
                 const isSelected = selectedOfficeId === office.id;
 
                 return (
                   <Paper
                     key={office.id}
-                    elevation={isSelected ? 2 : 0}
+                    elevation={0}
                     onClick={() => handleOfficeSelect(office.id)}
                     sx={{
-                      p: 2,
+                      p: { xs: 2.5, md: 1.75, lg: 2.5 }, // Compact padding on iPad
                       cursor: 'pointer',
-                      bgcolor: isSelected ? colors.bg : 'grey.50',
+                      background: isSelected
+                        ? `linear-gradient(135deg, ${styles.color}15 0%, ${styles.color}10 100%)`
+                        : 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(10px)',
                       border: '2px solid',
-                      borderColor: isSelected ? colors.border : 'transparent',
-                      borderRadius: 2,
-                      transition: 'all 0.2s ease',
+                      borderColor: isSelected ? styles.color : 'rgba(102, 126, 234, 0.1)',
+                      borderRadius: 3,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: isSelected
+                        ? `0 6px 20px ${styles.glow}`
+                        : '0 2px 8px rgba(0, 0, 0, 0.04)',
                       '&:hover': {
-                        bgcolor: colors.bg,
-                        borderColor: colors.border,
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        background: `linear-gradient(135deg, ${styles.color}20 0%, ${styles.color}15 100%)`,
+                        borderColor: styles.color,
+                        transform: 'translateY(-4px)',
+                        boxShadow: `0 8px 24px ${styles.glow}`,
                       },
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 1, lg: 1.5 } }}>
                       <Box
                         sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 1.5,
-                          bgcolor: colors.border,
+                          width: { xs: 48, md: 40, lg: 48 }, // Smaller icon on iPad
+                          height: { xs: 48, md: 40, lg: 48 },
+                          borderRadius: 2.5,
+                          background: styles.gradient,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           color: 'white',
                           flexShrink: 0,
+                          boxShadow: `0 4px 12px ${styles.glow}`,
+                          '& svg': {
+                            fontSize: { xs: 24, md: 20, lg: 24 },
+                          },
                         }}
                       >
                         <LocalHospital />
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
                           <Typography
                             variant="body2"
-                            fontWeight="600"
+                            fontWeight="700"
                             noWrap
-                            sx={{ color: isSelected ? colors.text : 'text.primary' }}
+                            sx={{
+                              color: 'text.primary',
+                              fontSize: '0.875rem',
+                            }}
                           >
                             {office.name}
                           </Typography>
@@ -513,26 +693,38 @@ export const DoctorDashboard = () => {
                               label="Primary"
                               size="small"
                               sx={{
-                                height: 18,
-                                fontSize: '0.6rem',
-                                bgcolor: colors.border,
+                                height: 20,
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                background: styles.gradient,
                                 color: 'white',
+                                border: 'none',
                               }}
                             />
                           )}
                         </Box>
                         <Typography
                           variant="h5"
-                          fontWeight="700"
+                          fontWeight="800"
                           sx={{
-                            color: isSelected ? colors.text : 'text.primary',
+                            background: styles.gradient,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
                             lineHeight: 1.2,
-                            mt: 0.5,
+                            fontSize: '1.75rem',
                           }}
                         >
                           {office.count}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: 'text.secondary',
+                            fontWeight: 500,
+                            fontSize: '0.75rem',
+                          }}
+                        >
                           appointment{office.count !== 1 ? 's' : ''} today
                         </Typography>
                       </Box>
@@ -544,84 +736,136 @@ export const DoctorDashboard = () => {
           </Paper>
         )}
 
-        {/* Quick Actions */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            bgcolor: 'white',
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            flex: { lg: 1 },
-            minWidth: 0,
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 600, mb: 2, fontSize: '1rem' }}
-          >
-            Quick Actions
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Box
+        {/* Quick Actions - Enhanced Glassmorphism */}
+          <Paper
+            elevation={0}
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1.5,
+              p: { xs: 3, md: 2, lg: 3 }, // Compact padding on iPad
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: 4,
+              border: '1px solid rgba(102, 126, 234, 0.15)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+              flex: { lg: 1 },
+              minWidth: 0,
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+              },
             }}
           >
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/appointments/book')}
+            <Typography
+              variant="h6"
               sx={{
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 500,
-                justifyContent: 'flex-start',
-                px: 2.5,
+                fontWeight: 700,
+                mb: { xs: 2.5, md: 1.5, lg: 2.5 }, // Less margin on iPad
+                fontSize: { xs: '1.125rem', md: '1rem', lg: '1.125rem' }, // Smaller on iPad
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
               }}
             >
-              Book New Appointment
-            </Button>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<CalendarMonth />}
-              onClick={() => navigate('/appointments')}
+              Quick Actions
+            </Typography>
+            <Divider sx={{ mb: { xs: 2.5, md: 1.5, lg: 2.5 }, borderColor: 'rgba(102, 126, 234, 0.1)' }} />
+            <Box
               sx={{
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 500,
-                justifyContent: 'flex-start',
-                px: 2.5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: { xs: 1.5, md: 1.25, lg: 1.5 }, // Tighter gap on iPad
               }}
             >
-              View All Appointments
-            </Button>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<Search />}
-              onClick={() => navigate('/patients')}
-              sx={{
-                py: 1.5,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 500,
-                justifyContent: 'flex-start',
-                px: 2.5,
-              }}
-            >
-              Search Patients
-            </Button>
-          </Box>
-        </Paper>
-      </Box>
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/appointments/book')}
+                sx={{
+                  py: { xs: 1.75, md: 1.25, lg: 1.75 }, // Compact button on iPad
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', md: '0.8125rem', lg: '0.875rem' },
+                  justifyContent: 'flex-start',
+                  px: 2.5,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                    background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+                  },
+                }}
+              >
+                Book New Appointment
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<CalendarMonth />}
+                onClick={() => navigate('/appointments')}
+                sx={{
+                  py: { xs: 1.75, md: 1.25, lg: 1.75 }, // Compact button on iPad
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', md: '0.8125rem', lg: '0.875rem' },
+                  justifyContent: 'flex-start',
+                  px: 2.5,
+                  borderWidth: 2,
+                  borderColor: '#667eea',
+                  color: '#667eea',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    borderWidth: 2,
+                    borderColor: '#667eea',
+                    background: 'rgba(102, 126, 234, 0.1)',
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                View All Appointments
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<Search />}
+                onClick={() => navigate('/patients')}
+                sx={{
+                  py: { xs: 1.75, md: 1.25, lg: 1.75 }, // Compact button on iPad
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', md: '0.8125rem', lg: '0.875rem' },
+                  justifyContent: 'flex-start',
+                  px: 2.5,
+                  borderWidth: 2,
+                  borderColor: '#10b981',
+                  color: '#10b981',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    borderWidth: 2,
+                    borderColor: '#10b981',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                Search Patients
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Fade>
     </Box>
   );
 };

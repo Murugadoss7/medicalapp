@@ -409,20 +409,38 @@ const CaseStudyView: React.FC<CaseStudyViewProps> = ({
   }
 
   return (
-    <Box sx={{ pb: 10 }}> {/* Extra padding for sticky footer */}
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" gutterBottom fontWeight={600}>
+    <Box sx={{ pb: 14, minHeight: '100%' }}> {/* Extra padding for sticky footer */}
+      {/* Header - Compact */}
+      <Box sx={{ mb: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            fontSize: { xs: '1rem', sm: '1.125rem' },
+            mb: 0.5,
+            color: '#667eea',
+          }}
+        >
           Case Study - Treatment Journey
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
           Select visits and images to include in the AI-generated case study
         </Typography>
       </Box>
 
-      {/* Info alert */}
+      {/* Info alert - Compact */}
       {selectedVisits.size === 0 && (
-        <Alert severity="info" sx={{ mb: 3 }}>
+        <Alert
+          severity="info"
+          sx={{
+            mb: 2,
+            py: 0.75,
+            fontSize: '0.8125rem',
+            borderRadius: 2,
+            background: 'rgba(59, 130, 246, 0.05)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+          }}
+        >
           Select visits by clicking the checkboxes. Choose specific images by clicking on thumbnails.
         </Alert>
       )}
@@ -456,12 +474,23 @@ const CaseStudyView: React.FC<CaseStudyViewProps> = ({
         </Box>
       )}
 
-      {/* Saved Case Studies Section */}
+      {/* Saved Case Studies Section - Compact */}
       {savedCaseStudies?.case_studies?.length > 0 && (
-        <Paper variant="outlined" sx={{ mt: 4, mb: 3, p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <HistoryIcon color="primary" />
-            <Typography variant="subtitle1" fontWeight={600}>
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 2,
+            mb: 2,
+            p: 1.5,
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(102, 126, 234, 0.15)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <HistoryIcon sx={{ fontSize: 18, color: '#667eea' }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
               Saved Case Studies ({savedCaseStudies.total})
             </Typography>
           </Box>
@@ -469,8 +498,8 @@ const CaseStudyView: React.FC<CaseStudyViewProps> = ({
             sx={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 1,
-              maxHeight: 300,
+              gap: 0.75,
+              maxHeight: 200,
               overflowY: 'auto',
             }}
           >
@@ -535,49 +564,89 @@ const CaseStudyView: React.FC<CaseStudyViewProps> = ({
         </Paper>
       )}
 
-      {/* Sticky bottom action bar */}
-      <Paper
-        elevation={6}
+      {/* Sticky bottom action bar - Themed (ALWAYS VISIBLE) */}
+      <Box
         sx={{
-          position: 'fixed',
+          position: 'sticky',
           bottom: 0,
           left: 0,
           right: 0,
-          p: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderTop: 2,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          zIndex: 1100,
+          mt: 2,
+          zIndex: 1200,
         }}
       >
-        {/* Selection summary */}
-        <Box>
-          <Typography variant="body1" fontWeight={600}>
-            Selected for Case Study:
+        <Paper
+          elevation={8}
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 2,
+            borderTop: '3px solid',
+            borderImage: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%) 1',
+            bgcolor: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 -4px 20px rgba(102, 126, 234, 0.15)',
+            borderRadius: '12px 12px 0 0',
+          }}
+        >
+        {/* Selection summary - Compact */}
+        <Box sx={{ flex: { xs: 0, sm: 1 } }}>
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              mb: 0.25,
+            }}
+          >
+            Selected:
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+            }}
+          >
             {selectedVisits.size} visit(s) • {selectedImages.size} image(s)
           </Typography>
         </Box>
 
-        {/* Generate button */}
+        {/* Generate button - Themed */}
         <Button
           variant="contained"
-          size="large"
-          startIcon={generating ? <CircularProgress size={20} color="inherit" /> : <AIIcon />}
+          startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <AIIcon />}
           disabled={generating || selectedVisits.size === 0}
           onClick={handleGenerateCaseStudy}
           sx={{
-            minHeight: 48, // iPad-friendly
-            px: 3,
+            minHeight: { xs: 40, sm: 48 },
+            px: { xs: 2, sm: 3 },
+            fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+            whiteSpace: 'nowrap',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+            },
+            '&:disabled': {
+              background: 'rgba(102, 126, 234, 0.3)',
+              color: 'rgba(255, 255, 255, 0.5)',
+            },
           }}
         >
-          {generating ? 'Generating...' : 'Generate Case Study with AI'}
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+            {generating ? 'Generating...' : 'Generate Case Study with AI'}
+          </Box>
+          <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+            {generating ? 'Generating...' : 'Generate AI Study'}
+          </Box>
         </Button>
-      </Paper>
+        </Paper>
+      </Box>
 
       {/* Result Dialog */}
       <Dialog

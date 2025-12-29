@@ -22,6 +22,8 @@ import {
   MenuItem,
   Slider,
   Container,
+  Fade,
+  Avatar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -36,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useListDoctorsQuery, useGetCurrentUserQuery, type DoctorSearchParams } from '../../store/api';
+import theme from '../../theme/medicalFuturismTheme';
 
 const specializations = [
   'All Specializations',
@@ -83,7 +86,7 @@ export const DoctorSearch = () => {
   const searchParams: DoctorSearchParams = {
     query: searchQuery.length >= 2 ? searchQuery : undefined,
     specialization: specialization !== 'All Specializations' ? specialization : undefined,
-    min_experience: experienceRange[0] > 0 ? experienceRange[0] : undefined,
+    min_experience: experienceRange[0] || undefined,
     is_active: isActiveOnly,
     page,
     per_page: pageSize,
@@ -106,11 +109,6 @@ export const DoctorSearch = () => {
     setPage(1);
   };
 
-  const handleExperienceChange = (event: Event, newValue: number | number[]) => {
-    setExperienceRange(newValue as number[]);
-    setPage(1);
-  };
-
   const clearFilters = () => {
     setSearchQuery('');
     setSpecialization('All Specializations');
@@ -128,356 +126,425 @@ export const DoctorSearch = () => {
     return `${years} years`;
   };
 
-
-  // Check if user can create doctors (admin only)
-  const canCreateDoctor = currentUser?.role === 'admin';
-
   return (
-    <Container maxWidth="lg" disableGutters sx={{ mx: 'auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <DoctorIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
-          <Typography variant="h4" component="h1">
-            Doctor Management
-          </Typography>
-        </Box>
-        {canCreateDoctor && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/doctors/register')}
-            size="large"
-          >
-            Register New Doctor
-          </Button>
-        )}
-      </Box>
+    <Box
+      sx={{
+        ...theme.layouts.pageContainer,
+      }}
+    >
+      {/* Floating Gradient Orb */}
+      <Box sx={theme.layouts.floatingOrb} />
 
-      {/* Search and Filter Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Search & Filter Doctors
-        </Typography>
-        
-        <Grid container spacing={3}>
-          {/* Search Field */}
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              placeholder="Search by name or license number..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: searchQuery && (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setSearchQuery('')} size="small">
-                      <ClearIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-
-          {/* Specialization Filter */}
-          <Grid item xs={12} md={3}>
-            <TextField
-              fullWidth
-              select
-              label="Specialization"
-              value={specialization}
-              onChange={handleSpecializationChange}
-            >
-              {specializations.map((spec) => (
-                <MenuItem key={spec} value={spec}>
-                  {spec}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          {/* Experience Range */}
-          <Grid item xs={12} md={3}>
-            <Typography gutterBottom>
-              Experience: {formatExperience(experienceRange[0])} - {formatExperience(experienceRange[1])}
-            </Typography>
-            <Slider
-              value={experienceRange}
-              onChange={handleExperienceChange}
-              valueLabelDisplay="auto"
-              min={0}
-              max={50}
-              marks={[
-                { value: 0, label: '0' },
-                { value: 10, label: '10' },
-                { value: 25, label: '25' },
-                { value: 50, label: '50+' }
-              ]}
-            />
-          </Grid>
-
-          {/* Clear Filters */}
-          <Grid item xs={12} md={2}>
+      {/* Content Container */}
+      <Container
+        maxWidth="lg"
+        disableGutters
+        sx={{
+          position: 'relative',
+          zIndex: 1,
+          px: { xs: 1.5, sm: 2 },
+        }}
+      >
+        {/* Header */}
+        <Fade in timeout={600}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: theme.colors.primary.gradient,
+                  color: 'white',
+                  mr: 1.5,
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                }}
+              >
+                <DoctorIcon sx={{ fontSize: 22 }} />
+              </Box>
+              <Typography sx={{ ...theme.typography.pageTitle }}>
+                Doctor Management
+              </Typography>
+            </Box>
             <Button
-              variant="outlined"
-              onClick={clearFilters}
-              fullWidth
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/doctors/register')}
+              sx={{
+                ...theme.components.primaryButton,
+              }}
             >
-              Clear Filters
+              Register New Doctor
             </Button>
-          </Grid>
-        </Grid>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Enter at least 2 characters for name search
-        </Typography>
-      </Paper>
-
-      {/* Results Section */}
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            {searchQuery || specialization !== 'All Specializations' || experienceRange[0] > 0 
-              ? 'Search Results' : 'All Doctors'}
-          </Typography>
-          {doctorsData && (
-            <Typography variant="body2" color="text.secondary">
-              {doctorsData.total} doctors found
-            </Typography>
-          )}
-        </Box>
-
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
           </Box>
-        )}
+        </Fade>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            Failed to load doctors. Please try again.
-          </Alert>
-        )}
+        {/* Search and Filter Section */}
+        <Fade in timeout={800}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...theme.components.glassPaper,
+              p: { xs: 1.5, sm: 2 },
+              mb: 2,
+            }}
+          >
+            <Typography sx={{ ...theme.typography.sectionTitle, mb: 2 }}>
+              Search & Filter
+            </Typography>
 
-        {doctorsData && doctorsData.doctors.length === 0 && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            {searchQuery || specialization !== 'All Specializations' 
-              ? 'No doctors found matching your criteria.' 
-              : 'No doctors registered yet.'}
-          </Alert>
-        )}
+            <Grid container spacing={1.5}>
+              {/* Search Field */}
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  placeholder="Search by name or license..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: theme.colors.primary.main }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setSearchQuery('')} size="small">
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    ...theme.components.textField,
+                  }}
+                />
+              </Grid>
 
-        {doctorsData && doctorsData.doctors.length > 0 && (
-          <>
-            <Box sx={{
+              {/* Specialization Filter */}
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Specialization"
+                  value={specialization}
+                  onChange={handleSpecializationChange}
+                  sx={{
+                    ...theme.components.textField,
+                  }}
+                >
+                  {specializations.map((spec) => (
+                    <MenuItem key={spec} value={spec}>
+                      {spec}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              {/* Minimum Experience Filter */}
+              <Grid item xs={12} md={3}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                  Min Experience: {formatExperience(experienceRange[0])}
+                </Typography>
+                <Slider
+                  value={experienceRange[0]}
+                  onChange={(event, newValue) => {
+                    setExperienceRange([newValue as number, 50]);
+                    setPage(1);
+                  }}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={50}
+                  marks={[
+                    { value: 0, label: '0' },
+                    { value: 10, label: '10' },
+                    { value: 25, label: '25' },
+                    { value: 50, label: '50+' },
+                  ]}
+                  sx={{
+                    color: theme.colors.primary.main,
+                    '& .MuiSlider-thumb': {
+                      background: theme.colors.primary.gradient,
+                    },
+                    '& .MuiSlider-track': {
+                      background: theme.colors.primary.gradient,
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Clear Filters */}
+              <Grid item xs={12} md={2}>
+                <Button
+                  variant="outlined"
+                  onClick={clearFilters}
+                  fullWidth
+                  sx={{
+                    ...theme.components.outlinedButton,
+                    minHeight: 40,
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </Grid>
+            </Grid>
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Enter at least 2 characters for name search
+            </Typography>
+          </Paper>
+        </Fade>
+
+        {/* Results Section */}
+        <Fade in timeout={1000}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...theme.components.glassPaper,
+              p: { xs: 1.5, sm: 2 },
+              flex: { xs: 'none', md: 1 },
               display: 'flex',
               flexDirection: 'column',
-              '& > *:not(:last-child)': {
-                borderBottom: '1px solid',
-                borderColor: 'divider'
-              }
-            }}>
-              {doctorsData.doctors.map((doctor) => {
-                const canEdit = currentUser?.role === 'admin' ||
-                  (currentUser?.role === 'doctor' && doctor.user_id === currentUser?.id);
-
-                return (
-                  <Box
-                    key={doctor.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      py: 1.5,
-                      px: 2,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                        transform: 'translateX(4px)',
-                      }
-                    }}
-                    onClick={() => navigate(`/doctors/${doctor.id}`)}
-                  >
-                    {/* Left Section - Name and Specialization */}
-                    <Box sx={{ flex: '1 1 30%', minWidth: 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
-                        <Typography
-                          variant="body1"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: '0.9rem',
-                            lineHeight: 1.3,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {doctor.full_name || `Dr. ${doctor.first_name} ${doctor.last_name}`}
-                        </Typography>
-                        {doctor.is_active && (
-                          <Chip
-                            label="Active"
-                            size="small"
-                            color="success"
-                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600 }}
-                          />
-                        )}
-                      </Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          fontSize: '0.75rem',
-                          lineHeight: 1.3,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {doctor.specialization || 'General Practice'} • {doctor.license_number}
-                      </Typography>
-                    </Box>
-
-                    {/* Middle Section - Compact Info */}
-                    <Box sx={{
-                      display: 'flex',
-                      gap: 2,
-                      flex: '0 0 auto',
-                      alignItems: 'center'
-                    }}>
-                      <Box sx={{ minWidth: 80 }}>
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                          Experience
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                          {doctor.experience_years !== undefined
-                            ? `${doctor.experience_years}y`
-                            : 'N/A'}
-                        </Typography>
-                      </Box>
-
-                      {doctor.phone && (
-                        <Box sx={{ minWidth: 100 }}>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                            Phone
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                            {doctor.phone}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      {doctor.consultation_fee && (
-                        <Box sx={{ minWidth: 70 }}>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                            Fee
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                            ₹{doctor.consultation_fee}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      {doctor.specialization && (
-                        <Box sx={{ minWidth: 110 }}>
-                          <Chip
-                            label={doctor.specialization}
-                            size="small"
-                            color={getSpecializationColor(doctor.specialization) as any}
-                            sx={{
-                              height: 22,
-                              fontSize: '0.7rem',
-                              fontWeight: 600
-                            }}
-                          />
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Right Section - Actions */}
-                    <Box sx={{
-                      display: 'flex',
-                      gap: 0.5,
-                      flex: '0 0 auto'
-                    }}>
-                      <Tooltip title="View Profile">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/doctors/${doctor.id}`);
-                          }}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            '&:hover': { bgcolor: 'primary.light', color: 'primary.main' }
-                          }}
-                        >
-                          <ViewIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                      {canEdit && (
-                        <Tooltip title="Edit Profile">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/doctors/${doctor.id}/edit`);
-                            }}
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              '&:hover': { bgcolor: 'warning.light', color: 'warning.main' }
-                            }}
-                          >
-                            <EditIcon sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="View Schedule">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/doctors/${doctor.id}`);
-                          }}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            '&:hover': { bgcolor: 'info.light', color: 'info.main' }
-                          }}
-                        >
-                          <ScheduleIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                );
-              })}
+              overflow: { xs: 'visible', md: 'hidden' },
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography sx={{ ...theme.typography.sectionTitle }}>
+                {searchQuery || specialization !== 'All Specializations' || experienceRange[0] > 0
+                  ? 'Search Results'
+                  : 'All Doctors'}
+              </Typography>
+              {doctorsData && (
+                <Typography variant="caption" color="text.secondary">
+                  {doctorsData.total} doctors found
+                </Typography>
+              )}
             </Box>
 
-            {/* Pagination */}
-            {doctorsData.total_pages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                <Pagination
-                  count={doctorsData.total_pages}
-                  page={page}
-                  onChange={handlePageChange}
-                  color="primary"
-                  showFirstButton
-                  showLastButton
-                />
+            {isLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress sx={{ color: theme.colors.primary.main }} />
               </Box>
             )}
-          </>
-        )}
-      </Paper>
-    </Container>
+
+            {error && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}
+              >
+                Failed to load doctors. Please try again.
+              </Alert>
+            )}
+
+            {doctorsData && doctorsData.doctors.length === 0 && (
+              <Alert
+                severity="info"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.colors.primary.border}`,
+                  background: theme.colors.primary.light,
+                }}
+              >
+                <Typography variant="caption">
+                  {searchQuery || specialization !== 'All Specializations'
+                    ? 'No doctors found matching your criteria.'
+                    : 'No doctors registered yet.'}
+                </Typography>
+              </Alert>
+            )}
+
+            {doctorsData && doctorsData.doctors.length > 0 && (
+              <>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                    flex: { xs: 'none', md: 1 },
+                    maxHeight: { xs: 'none', md: 'auto' },
+                    overflowY: { xs: 'visible', md: 'auto' },
+                    overflowX: 'hidden',
+                    ...theme.components.scrollbar,
+                    pr: 1,
+                    minHeight: { xs: 'auto', md: 0 },
+                  }}
+                >
+                  {doctorsData.doctors.map((doctor, index) => {
+                    const canEdit =
+                      currentUser?.role === 'admin' ||
+                      (currentUser?.role === 'doctor' && doctor.user_id === currentUser?.id);
+
+                    return (
+                      <Fade key={doctor.id} in timeout={1200 + index * 50}>
+                        <Box
+                          sx={{
+                            ...theme.components.glassPaper,
+                            p: { xs: 1.5, sm: 2 },
+                            border: `1px solid ${theme.colors.primary.border}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
+                              borderColor: theme.colors.primary.main,
+                              transform: 'translateX(2px)',
+                            },
+                          }}
+                          onClick={() => navigate(`/doctors/${doctor.id}`)}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            {/* Avatar */}
+                            <Avatar
+                              sx={{
+                                ...theme.components.avatar,
+                                width: { xs: 40, sm: 44 },
+                                height: { xs: 40, sm: 44 },
+                              }}
+                            >
+                              {doctor.full_name
+                                ? doctor.full_name.charAt(0)
+                                : doctor.first_name.charAt(0)}
+                            </Avatar>
+
+                            {/* Left Section - Name and Specialization */}
+                            <Box sx={{ flex: '1 1 30%', minWidth: 0 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                                <Typography
+                                  sx={{
+                                    ...theme.typography.cardTitle,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {doctor.full_name || `Dr. ${doctor.first_name} ${doctor.last_name}`}
+                                </Typography>
+                                {doctor.is_active && (
+                                  <Chip
+                                    label="Active"
+                                    size="small"
+                                    sx={{
+                                      height: 20,
+                                      fontSize: '0.625rem',
+                                      fontWeight: 700,
+                                      background: theme.colors.status.success,
+                                      color: 'white',
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                              <Typography variant="caption" color="text.secondary">
+                                {doctor.specialization || 'General Practice'} • {doctor.license_number}
+                              </Typography>
+                            </Box>
+
+                            {/* Middle Section - Compact Info */}
+                            <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 auto' }}>
+                              {doctor.experience_years !== undefined
+                                ? `${doctor.experience_years}y exp`
+                                : 'New'}
+                              {doctor.phone && ` • ${doctor.phone}`}
+                              {doctor.consultation_fee && ` • ₹${doctor.consultation_fee}`}
+                            </Typography>
+
+                            {/* Right Section - Specialization & Actions */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: '0 0 auto' }}>
+                              {doctor.specialization && (
+                                <Chip
+                                  label={doctor.specialization}
+                                  size="small"
+                                  sx={{
+                                    ...theme.components.chip,
+                                    height: 24,
+                                    fontSize: '0.65rem',
+                                  }}
+                                />
+                              )}
+
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/doctors/${doctor.id}`);
+                                }}
+                                sx={{
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                  background: theme.colors.primary.light,
+                                  color: theme.colors.primary.main,
+                                  '&:hover': {
+                                    background: theme.colors.primary.border,
+                                    transform: 'scale(1.05)',
+                                  },
+                                }}
+                              >
+                                <ViewIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+
+                              {canEdit && (
+                                <IconButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/doctors/${doctor.id}/edit`);
+                                  }}
+                                  sx={{
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                    background: 'rgba(245, 158, 11, 0.1)',
+                                    color: '#f59e0b',
+                                    '&:hover': {
+                                      background: 'rgba(245, 158, 11, 0.2)',
+                                      transform: 'scale(1.05)',
+                                    },
+                                  }}
+                                >
+                                  <EditIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              )}
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Fade>
+                    );
+                  })}
+                </Box>
+
+                {/* Pagination */}
+                {doctorsData.total_pages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Pagination
+                      count={doctorsData.total_pages}
+                      page={page}
+                      onChange={handlePageChange}
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          color: theme.colors.primary.main,
+                          fontWeight: 600,
+                          '&.Mui-selected': {
+                            background: theme.colors.primary.gradient,
+                            color: 'white',
+                          },
+                          '&:hover': {
+                            background: theme.colors.primary.light,
+                          },
+                        },
+                      }}
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
+                )}
+              </>
+            )}
+          </Paper>
+        </Fade>
+      </Container>
+    </Box>
   );
 };

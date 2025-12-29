@@ -244,9 +244,20 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
 
   return (
     <Box>
-      {/* Consultation Notes */}
-      <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      {/* Consultation Notes with Glassmorphism */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+        }}
+      >
+        <Typography variant="h6" gutterBottom fontWeight={700} color="#667eea">
           Consultation Details
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -277,9 +288,20 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
         </Box>
       </Paper>
 
-      {/* Medicine Builder */}
-      <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      {/* Medicine Builder with Glassmorphism */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+        }}
+      >
+        <Typography variant="h6" gutterBottom fontWeight={700} color="#667eea">
           Add Medicines
         </Typography>
 
@@ -361,16 +383,43 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
             startIcon={<AddIcon />}
             onClick={handleAddMedicine}
             disabled={!selectedMedicine}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 700,
+              bgcolor: '#10b981',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: '#059669',
+                boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)',
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(16, 185, 129, 0.3)',
+                color: 'rgba(255, 255, 255, 0.5)',
+              },
+            }}
           >
             Add Medicine
           </Button>
         </Box>
       </Paper>
 
-      {/* Medicines List */}
+      {/* Medicines List with Glassmorphism */}
       {prescriptionItems.length > 0 && (
-        <Paper elevation={1} sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ p: 2 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(102, 126, 234, 0.15)',
+            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+          }}
+        >
+          <Typography variant="h6" sx={{ p: 2 }} fontWeight={700} color="#667eea">
             Prescription Items ({prescriptionItems.length})
           </Typography>
           <TableContainer>
@@ -451,12 +500,21 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
                 ))}
                 <TableRow>
                   <TableCell colSpan={5} align="right">
-                    <Typography variant="subtitle1" fontWeight="bold">
+                    <Typography variant="subtitle1" fontWeight={700}>
                       Total:
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Chip label={`₹${calculateTotal().toFixed(2)}`} color="primary" />
+                    <Chip
+                      label={`₹${calculateTotal().toFixed(2)}`}
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.875rem',
+                        height: 28,
+                        bgcolor: '#667eea',
+                        color: 'white',
+                      }}
+                    />
                   </TableCell>
                   <TableCell />
                 </TableRow>
@@ -466,17 +524,43 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
         </Paper>
       )}
 
-      {/* Info Alert */}
+      {/* Info Alert with Purple Theme */}
       {prescriptionItems.length === 0 && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert
+          severity="info"
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            '& .MuiAlert-icon': {
+              color: '#3b82f6',
+            },
+          }}
+        >
           Search and add medicines to create a prescription for this dental consultation.
         </Alert>
       )}
 
-      {/* Actions */}
+      {/* Actions with Purple Theme */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         {onCancel && (
-          <Button variant="outlined" onClick={onCancel}>
+          <Button
+            variant="outlined"
+            onClick={onCancel}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#5568d3',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
+              },
+            }}
+          >
             Cancel
           </Button>
         )}
@@ -484,6 +568,23 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
           variant="contained"
           onClick={handleCreatePrescription}
           disabled={prescriptionItems.length === 0 || creatingPrescription}
+          sx={{
+            minHeight: 44,
+            px: 3,
+            fontWeight: 700,
+            bgcolor: '#667eea',
+            color: 'white',
+            boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+            borderRadius: 2,
+            '&:hover': {
+              bgcolor: '#5568d3',
+              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+            },
+            '&.Mui-disabled': {
+              bgcolor: 'rgba(102, 126, 234, 0.3)',
+              color: 'rgba(255, 255, 255, 0.5)',
+            },
+          }}
         >
           {creatingPrescription ? 'Creating...' : 'Create Prescription'}
         </Button>

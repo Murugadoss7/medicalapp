@@ -19,6 +19,7 @@ import {
   Checkbox,
   FormControlLabel,
   Chip,
+  Fade,
 } from '@mui/material';
 import {
   LocalHospital as DoctorIcon,
@@ -27,6 +28,7 @@ import {
   LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import theme from '../../theme/medicalFuturismTheme';
 
 // Simple UUID generator using crypto API
 const generateUUID = (): string => {
@@ -366,75 +368,187 @@ export const DoctorRegistration = () => {
   };
 
   return (
-    <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <DoctorIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
-        <Typography variant="h4" component="h1">
-          Doctor Registration
-        </Typography>
-      </Box>
+    <Box
+      sx={{
+        ...theme.layouts.pageContainer,
+        py: 2,
+      }}
+    >
+      {/* Floating Gradient Orb */}
+      <Box sx={theme.layouts.floatingOrb} />
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Create a comprehensive doctor profile with professional credentials and availability schedule.
-      </Typography>
-
-      {/* Stepper */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Stepper activeStep={registrationState.currentStep} alternativeLabel>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Step Content */}
-      <Card>
-        <CardContent sx={{ p: 4 }}>
-          {renderStepContent()}
-        </CardContent>
-      </Card>
-
-      {/* Navigation Buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-        <Button
-          variant="outlined"
-          onClick={handleBack}
-          disabled={registrationState.currentStep === 0 || isRegistering}
-        >
-          Back
-        </Button>
-
-        <Box>
-          {registrationState.currentStep === steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={!validateForSubmission() || isRegistering}
-              startIcon={isRegistering ? <CircularProgress size={20} /> : undefined}
+      {/* Content Container */}
+      <Container maxWidth="md" disableGutters sx={{ position: 'relative', zIndex: 1, px: { xs: 1.5, sm: 2 } }}>
+        {/* Header */}
+        <Fade in timeout={600}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: theme.colors.primary.gradient,
+                color: 'white',
+                mr: 1.5,
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              }}
             >
-              {isRegistering ? 'Registering Doctor...' : 'Register Doctor'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={!validateCurrentStep()}
+              <DoctorIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Typography sx={{ ...theme.typography.pageTitle }}>
+              Doctor Registration
+            </Typography>
+          </Box>
+        </Fade>
+
+        <Fade in timeout={800}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+            Create a comprehensive doctor profile with professional credentials and availability schedule.
+          </Typography>
+        </Fade>
+
+        {/* Stepper */}
+        <Fade in timeout={1000}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...theme.components.glassPaper,
+              p: { xs: 1.5, sm: 2 },
+              mb: 2,
+            }}
+          >
+            <Stepper
+              activeStep={registrationState.currentStep}
+              alternativeLabel
+              sx={{
+                '& .MuiStepConnector-line': {
+                  borderColor: theme.colors.primary.border,
+                  borderTopWidth: 2,
+                },
+                '& .MuiStepConnector-root.Mui-active .MuiStepConnector-line': {
+                  borderColor: theme.colors.primary.main,
+                },
+                '& .MuiStepConnector-root.Mui-completed .MuiStepConnector-line': {
+                  borderColor: theme.colors.primary.main,
+                },
+                '& .MuiStepLabel-label': {
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                },
+                '& .MuiStepLabel-label.Mui-active': {
+                  color: theme.colors.primary.main,
+                  fontWeight: 700,
+                },
+              }}
             >
-              Next
+              {steps.map((label, index) => {
+                const isActive = index === registrationState.currentStep;
+                const isCompleted = index < registrationState.currentStep;
+
+                return (
+                  <Step key={label}>
+                    <StepLabel
+                      StepIconProps={{
+                        sx: {
+                          color: isActive || isCompleted ? theme.colors.primary.main : theme.colors.primary.light,
+                          '&.Mui-active': {
+                            color: theme.colors.primary.main,
+                          },
+                          '&.Mui-completed': {
+                            color: theme.colors.primary.main,
+                          },
+                        },
+                      }}
+                    >
+                      {label}
+                    </StepLabel>
+                  </Step>
+                );
+              })}
+            </Stepper>
+          </Paper>
+        </Fade>
+
+        {/* Error Alert */}
+        {error && (
+          <Fade in timeout={600}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+              }}
+            >
+              {error}
+            </Alert>
+          </Fade>
+        )}
+
+        {/* Step Content */}
+        <Fade in timeout={1200}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...theme.components.glassPaper,
+              p: { xs: 2, sm: 3 },
+              mb: 2,
+            }}
+          >
+            {renderStepContent()}
+          </Paper>
+        </Fade>
+
+        {/* Navigation Buttons */}
+        <Fade in timeout={1400}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleBack}
+              disabled={registrationState.currentStep === 0 || isRegistering}
+              sx={{
+                ...theme.components.outlinedButton,
+                minWidth: { xs: 100, sm: 120 },
+              }}
+            >
+              Back
             </Button>
-          )}
-        </Box>
-      </Box>
-    </Container>
+
+            <Box>
+              {registrationState.currentStep === steps.length - 1 ? (
+                <Button
+                  variant="contained"
+                  onClick={handleSubmit}
+                  disabled={!validateForSubmission() || isRegistering}
+                  startIcon={isRegistering ? <CircularProgress size={18} color="inherit" /> : undefined}
+                  sx={{
+                    ...theme.components.primaryButton,
+                    minWidth: { xs: 140, sm: 180 },
+                  }}
+                >
+                  {isRegistering ? 'Registering...' : 'Register Doctor'}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  disabled={!validateCurrentStep()}
+                  sx={{
+                    ...theme.components.primaryButton,
+                    minWidth: { xs: 100, sm: 120 },
+                  }}
+                >
+                  Next
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </Fade>
+      </Container>
+    </Box>
   );
 };
 

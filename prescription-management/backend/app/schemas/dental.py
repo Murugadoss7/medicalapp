@@ -123,6 +123,8 @@ class DentalObservationResponse(DentalObservationBase):
     # Template support
     selected_template_ids: Optional[str] = None  # Comma-separated UUIDs stored in DB
     custom_notes: Optional[str] = None
+    # Linked procedures
+    procedures: Optional[List['DentalProcedureResponse']] = None
 
     model_config = {"from_attributes": True}
 

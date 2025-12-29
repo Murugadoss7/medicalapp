@@ -268,7 +268,7 @@ export const AuthLayout = () => {
               </Fade>
 
               {/* Form Content */}
-              <Outlet />
+              <Outlet context={{ darkMode }} />
             </Paper>
           </Slide>
         </Container>
@@ -363,7 +363,7 @@ export const AuthLayout = () => {
               },
             }}
           >
-            <Icon sx={{ fontSize: { md: 48, lg: 64 }, color: colors.accent }} />
+            <Icon sx={{ fontSize: { md: 48, lg: 64 }, color: darkMode ? 'rgba(255, 255, 255, 0.6)' : colors.accent }} />
           </Box>
         ))}
 

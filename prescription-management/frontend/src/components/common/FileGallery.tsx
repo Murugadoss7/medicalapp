@@ -22,6 +22,7 @@ import {
   Chip,
   Stack,
   ButtonGroup,
+  TextField,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -31,6 +32,7 @@ import {
   PictureAsPdf as PdfIcon,
   Description as DocumentIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 
 interface FileAttachment {
@@ -48,6 +50,7 @@ interface FileGalleryProps {
   attachments: FileAttachment[];
   onDelete?: (attachmentId: string) => void;
   onDownload?: (attachment: FileAttachment) => void;
+  onUpdateCaption?: (attachmentId: string, caption: string) => Promise<void>;
   filterType?: string | null;  // Filter by file_type
   readOnly?: boolean;
 }
@@ -56,6 +59,7 @@ export const FileGallery = ({
   attachments,
   onDelete,
   onDownload,
+  onUpdateCaption,
   filterType = null,
   readOnly = false,
 }: FileGalleryProps) => {
@@ -64,6 +68,12 @@ export const FileGallery = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileAttachment | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(filterType);
+
+  // Caption editing state
+  const [editCaptionDialogOpen, setEditCaptionDialogOpen] = useState(false);
+  const [fileToEdit, setFileToEdit] = useState<FileAttachment | null>(null);
+  const [editedCaption, setEditedCaption] = useState('');
+  const [updatingCaption, setUpdatingCaption] = useState(false);
 
   // Filter attachments
   const filteredAttachments = selectedFilter
@@ -143,6 +153,29 @@ export const FileGallery = ({
     } else {
       // Default download behavior
       window.open(attachment.file_path, '_blank');
+    }
+  };
+
+  // Handle edit caption click
+  const handleEditCaptionClick = (attachment: FileAttachment) => {
+    setFileToEdit(attachment);
+    setEditedCaption(attachment.caption || '');
+    setEditCaptionDialogOpen(true);
+  };
+
+  // Confirm caption edit
+  const handleConfirmEditCaption = async () => {
+    if (fileToEdit && onUpdateCaption) {
+      try {
+        setUpdatingCaption(true);
+        await onUpdateCaption(fileToEdit.id, editedCaption);
+        setEditCaptionDialogOpen(false);
+        setFileToEdit(null);
+      } catch (error) {
+        console.error('Failed to update caption:', error);
+      } finally {
+        setUpdatingCaption(false);
+      }
     }
   };
 
@@ -294,16 +327,29 @@ export const FileGallery = ({
                     <DownloadIcon />
                   </IconButton>
 
-                  {!readOnly && onDelete && (
-                    <IconButton
-                      onClick={() => handleDeleteClick(attachment)}
-                      size="small"
-                      color="error"
-                      sx={{ minWidth: 44, minHeight: 44 }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {!readOnly && onUpdateCaption && (
+                      <IconButton
+                        onClick={() => handleEditCaptionClick(attachment)}
+                        size="small"
+                        color="primary"
+                        sx={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    )}
+
+                    {!readOnly && onDelete && (
+                      <IconButton
+                        onClick={() => handleDeleteClick(attachment)}
+                        size="small"
+                        color="error"
+                        sx={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </Box>
                 </CardActions>
               </Card>
             </Grid>
@@ -379,6 +425,62 @@ export const FileGallery = ({
             sx={{ minHeight: 44 }}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Caption Dialog */}
+      <Dialog
+        open={editCaptionDialogOpen}
+        onClose={() => !updatingCaption && setEditCaptionDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Edit Caption</Typography>
+            <IconButton
+              onClick={() => setEditCaptionDialogOpen(false)}
+              disabled={updatingCaption}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <strong>File:</strong> {fileToEdit?.file_name}
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Caption / Comment"
+              placeholder="Add a comment (e.g., 'Deep cavity near pulp', 'Before treatment')"
+              value={editedCaption}
+              onChange={(e) => setEditedCaption(e.target.value)}
+              disabled={updatingCaption}
+              autoFocus
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setEditCaptionDialogOpen(false)}
+            variant="outlined"
+            sx={{ minHeight: 44 }}
+            disabled={updatingCaption}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmEditCaption}
+            variant="contained"
+            sx={{ minHeight: 44 }}
+            disabled={updatingCaption}
+          >
+            {updatingCaption ? 'Saving...' : 'Save Caption'}
           </Button>
         </DialogActions>
       </Dialog>

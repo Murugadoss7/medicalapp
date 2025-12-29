@@ -1,3 +1,9 @@
+/**
+ * Admin Dashboard - Medical Futurism Design
+ * Enhanced with glassmorphism, gradients, and smooth animations
+ * iPad-friendly responsive design
+ */
+
 import { useEffect, useRef } from 'react';
 import {
   Box,
@@ -12,6 +18,7 @@ import {
   CircularProgress,
   Alert,
   Skeleton,
+  Fade,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -24,6 +31,9 @@ import {
   CheckCircle as CompletedIcon,
   Schedule as ScheduledIcon,
   PlayArrow as InProgressIcon,
+  Healing,
+  Vaccines,
+  MonitorHeart,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks';
@@ -155,26 +165,155 @@ export const AdminDashboard = () => {
   const hasError = doctorStatsError || patientStatsError || appointmentsError;
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Admin Dashboard
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Welcome back, {currentUser?.first_name}! Here's an overview of your clinic.
-        </Typography>
+    <Box sx={{ position: 'relative' }}>
+      {/* Background Gradient Orbs - Medical Futurism */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: '10%',
+          left: '5%',
+          width: { xs: 200, sm: 300, md: 400 },
+          height: { xs: 200, sm: 300, md: 400 },
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          opacity: 0.05,
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 8s ease-in-out infinite',
+          '@keyframes float': {
+            '0%, 100%': { transform: 'translate(0, 0)' },
+            '50%': { transform: 'translate(30px, -30px)' },
+          },
+        }}
+      />
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: '10%',
+          right: '10%',
+          width: { xs: 150, sm: 250, md: 350 },
+          height: { xs: 150, sm: 250, md: 350 },
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          opacity: 0.05,
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float-reverse 10s ease-in-out infinite',
+          '@keyframes float-reverse': {
+            '0%, 100%': { transform: 'translate(0, 0)' },
+            '50%': { transform: 'translate(-30px, 30px)' },
+          },
+        }}
+      />
+
+      {/* Floating Medical Icons */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: '20%',
+          right: '15%',
+          color: '#667eea',
+          opacity: 0.08,
+          fontSize: { xs: 80, sm: 120 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 12s ease-in-out infinite',
+        }}
+      >
+        <Healing sx={{ fontSize: 'inherit' }} />
       </Box>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: '25%',
+          left: '10%',
+          color: '#10b981',
+          opacity: 0.08,
+          fontSize: { xs: 70, sm: 100 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float-reverse 14s ease-in-out infinite',
+        }}
+      >
+        <Vaccines sx={{ fontSize: 'inherit' }} />
+      </Box>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: '50%',
+          left: '5%',
+          color: '#f59e0b',
+          opacity: 0.06,
+          fontSize: { xs: 60, sm: 90 },
+          pointerEvents: 'none',
+          zIndex: 0,
+          animation: 'float 16s ease-in-out infinite',
+        }}
+      >
+        <MonitorHeart sx={{ fontSize: 'inherit' }} />
+      </Box>
+
+      {/* Header - Enhanced Medical Futurism */}
+      <Fade in timeout={600}>
+        <Box sx={{ mb: 4, position: 'relative', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                bgcolor: '#667eea',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              }}
+            >
+              <DashboardIcon sx={{ fontSize: 24, color: 'white' }} />
+            </Box>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                color: '#667eea',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Admin Dashboard
+            </Typography>
+          </Box>
+          <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+            Welcome back, {currentUser?.first_name}! Here's an overview of your clinic.
+          </Typography>
+        </Box>
+      </Fade>
 
       {/* Error Alert */}
       {hasError && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Some statistics could not be loaded. Showing available data.
-        </Alert>
+        <Fade in timeout={800}>
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 3,
+              borderRadius: 3,
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            Some statistics could not be loaded. Showing available data.
+          </Alert>
+        </Fade>
       )}
 
       {/* Statistics Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Fade in timeout={1000}>
+        <Grid container spacing={3} sx={{ mb: 4, position: 'relative', zIndex: 1 }}>
         {/* Doctors */}
         <Grid item xs={12} sm={6} md={3}>
           {doctorStatsLoading ? (
@@ -234,27 +373,70 @@ export const AdminDashboard = () => {
             />
           )}
         </Grid>
-      </Grid>
+        </Grid>
+      </Fade>
 
-      <Grid container spacing={3}>
-        {/* Quick Actions */}
+      <Fade in timeout={1200}>
+        <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
+        {/* Quick Actions - Enhanced Glassmorphism */}
         <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <DashboardIcon sx={{ mr: 1 }} />
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 3,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: 4,
+              border: '1px solid rgba(102, 126, 234, 0.15)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+              },
+            }}
+          >
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              <DashboardIcon sx={{ mr: 1, color: '#667eea' }} />
               Quick Actions
             </Typography>
             <Grid container spacing={2}>
               {quickActions.map((action, index) => (
                 <Grid item xs={12} sm={6} key={index}>
                   <Card
+                    elevation={0}
                     sx={{
                       height: '100%',
                       cursor: 'pointer',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: 3,
+                      border: '1px solid rgba(102, 126, 234, 0.1)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                       '&:hover': {
-                        boxShadow: 3,
-                        transform: 'translateY(-2px)',
-                        transition: 'all 0.2s ease-in-out'
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 8px 24px rgba(102, 126, 234, 0.2)',
+                        border: '1px solid rgba(102, 126, 234, 0.3)',
                       }
                     }}
                     onClick={action.action}
@@ -273,7 +455,15 @@ export const AdminDashboard = () => {
                       </Box>
                     </CardContent>
                     <CardActions>
-                      <Button size="small" color={action.color as any}>
+                      <Button
+                        size="small"
+                        color={action.color as any}
+                        sx={{
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          px: 2,
+                        }}
+                      >
                         Open
                       </Button>
                     </CardActions>
@@ -284,11 +474,45 @@ export const AdminDashboard = () => {
           </Paper>
         </Grid>
 
-        {/* Today's Summary */}
+        {/* Today's Summary - Enhanced Glassmorphism */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <AppointmentsIcon sx={{ mr: 1 }} />
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              mb: 3,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: 4,
+              border: '1px solid rgba(102, 126, 234, 0.15)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+              },
+            }}
+          >
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              <AppointmentsIcon sx={{ mr: 1, color: '#667eea' }} />
               Today's Summary
             </Typography>
 
@@ -300,53 +524,189 @@ export const AdminDashboard = () => {
               </Box>
             ) : (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'primary.light', borderRadius: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 1.75,
+                    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(102, 126, 234, 0.2)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      transform: 'translateX(4px)',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+                    },
+                  }}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ScheduledIcon color="primary" />
-                    <Typography variant="body2">Scheduled</Typography>
+                    <ScheduledIcon sx={{ color: '#667eea' }} />
+                    <Typography variant="body2" fontWeight={600}>Scheduled</Typography>
                   </Box>
-                  <Chip label={appointmentStats.scheduled} color="primary" size="small" />
+                  <Chip
+                    label={appointmentStats.scheduled}
+                    sx={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      fontWeight: 700,
+                    }}
+                    size="small"
+                  />
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'warning.light', borderRadius: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 1.75,
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      transform: 'translateX(4px)',
+                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
+                    },
+                  }}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <InProgressIcon color="warning" />
-                    <Typography variant="body2">In Progress</Typography>
+                    <InProgressIcon sx={{ color: '#f59e0b' }} />
+                    <Typography variant="body2" fontWeight={600}>In Progress</Typography>
                   </Box>
-                  <Chip label={appointmentStats.inProgress} color="warning" size="small" />
+                  <Chip
+                    label={appointmentStats.inProgress}
+                    sx={{
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: 'white',
+                      fontWeight: 700,
+                    }}
+                    size="small"
+                  />
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'success.light', borderRadius: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 1.75,
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      transform: 'translateX(4px)',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)',
+                    },
+                  }}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CompletedIcon color="success" />
-                    <Typography variant="body2">Completed</Typography>
+                    <CompletedIcon sx={{ color: '#10b981' }} />
+                    <Typography variant="body2" fontWeight={600}>Completed</Typography>
                   </Box>
-                  <Chip label={appointmentStats.completed} color="success" size="small" />
+                  <Chip
+                    label={appointmentStats.completed}
+                    sx={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: 'white',
+                      fontWeight: 700,
+                    }}
+                    size="small"
+                  />
                 </Box>
 
                 {appointmentStats.cancelled > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
-                    <Typography variant="body2">Cancelled</Typography>
-                    <Chip label={appointmentStats.cancelled} color="error" size="small" />
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 1.75,
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                      borderRadius: 2,
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        transform: 'translateX(4px)',
+                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
+                      },
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={600}>Cancelled</Typography>
+                    <Chip
+                      label={appointmentStats.cancelled}
+                      sx={{
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        color: 'white',
+                        fontWeight: 700,
+                      }}
+                      size="small"
+                    />
                   </Box>
                 )}
               </Box>
             )}
           </Paper>
 
-          {/* Specialization Summary */}
+          {/* Specialization Summary - Enhanced Glassmorphism */}
           {doctorStats?.specialization_counts && Object.keys(doctorStats.specialization_counts).length > 0 && (
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                <DoctorsIcon sx={{ mr: 1 }} />
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: 4,
+                border: '1px solid rgba(102, 126, 234, 0.15)',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                },
+              }}
+            >
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                <DoctorsIcon sx={{ mr: 1, color: '#667eea' }} />
                 Doctors by Specialty
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
                 {Object.entries(doctorStats.specialization_counts).map(([specialty, count]) => (
                   <Chip
                     key={specialty}
                     label={`${specialty}: ${count}`}
-                    variant="outlined"
+                    sx={{
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                      border: '1px solid rgba(102, 126, 234, 0.3)',
+                      fontWeight: 600,
+                      color: '#667eea',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+                      },
+                    }}
                     size="small"
                   />
                 ))}
@@ -355,6 +715,7 @@ export const AdminDashboard = () => {
           )}
         </Grid>
       </Grid>
+      </Fade>
     </Box>
   );
 };

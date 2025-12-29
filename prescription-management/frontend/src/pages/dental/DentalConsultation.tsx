@@ -102,6 +102,7 @@ import {
   useUpdateAppointmentStatusMutation,
   useUploadObservationAttachmentMutation,
   useGetObservationAttachmentsQuery,
+  useUpdateAttachmentMutation,
   useDeleteAttachmentMutation,
 } from '../../store/api';
 import { useToast } from '../../components/common/Toast';
@@ -150,6 +151,7 @@ const DentalConsultation: React.FC = () => {
 
   // Attachment mutations
   const [uploadAttachment, { isLoading: isUploadingAttachment }] = useUploadObservationAttachmentMutation();
+  const [updateAttachment] = useUpdateAttachmentMutation();
   const [deleteAttachment] = useDeleteAttachmentMutation();
 
   // Show warning if doctor_id is not available
@@ -992,13 +994,15 @@ const DentalConsultation: React.FC = () => {
 
         // Update procedures if they exist
         if (newObservation.procedures && newObservation.procedures.length > 0) {
+          const updatedProcedures: ProcedureData[] = [];
+
           for (const procedure of newObservation.procedures) {
+            const procedureName = procedure.procedureCode === 'CUSTOM'
+              ? procedure.customProcedureName
+              : procedure.procedureName;
+
             if (procedure.backendProcedureId) {
               // Update existing procedure
-              const procedureName = procedure.procedureCode === 'CUSTOM'
-                ? procedure.customProcedureName
-                : procedure.procedureName;
-
               await dentalService.procedures.update(procedure.backendProcedureId, {
                 procedure_code: procedure.procedureCode,
                 procedure_name: procedureName,
@@ -1007,8 +1011,33 @@ const DentalConsultation: React.FC = () => {
                 procedure_notes: procedure.procedureNotes,
                 status: procedure.procedureStatus || 'planned',
               });
+              updatedProcedures.push(procedure);
+            } else {
+              // ✅ CREATE new procedure (added in edit mode)
+              const firstTooth = procedure.selectedTeeth[0];
+              const observationIdForProcedure = newObservation.backendObservationIds?.[firstTooth];
+
+              const createdProc = await dentalService.procedures.create({
+                appointment_id: appointmentId,
+                observation_id: observationIdForProcedure, // Link to observation
+                procedure_code: procedure.procedureCode,
+                procedure_name: procedureName,
+                tooth_numbers: procedure.selectedTeeth.join(','),
+                procedure_date: procedure.procedureDate?.toISOString().split('T')[0],
+                procedure_notes: procedure.procedureNotes,
+                status: procedure.procedureStatus || 'planned',
+              });
+
+              console.log('Created new procedure in edit mode:', createdProc.id);
+              updatedProcedures.push({
+                ...procedure,
+                backendProcedureId: createdProc.id,
+              });
             }
           }
+
+          // Update newObservation with backend IDs
+          newObservation.procedures = updatedProcedures;
         }
         // Handle legacy single procedure
         else if (newObservation.backendProcedureId && newObservation.hasProcedure) {
@@ -1347,6 +1376,23 @@ const DentalConsultation: React.FC = () => {
       toast.error(error?.data?.detail || 'Failed to upload file');
     }
   }, [uploadAttachment, observations, toast]);
+
+  // Update attachment caption
+  const handleUpdateAttachmentCaption = useCallback(async (attachmentId: string, caption: string) => {
+    try {
+      await updateAttachment({ attachmentId, caption }).unwrap();
+
+      // Update local state - current attachments
+      setCurrentAttachments(prev =>
+        prev.map(a => (a.id === attachmentId ? { ...a, caption } : a))
+      );
+
+      toast.success('Caption updated successfully');
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update caption');
+      throw error; // Re-throw so FileGallery can handle loading state
+    }
+  }, [updateAttachment, toast]);
 
   // Check if newObservation has unsaved data
   const hasUnsavedNewObservation = useCallback(() => {
@@ -1758,7 +1804,27 @@ const DentalConsultation: React.FC = () => {
   const statusInfo = getStatusInfo(appointmentDetails.status);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 1.5 }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: 1.5,
+        // Purple scrollbar
+        '&::-webkit-scrollbar': {
+          width: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'rgba(102, 126, 234, 0.05)',
+          borderRadius: 10,
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#667eea',
+          borderRadius: 10,
+          '&:hover': {
+            background: '#5568d3',
+          },
+        },
+      }}
+    >
       {/* Breadcrumbs */}
       <Breadcrumbs sx={{ mb: 1 }}>
         <Link
@@ -1766,7 +1832,15 @@ const DentalConsultation: React.FC = () => {
           underline="hover"
           color="inherit"
           onClick={() => handleNavigateAway('/doctor/dashboard')}
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            transition: 'color 0.2s',
+            '&:hover': {
+              color: '#667eea',
+            },
+          }}
         >
           <Home fontSize="small" />
           Dashboard
@@ -1776,77 +1850,150 @@ const DentalConsultation: React.FC = () => {
           underline="hover"
           color="inherit"
           onClick={() => handleNavigateAway('/doctor/appointments')}
+          sx={{
+            transition: 'color 0.2s',
+            '&:hover': {
+              color: '#667eea',
+            },
+          }}
         >
           Appointments
         </Link>
-        <Typography color="text.primary">Dental Consultation</Typography>
+        <Typography color="#667eea" fontWeight={600}>Dental Consultation</Typography>
       </Breadcrumbs>
 
-      {/* Compact Header */}
+      {/* Compact Header with Glassmorphism */}
       <Paper
-        elevation={2}
+        elevation={0}
         sx={{
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
           mb: 2,
-          bgcolor: 'white',
+          borderRadius: 3,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            {/* Patient Name - Main Heading */}
-            <Typography variant="h5" fontWeight="bold">
+            {/* Patient Name - Main Heading with Purple Theme */}
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                color: '#667eea',
+              }}
+            >
               {patientData.firstName}
             </Typography>
             <Chip
               label={statusInfo.label}
-              color={statusInfo.color}
               size="small"
               icon={statusInfo.color === 'warning' ? <PlayArrow /> : statusInfo.color === 'success' ? <CheckCircle /> : undefined}
+              sx={{
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                height: 24,
+                bgcolor: statusInfo.color === 'warning' ? '#f59e0b' : statusInfo.color === 'success' ? '#10b981' : '#667eea',
+                color: 'white',
+                border: 'none',
+              }}
             />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
               {patientData.mobileNumber}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
               {new Date(appointmentDetails.appointment_date).toLocaleDateString()} • {appointmentDetails.appointment_time}
             </Typography>
             {dentalChart && (
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                 {dentalChart.dentition_type.toUpperCase()} | Obs: {dentalChart.total_observations} | Proc: {dentalChart.total_procedures}
               </Typography>
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {/* Summary Button */}
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Summary Button - Outlined Purple */}
             <Button
               variant="outlined"
               startIcon={<SummaryIcon />}
               onClick={() => setShowSummaryDialog(true)}
+              sx={{
+                minHeight: 44,
+                px: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+                fontWeight: 600,
+                borderColor: '#667eea',
+                color: '#667eea',
+                borderRadius: 2,
+                transition: 'all 0.3s cubic-bezier(0, 0, 0.2, 1)',
+                '&:hover': {
+                  borderColor: '#5568d3',
+                  bgcolor: 'rgba(102, 126, 234, 0.05)',
+                  transform: 'translateY(-2px)',
+                },
+              }}
             >
               Summary
             </Button>
 
-            {/* Prescription Button */}
+            {/* Prescription Button - Primary Purple */}
             <Button
               variant="contained"
-              color="primary"
               startIcon={<ArticleIcon />}
               onClick={() => {
                 setCreatedPrescriptionId(null);
                 setShowPrescriptionDialog(true);
               }}
+              sx={{
+                minHeight: 44,
+                px: { xs: 2, sm: 3 },
+                fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+                fontWeight: 700,
+                bgcolor: '#667eea',
+                color: 'white',
+                boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+                borderRadius: 2,
+                transition: 'all 0.3s cubic-bezier(0, 0, 0.2, 1)',
+                '&:hover': {
+                  bgcolor: '#5568d3',
+                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                  transform: 'translateY(-2px)',
+                },
+              }}
             >
               Prescription
             </Button>
 
-            {/* Complete Visit Button */}
+            {/* Complete Visit Button - Success Green */}
             {appointmentDetails.status !== 'completed' && (
               <Button
                 variant="contained"
-                color="success"
                 startIcon={<CheckCircle />}
                 onClick={handleCompleteConsultation}
                 disabled={isUpdatingStatus}
+                sx={{
+                  minHeight: 44,
+                  px: { xs: 2, sm: 3 },
+                  fontSize: { xs: '0.8125rem', sm: '0.9375rem' },
+                  fontWeight: 700,
+                  bgcolor: '#10b981',
+                  color: 'white',
+                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                  borderRadius: 2,
+                  transition: 'all 0.3s cubic-bezier(0, 0, 0.2, 1)',
+                  '&:hover': {
+                    bgcolor: '#059669',
+                    boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)',
+                    transform: 'translateY(-2px)',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: 'rgba(16, 185, 129, 0.3)',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                  },
+                }}
               >
                 Complete Visit
               </Button>
@@ -1856,23 +2003,22 @@ const DentalConsultation: React.FC = () => {
 
       </Paper>
 
-      {/* Main Content - FIXED layout (no resize on collapse) */}
+      {/* Main Content with Purple Theme */}
       <Box
         sx={{
           display: 'grid',
-          // Fixed columns - never change
           gridTemplateColumns: {
             xs: '1fr',
             sm: '1fr 500px',
           },
           gap: 2,
-          bgcolor: alpha('#0050e0', 0.03),
+          bgcolor: 'rgba(102, 126, 234, 0.03)', // Purple tint instead of blue
           p: 2,
-          borderRadius: 2,
+          borderRadius: 3,
           height: 'calc(100vh - 280px)',
         }}
       >
-        {/* LEFT PANEL - Flexible width */}
+        {/* LEFT PANEL with Purple Scrollbar */}
         <Box
           sx={{
             display: 'flex',
@@ -1880,6 +2026,21 @@ const DentalConsultation: React.FC = () => {
             gap: 2,
             overflow: 'auto',
             maxHeight: '100%',
+            // Purple scrollbar
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(102, 126, 234, 0.05)',
+              borderRadius: 10,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#667eea',
+              borderRadius: 10,
+              '&:hover': {
+                background: '#5568d3',
+              },
+            },
           }}
         >
           {/* Anatomical Dental Chart - Realistic Curved View with Collapse */}
@@ -1896,25 +2057,40 @@ const DentalConsultation: React.FC = () => {
             />
           </Box>
 
-          {/* New Observation - Collapsible */}
-          <Paper elevation={2} sx={{ flexShrink: 0 }}>
+          {/* New Observation - Collapsible with Glassmorphism */}
+          <Paper
+            elevation={0}
+            sx={{
+              flexShrink: 0,
+              borderRadius: 2,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(102, 126, 234, 0.15)',
+              boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+            }}
+          >
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 p: 1.5,
-                bgcolor: 'grey.50',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
                 borderBottom: observationFormCollapsed ? 'none' : '1px solid',
-                borderColor: 'divider',
+                borderColor: 'rgba(102, 126, 234, 0.15)',
                 cursor: 'pointer',
+                borderRadius: observationFormCollapsed ? '8px' : '8px 8px 0 0',
+                transition: 'background 0.2s',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                },
               }}
               onClick={() => setObservationFormCollapsed(!observationFormCollapsed)}
             >
-              <Typography variant="subtitle1" fontWeight="bold">
+              <Typography variant="subtitle1" fontWeight={700} color="#667eea">
                 + New Observation
               </Typography>
-              <IconButton size="small">
+              <IconButton size="small" sx={{ color: '#667eea' }}>
                 {observationFormCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
               </IconButton>
             </Box>
@@ -1928,6 +2104,7 @@ const DentalConsultation: React.FC = () => {
                 isEditMode={isEditMode}
                 attachments={currentAttachments}
                 onUploadAttachment={handleUploadAttachment}
+                onUpdateCaption={handleUpdateAttachmentCaption}
                 onDeleteAttachment={handleDeleteAttachment}
                 isUploadingAttachment={isUploadingAttachment}
               />
@@ -1935,11 +2112,26 @@ const DentalConsultation: React.FC = () => {
           </Paper>
         </Box>
 
-        {/* RIGHT PANEL - Fixed 500px width */}
+        {/* RIGHT PANEL - Fixed 500px width with Purple Scrollbar */}
         <Box
           sx={{
             overflow: 'auto',
             maxHeight: '100%',
+            // Purple scrollbar
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(102, 126, 234, 0.05)',
+              borderRadius: 10,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#667eea',
+              borderRadius: 10,
+              '&:hover': {
+                background: '#5568d3',
+              },
+            },
           }}
         >
           <SavedObservationsPanel
@@ -1957,24 +2149,38 @@ const DentalConsultation: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Tooth History Dialog */}
+      {/* Tooth History Dialog with Glassmorphism */}
       <Dialog
         open={showHistoryDialog}
         onClose={() => setShowHistoryDialog(false)}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          },
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            bgcolor: '#667eea',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">
+            <Typography variant="h6" fontWeight={700}>
               Tooth #{activeObservation?.selectedTeeth[0]} History
             </Typography>
-            <IconButton onClick={() => setShowHistoryDialog(false)}>
+            <IconButton onClick={() => setShowHistoryDialog(false)} sx={{ color: 'white' }}>
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ mt: 2 }}>
           {activeObservation?.selectedTeeth[0] && (
             <ToothHistoryViewer
               patientMobileNumber={patientData.mobileNumber}
@@ -1983,12 +2189,30 @@ const DentalConsultation: React.FC = () => {
             />
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowHistoryDialog(false)}>Close</Button>
+        <DialogActions
+          sx={{
+            p: 2,
+            borderTop: '1px solid rgba(102, 126, 234, 0.15)',
+          }}
+        >
+          <Button
+            onClick={() => setShowHistoryDialog(false)}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              color: 'text.secondary',
+              '&:hover': {
+                background: 'rgba(0, 0, 0, 0.05)',
+              },
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Prescription Dialog */}
+      {/* Prescription Dialog with Glassmorphism */}
       <Dialog
         open={showPrescriptionDialog}
         onClose={() => {
@@ -1998,22 +2222,40 @@ const DentalConsultation: React.FC = () => {
         }}
         maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          },
+        }}
       >
-        <DialogTitle className="prescription-no-print">
+        <DialogTitle
+          className="prescription-no-print"
+          sx={{
+            bgcolor: '#667eea',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography variant="h6">
+              <Typography variant="h6" fontWeight={700}>
                 {createdPrescriptionId ? 'View Prescription' : 'Create Prescription'}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.85)' }}>
                 Patient: {patientData.firstName} ({patientData.mobileNumber})
               </Typography>
             </Box>
-            <IconButton onClick={() => {
-              setShowPrescriptionDialog(false);
-              setCreatedPrescriptionId(null);
-              setSelectedPrescriptionIndex(0);
-            }}>
+            <IconButton
+              onClick={() => {
+                setShowPrescriptionDialog(false);
+                setCreatedPrescriptionId(null);
+                setSelectedPrescriptionIndex(0);
+              }}
+              sx={{ color: 'white' }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
@@ -2097,12 +2339,27 @@ const DentalConsultation: React.FC = () => {
             )}
           </Box>
         </DialogContent>
-        <DialogActions className="prescription-no-print">
+        <DialogActions
+          className="prescription-no-print"
+          sx={{
+            p: 2,
+            borderTop: '1px solid rgba(102, 126, 234, 0.15)',
+          }}
+        >
           <Button
             onClick={() => {
               setShowPrescriptionDialog(false);
               setCreatedPrescriptionId(null);
               setSelectedPrescriptionIndex(0);
+            }}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              color: 'text.secondary',
+              '&:hover': {
+                background: 'rgba(0, 0, 0, 0.05)',
+              },
             }}
           >
             Close
@@ -2110,27 +2367,41 @@ const DentalConsultation: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Treatment Summary Dialog */}
+      {/* Treatment Summary Dialog with Glassmorphism */}
       <Dialog
         open={showSummaryDialog}
         onClose={() => setShowSummaryDialog(false)}
         maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          },
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            bgcolor: '#667eea',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography variant="h6">Treatment Summary</Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="h6" fontWeight={700}>Treatment Summary</Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.85)' }}>
                 Patient: {patientData.firstName} ({patientData.mobileNumber})
               </Typography>
             </Box>
-            <IconButton onClick={() => setShowSummaryDialog(false)}>
+            <IconButton onClick={() => setShowSummaryDialog(false)} sx={{ color: 'white' }}>
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ mt: 2 }}>
           <Box sx={{ pt: 2 }}>
             <DentalSummaryTable
               patientMobileNumber={patientData.mobileNumber}
@@ -2139,23 +2410,55 @@ const DentalConsultation: React.FC = () => {
             />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSummaryDialog(false)}>Close</Button>
+        <DialogActions
+          sx={{
+            p: 2,
+            borderTop: '1px solid rgba(102, 126, 234, 0.15)',
+          }}
+        >
+          <Button
+            onClick={() => setShowSummaryDialog(false)}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              color: 'text.secondary',
+              '&:hover': {
+                background: 'rgba(0, 0, 0, 0.05)',
+              },
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Exit Confirmation Dialog */}
+      {/* Exit Confirmation Dialog with Glassmorphism */}
       <Dialog
         open={showExitDialog}
         onClose={() => setShowExitDialog(false)}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          },
+        }}
       >
-        <DialogTitle>
-          <Typography variant="h6">Consultation Status</Typography>
+        <DialogTitle
+          sx={{
+            bgcolor: '#667eea',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>Consultation Status</Typography>
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
             Is this consultation completed?
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -2163,76 +2466,163 @@ const DentalConsultation: React.FC = () => {
             If no, it will remain in progress for you to continue later.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        <DialogActions sx={{ p: 2, gap: 1.5, borderTop: '1px solid rgba(102, 126, 234, 0.15)' }}>
           <Button
             variant="outlined"
             onClick={() => handleExitDialogResponse(false)}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#5568d3',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
+              },
+            }}
           >
             No, Still In Progress
           </Button>
           <Button
             variant="contained"
-            color="success"
             startIcon={<CheckCircle />}
             onClick={() => handleExitDialogResponse(true)}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 700,
+              bgcolor: '#10b981',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: '#059669',
+                boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)',
+              },
+            }}
           >
             Yes, Mark Complete
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Edit Confirmation Dialog */}
+      {/* Edit Confirmation Dialog with Glassmorphism */}
       <Dialog
         open={showEditConfirmDialog}
         onClose={handleCancelEdit}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          },
+        }}
       >
-        <DialogTitle>
-          <Typography variant="h6">Unsaved Changes</Typography>
+        <DialogTitle
+          sx={{
+            bgcolor: '#667eea',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>Unsaved Changes</Typography>
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
             You have an observation in progress that hasn't been saved.
           </Typography>
           <Typography variant="body2" color="text.secondary">
             If you continue, the current observation data will be discarded and replaced with the selected observation for editing.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        <DialogActions sx={{ p: 2, gap: 1.5, borderTop: '1px solid rgba(102, 126, 234, 0.15)' }}>
           <Button
             variant="outlined"
             onClick={handleCancelEdit}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#5568d3',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
+              },
+            }}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
-            color="primary"
             onClick={handleConfirmEdit}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 700,
+              bgcolor: '#667eea',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: '#5568d3',
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+              },
+            }}
           >
             Continue
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog with Glassmorphism */}
       <Dialog
         open={showDeleteConfirmDialog}
         onClose={handleCancelDelete}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(239, 68, 68, 0.2)',
+          },
+        }}
       >
-        <DialogTitle>
-          <Typography variant="h6" color="error.main">Delete Observation?</Typography>
+        <DialogTitle
+          sx={{
+            bgcolor: '#ef4444',
+            color: 'white',
+            fontWeight: 700,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>Delete Observation?</Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ mt: 2 }}>
           {editingObservationId === pendingDeleteObservationId ? (
             <>
-              <Alert severity="warning" sx={{ mb: 2 }}>
+              <Alert
+                severity="warning"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  '& .MuiAlert-icon': {
+                    color: '#f59e0b',
+                  },
+                }}
+              >
                 This observation is currently being edited!
               </Alert>
-              <Typography variant="body1" sx={{ mb: 1 }}>
+              <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
                 This observation is currently being edited. Are you sure you want to delete it?
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -2242,7 +2632,7 @@ const DentalConsultation: React.FC = () => {
             </>
           ) : (
             <>
-              <Typography variant="body1" sx={{ mb: 1 }}>
+              <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
                 Are you sure you want to delete this observation?
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -2252,17 +2642,41 @@ const DentalConsultation: React.FC = () => {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        <DialogActions sx={{ p: 2, gap: 1.5, borderTop: '1px solid rgba(239, 68, 68, 0.15)' }}>
           <Button
             variant="outlined"
             onClick={handleCancelDelete}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#5568d3',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
+              },
+            }}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
-            color="error"
             onClick={handleConfirmDelete}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              fontWeight: 700,
+              bgcolor: '#ef4444',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(239, 68, 68, 0.4)',
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: '#dc2626',
+                boxShadow: '0 6px 20px rgba(239, 68, 68, 0.5)',
+              },
+            }}
           >
             Delete
           </Button>

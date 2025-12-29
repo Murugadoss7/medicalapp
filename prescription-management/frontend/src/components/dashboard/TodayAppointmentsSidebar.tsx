@@ -288,18 +288,19 @@ export const TodayAppointmentsSidebar = () => {
         },
       }}
     >
-      {/* Header */}
+      {/* Header - Medical Futurism Solid Purple (NO GRADIENT) */}
       <Box
         sx={{
           p: 2,
-          bgcolor: 'primary.main',
+          background: '#667eea', // Solid purple
           color: 'white',
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {sidebarMode === 'procedures' ? <MedicalServices /> : <CalendarToday />}
-            <Typography variant="h6" fontWeight="bold">
+            <Typography variant="h6" fontWeight={700}>
               {sidebarMode === 'procedures' ? 'Procedures' : 'Appointments'}
             </Typography>
             {sidebarMode === 'appointments' && pendingCount > 0 && (
@@ -307,10 +308,11 @@ export const TodayAppointmentsSidebar = () => {
                 label={pendingCount}
                 size="small"
                 sx={{
-                  bgcolor: 'warning.main',
+                  bgcolor: '#f59e0b', // Solid orange
                   color: 'white',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   height: 24,
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
                 }}
               />
             )}
@@ -319,10 +321,11 @@ export const TodayAppointmentsSidebar = () => {
                 label={todayProceduresData.procedures.length}
                 size="small"
                 sx={{
-                  bgcolor: 'secondary.main',
+                  bgcolor: '#10b981', // Solid green
                   color: 'white',
-                  fontWeight: 'bold',
+                  fontWeight: 700,
                   height: 24,
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
                 }}
               />
             )}
@@ -361,8 +364,28 @@ export const TodayAppointmentsSidebar = () => {
 
       <Divider />
 
-      {/* Content Area - Appointments or Procedures */}
-      <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+      {/* Content Area with Purple Scrollbar */}
+      <Box
+        sx={{
+          overflow: 'auto',
+          flexGrow: 1,
+          // Purple scrollbar
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(102, 126, 234, 0.05)',
+            borderRadius: 10,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#667eea',
+            borderRadius: 10,
+            '&:hover': {
+              background: '#5568d3',
+            },
+          },
+        }}
+      >
         {/* Procedures View */}
         {sidebarMode === 'procedures' && (
           <>
@@ -414,25 +437,25 @@ export const TodayAppointmentsSidebar = () => {
                         }
                       }}
                       sx={{
-                        borderRadius: 1,
-                        border: 1,
+                        borderRadius: 1.5,
+                        border: '2px solid',
                         borderColor:
                           procedure.status === 'in_progress'
-                            ? 'warning.main'
-                            : 'divider',
-                        bgcolor:
-                          procedure.status === 'in_progress'
-                            ? 'warning.light'
+                            ? '#f59e0b'
                             : procedure.status === 'completed'
-                            ? 'action.disabledBackground'
-                            : 'background.paper',
-                        opacity: procedure.status === 'completed' ? 0.7 : 1,
+                            ? 'rgba(102, 126, 234, 0.3)'
+                            : 'rgba(102, 126, 234, 0.15)',
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        opacity: procedure.status === 'completed' ? 0.8 : 1,
                         p: 1.5,
+                        minHeight: 44,
                         '&:hover': {
-                          bgcolor:
+                          background: 'rgba(102, 126, 234, 0.05)',
+                          borderColor:
                             procedure.status === 'in_progress'
-                              ? 'warning.light'
-                              : 'action.hover',
+                              ? '#f59e0b'
+                              : '#667eea',
                         },
                       }}
                     >
@@ -559,25 +582,25 @@ export const TodayAppointmentsSidebar = () => {
                 <ListItemButton
                   onClick={(event) => handleAppointmentClick(appointment, event)}
                   sx={{
-                    borderRadius: 1,
-                    border: 1,
+                    borderRadius: 1.5,
+                    border: '2px solid',
                     borderColor:
                       appointment.status === 'in_progress'
-                        ? 'warning.main'
-                        : 'divider',
-                    bgcolor:
-                      appointment.status === 'in_progress'
-                        ? 'warning.light'
+                        ? '#f59e0b'
                         : appointment.status === 'completed'
-                        ? 'action.disabledBackground'
-                        : 'background.paper',
-                    opacity: appointment.status === 'completed' ? 0.7 : 1,
+                        ? 'rgba(102, 126, 234, 0.3)'
+                        : 'rgba(102, 126, 234, 0.15)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    opacity: appointment.status === 'completed' ? 0.8 : 1,
                     p: 1.5,
+                    minHeight: 44,
                     '&:hover': {
-                      bgcolor:
+                      background: 'rgba(102, 126, 234, 0.05)',
+                      borderColor:
                         appointment.status === 'in_progress'
-                          ? 'warning.light'
-                          : 'action.hover',
+                          ? '#f59e0b'
+                          : '#667eea',
                     },
                   }}
                 >
@@ -662,8 +685,12 @@ export const TodayAppointmentsSidebar = () => {
       </Box>
 
       {/* Summary Footer */}
-      <Divider />
-      <Box sx={{ p: 1.5, bgcolor: 'grey.100' }}>
+      <Divider sx={{ borderColor: 'rgba(102, 126, 234, 0.2)' }} />
+      <Box sx={{
+        p: 1.5,
+        background: 'rgba(102, 126, 234, 0.03)',
+        borderTop: '1px solid rgba(102, 126, 234, 0.1)'
+      }}>
         {sidebarMode === 'procedures' ? (
           <Typography variant="caption" color="text.secondary">
             {todayProceduresData?.procedures?.length || 0} procedure{(todayProceduresData?.procedures?.length || 0) !== 1 ? 's' : ''}

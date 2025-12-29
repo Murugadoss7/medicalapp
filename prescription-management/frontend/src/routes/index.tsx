@@ -40,6 +40,10 @@ import { DentalConsultation } from '../pages/dental';
 
 // Treatment pages
 import { TreatmentDashboard } from '../pages/treatments/TreatmentDashboard';
+import { PatientListingPage } from '../pages/treatments/PatientListingPage';
+import { TimelinePage } from '../pages/treatments/TimelinePage';
+import { ProceduresPage } from '../pages/treatments/ProceduresPage';
+import { CaseStudyPage } from '../pages/treatments/CaseStudyPage';
 
 // Prescription pages
 import PrescriptionView from '../pages/prescriptions/PrescriptionView';
@@ -202,10 +206,41 @@ export const router = createBrowserRouter([
         element: <ShortKeyManagement />,
       },
 
-      // Treatment Dashboard routes
+      // Treatment Dashboard routes (NEW: Option 2 implementation)
       {
         path: 'treatments',
-        element: <TreatmentDashboard />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/treatments/patients" replace />,
+          },
+          {
+            path: 'patients',
+            children: [
+              {
+                index: true,
+                element: <PatientListingPage />,
+              },
+              {
+                path: ':mobile/:firstName/timeline',
+                element: <TimelinePage />,
+              },
+              {
+                path: ':mobile/:firstName/procedures',
+                element: <ProceduresPage />,
+              },
+              {
+                path: ':mobile/:firstName/case-study',
+                element: <CaseStudyPage />,
+              },
+            ],
+          },
+          // Legacy route for backwards compatibility
+          {
+            path: 'dashboard',
+            element: <TreatmentDashboard />,
+          },
+        ],
       },
 
       // Prescription routes

@@ -286,7 +286,7 @@ export const AppointmentBooking = () => {
           position: 'sticky',
           top: 0,
           zIndex: 10,
-          bgcolor: 'primary.main',
+          bgcolor: '#667eea',
           color: 'white',
           p: 2,
           mb: 3,
@@ -294,10 +294,12 @@ export const AppointmentBooking = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+          minHeight: 44,
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: 'white', color: 'primary.main', width: 48, height: 48 }}>
+          <Avatar sx={{ bgcolor: 'white', color: '#667eea', width: 48, height: 48 }}>
             <Person />
           </Avatar>
           <Box>
@@ -362,13 +364,16 @@ export const AppointmentBooking = () => {
                       sx={{
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
-                        border: '1px solid',
-                        borderColor: 'divider',
+                        border: '2px solid',
+                        borderColor: 'rgba(102, 126, 234, 0.15)',
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        minHeight: 44,
                         '&:hover': {
-                          bgcolor: 'primary.lighter',
-                          borderColor: 'primary.main',
+                          bgcolor: 'rgba(102, 126, 234, 0.05)',
+                          borderColor: '#667eea',
                           transform: 'translateY(-2px)',
-                          boxShadow: 2,
+                          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
                         }
                       }}
                       onClick={() => handlePatientSelect(patient)}
@@ -376,7 +381,7 @@ export const AppointmentBooking = () => {
                     >
                       <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+                          <Avatar sx={{ bgcolor: '#667eea', width: 48, height: 48 }}>
                             <Person />
                           </Avatar>
 
@@ -410,7 +415,7 @@ export const AppointmentBooking = () => {
                             </Box>
                           </Box>
 
-                          <CheckIcon sx={{ color: 'primary.main', opacity: 0.3 }} />
+                          <CheckIcon sx={{ color: '#667eea', opacity: 0.3 }} />
                         </Box>
                       </CardContent>
                     </Card>
@@ -424,7 +429,27 @@ export const AppointmentBooking = () => {
                     count={patientsData.total_pages}
                     page={patientPage}
                     onChange={(_, page) => setPatientPage(page)}
-                    color="primary"
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontWeight: 700,
+                        minHeight: 44,
+                        minWidth: 44,
+                        '&.Mui-selected': {
+                          bgcolor: '#667eea',
+                          color: 'white',
+                          '&:hover': {
+                            bgcolor: '#5568d3'
+                          }
+                        },
+                        '&:not(.Mui-selected)': {
+                          borderColor: 'rgba(102, 126, 234, 0.3)',
+                          color: '#667eea',
+                          '&:hover': {
+                            bgcolor: 'rgba(102, 126, 234, 0.05)'
+                          }
+                        }
+                      }
+                    }}
                     size="large"
                   />
                 </Box>
@@ -496,12 +521,14 @@ export const AppointmentBooking = () => {
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
                           border: '2px solid',
-                          borderColor: selectedDoctor?.id === doctor.id ? 'primary.main' : 'divider',
-                          bgcolor: selectedDoctor?.id === doctor.id ? 'primary.lighter' : 'background.paper',
+                          borderColor: selectedDoctor?.id === doctor.id ? '#667eea' : 'rgba(102, 126, 234, 0.15)',
+                          background: selectedDoctor?.id === doctor.id ? 'rgba(102, 126, 234, 0.08)' : 'rgba(255, 255, 255, 0.95)',
+                          backdropFilter: 'blur(10px)',
+                          minHeight: 44,
                           '&:hover': {
-                            borderColor: 'primary.main',
+                            borderColor: '#667eea',
                             transform: 'translateY(-2px)',
-                            boxShadow: 2,
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
                           }
                         }}
                         onClick={() => handleDoctorSelect(doctor)}
@@ -509,7 +536,7 @@ export const AppointmentBooking = () => {
                       >
                         <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+                            <Avatar sx={{ bgcolor: '#667eea', width: 48, height: 48 }}>
                               <LocalHospital />
                             </Avatar>
 
@@ -540,7 +567,7 @@ export const AppointmentBooking = () => {
                             </Box>
 
                             {selectedDoctor?.id === doctor.id && (
-                              <CheckCircle sx={{ color: 'primary.main' }} />
+                              <CheckCircle sx={{ color: '#667eea' }} />
                             )}
                           </Box>
                         </CardContent>
@@ -555,7 +582,27 @@ export const AppointmentBooking = () => {
                       count={doctorsData.total_pages}
                       page={doctorPage}
                       onChange={(_, page) => setDoctorPage(page)}
-                      color="primary"
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          fontWeight: 700,
+                          minHeight: 44,
+                          minWidth: 44,
+                          '&.Mui-selected': {
+                            bgcolor: '#667eea',
+                            color: 'white',
+                            '&:hover': {
+                              bgcolor: '#5568d3'
+                            }
+                          },
+                          '&:not(.Mui-selected)': {
+                            borderColor: 'rgba(102, 126, 234, 0.3)',
+                            color: '#667eea',
+                            '&:hover': {
+                              bgcolor: 'rgba(102, 126, 234, 0.05)'
+                            }
+                          }
+                        }
+                      }}
                     />
                   </Box>
                 )}
@@ -582,12 +629,14 @@ export const AppointmentBooking = () => {
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       border: '2px solid',
-                      borderColor: selectedOffice?.id === office.id ? 'primary.main' : 'divider',
-                      bgcolor: selectedOffice?.id === office.id ? 'primary.lighter' : 'background.paper',
+                      borderColor: selectedOffice?.id === office.id ? '#667eea' : 'rgba(102, 126, 234, 0.15)',
+                      background: selectedOffice?.id === office.id ? 'rgba(102, 126, 234, 0.08)' : 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(10px)',
+                      minHeight: 44,
                       '&:hover': {
-                        borderColor: 'primary.main',
+                        borderColor: '#667eea',
                         transform: 'translateY(-2px)',
-                        boxShadow: 2,
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
                       }
                     }}
                     onClick={() => handleOfficeSelect(office)}
@@ -595,14 +644,14 @@ export const AppointmentBooking = () => {
                   >
                     <CardContent sx={{ py: 2, px: 2.5, '&:last-child': { pb: 2 } }}>
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                        <LocationOn sx={{ color: selectedOffice?.id === office.id ? 'primary.main' : 'text.secondary', mt: 0.5 }} />
+                        <LocationOn sx={{ color: selectedOffice?.id === office.id ? '#667eea' : 'text.secondary', mt: 0.5 }} />
                         <Box sx={{ flex: 1 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                               {office.name}
                             </Typography>
                             {office.is_primary && (
-                              <Chip label="Primary" size="small" color="primary" />
+                              <Chip label="Primary" size="small" sx={{ bgcolor: '#667eea', color: 'white', fontWeight: 700 }} />
                             )}
                           </Box>
                           <Typography variant="body2" color="text.secondary">
@@ -610,7 +659,7 @@ export const AppointmentBooking = () => {
                           </Typography>
                         </Box>
                         {selectedOffice?.id === office.id && (
-                          <CheckCircle sx={{ color: 'primary.main' }} />
+                          <CheckCircle sx={{ color: '#667eea' }} />
                         )}
                       </Box>
                     </CardContent>
@@ -676,11 +725,28 @@ export const AppointmentBooking = () => {
                                 sx={{
                                   py: 1.5,
                                   fontSize: '0.95rem',
-                                  fontWeight: 600,
+                                  fontWeight: 700,
+                                  minHeight: 44,
                                   transition: 'all 0.2s',
-                                  '&:hover': {
-                                    transform: 'scale(1.05)',
-                                  },
+                                  ...(watchedTime === slot ? {
+                                    bgcolor: '#667eea',
+                                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                                    '&:hover': {
+                                      bgcolor: '#5568d3',
+                                      transform: 'scale(1.05)',
+                                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                                    }
+                                  } : {
+                                    borderColor: '#667eea',
+                                    color: '#667eea',
+                                    borderWidth: 2,
+                                    '&:hover': {
+                                      borderColor: '#667eea',
+                                      borderWidth: 2,
+                                      background: 'rgba(102, 126, 234, 0.05)',
+                                      transform: 'scale(1.05)',
+                                    }
+                                  })
                                 }}
                               >
                                 <AccessTime sx={{ fontSize: 18, mr: 0.5 }} />
@@ -752,6 +818,18 @@ export const AppointmentBooking = () => {
             startIcon={<ArrowBack />}
             onClick={handleBack}
             size="large"
+            sx={{
+              minHeight: 44,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderWidth: 2,
+              fontWeight: 700,
+              '&:hover': {
+                borderColor: '#667eea',
+                borderWidth: 2,
+                background: 'rgba(102, 126, 234, 0.05)'
+              }
+            }}
           >
             Back
           </Button>
@@ -761,7 +839,20 @@ export const AppointmentBooking = () => {
             onClick={handleNext}
             disabled={!selectedDoctor || !watchedDate || !watchedTime}
             size="large"
-            sx={{ flex: 1 }}
+            sx={{
+              flex: 1,
+              minHeight: 44,
+              bgcolor: '#667eea',
+              fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                bgcolor: '#5568d3',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+              },
+              '&:disabled': {
+                bgcolor: 'rgba(102, 126, 234, 0.3)'
+              }
+            }}
           >
             Continue to Review
           </Button>
@@ -775,7 +866,7 @@ export const AppointmentBooking = () => {
     <Fade in timeout={500}>
       <Box>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+          <CheckCircle sx={{ fontSize: 64, color: '#10b981', mb: 2 }} />
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
             Review Your Appointment
           </Typography>
@@ -784,7 +875,13 @@ export const AppointmentBooking = () => {
           </Typography>
         </Box>
 
-        <Paper elevation={0} sx={{ p: 4, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+        <Paper elevation={0} sx={{
+          p: 4,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          borderRadius: 2
+        }}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <Typography variant="overline" color="text.secondary">
@@ -821,7 +918,7 @@ export const AppointmentBooking = () => {
                   Office Location
                 </Typography>
                 <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocationOn color="primary" />
+                  <LocationOn sx={{ color: '#667eea' }} />
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {selectedOffice.name}
@@ -839,7 +936,7 @@ export const AppointmentBooking = () => {
                 Appointment Date
               </Typography>
               <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CalendarToday color="primary" />
+                <CalendarToday sx={{ color: '#667eea' }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   {watchedDate ? new Date(watchedDate).toLocaleDateString('en-US', {
                     weekday: 'long',
@@ -856,7 +953,7 @@ export const AppointmentBooking = () => {
                 Appointment Time
               </Typography>
               <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AccessTime color="primary" />
+                <AccessTime sx={{ color: '#667eea' }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   {watchedTime || 'N/A'}
                 </Typography>
@@ -900,6 +997,22 @@ export const AppointmentBooking = () => {
             onClick={handleBack}
             size="large"
             disabled={creating}
+            sx={{
+              minHeight: 44,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderWidth: 2,
+              fontWeight: 700,
+              '&:hover': {
+                borderColor: '#667eea',
+                borderWidth: 2,
+                background: 'rgba(102, 126, 234, 0.05)'
+              },
+              '&:disabled': {
+                borderColor: 'rgba(102, 126, 234, 0.3)',
+                color: 'rgba(102, 126, 234, 0.3)'
+              }
+            }}
           >
             Back
           </Button>
@@ -909,9 +1022,22 @@ export const AppointmentBooking = () => {
             onClick={handleSubmit(onSubmit)}
             disabled={creating}
             size="large"
-            sx={{ flex: 1 }}
+            sx={{
+              flex: 1,
+              minHeight: 44,
+              bgcolor: '#10b981',
+              fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+              '&:hover': {
+                bgcolor: '#059669',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)'
+              },
+              '&:disabled': {
+                bgcolor: 'rgba(16, 185, 129, 0.3)'
+              }
+            }}
           >
-            {creating ? <CircularProgress size={24} /> : 'Confirm Appointment'}
+            {creating ? <CircularProgress size={24} sx={{ color: 'white' }} /> : 'Confirm Appointment'}
           </Button>
         </Box>
       </Box>
@@ -935,17 +1061,64 @@ export const AppointmentBooking = () => {
     <Container maxWidth="lg" disableGutters sx={{ mx: 'auto' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Book New Appointment
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              bgcolor: '#667eea',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+            }}
+          >
+            <EventIcon sx={{ fontSize: 24, color: 'white' }} />
+          </Box>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+              color: '#667eea',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Book New Appointment
+          </Typography>
+        </Box>
         <Typography variant="body1" color="text.secondary">
           Schedule appointments in three simple steps
         </Typography>
       </Box>
 
       {/* Stepper */}
-      <Paper elevation={0} sx={{ p: 3, mb: 4, border: '1px solid', borderColor: 'divider' }}>
-        <Stepper activeStep={activeStep}>
+      <Paper elevation={0} sx={{
+        p: 3,
+        mb: 4,
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(102, 126, 234, 0.15)',
+        borderRadius: 2
+      }}>
+        <Stepper
+          activeStep={activeStep}
+          sx={{
+            '& .MuiStepLabel-root .Mui-completed': {
+              color: '#10b981',
+            },
+            '& .MuiStepLabel-root .Mui-active': {
+              color: '#667eea',
+            },
+            '& .MuiStepIcon-root.Mui-active': {
+              color: '#667eea',
+            },
+            '& .MuiStepIcon-root.Mui-completed': {
+              color: '#10b981',
+            }
+          }}
+        >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -958,7 +1131,13 @@ export const AppointmentBooking = () => {
       {renderPatientHeader()}
 
       {/* Step Content */}
-      <Paper elevation={0} sx={{ p: { xs: 3, sm: 4, md: 5 }, border: '1px solid', borderColor: 'divider' }}>
+      <Paper elevation={0} sx={{
+        p: { xs: 3, sm: 4, md: 5 },
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(102, 126, 234, 0.15)',
+        borderRadius: 2
+      }}>
         {renderStep()}
       </Paper>
     </Container>

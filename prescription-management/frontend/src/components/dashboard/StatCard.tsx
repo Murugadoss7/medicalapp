@@ -1,3 +1,9 @@
+/**
+ * Stat Card Component - Medical Futurism Design
+ * Enhanced with glassmorphism, gradients, and smooth animations
+ * iPad-friendly responsive sizing
+ */
+
 import { Box, Typography, Skeleton } from '@mui/material';
 import type { ReactNode } from 'react';
 
@@ -11,43 +17,49 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-// Color mappings with gradient backgrounds
+// Enhanced color mappings with Medical Futurism gradients
 const colorStyles = {
   primary: {
-    gradient: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-    iconBg: 'rgba(25, 118, 210, 0.12)',
-    iconColor: '#1976d2',
-    valueColor: '#1976d2',
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    iconBg: 'rgba(102, 126, 234, 0.15)',
+    iconColor: '#667eea',
+    valueColor: '#667eea',
+    glow: 'rgba(102, 126, 234, 0.25)',
   },
   secondary: {
-    gradient: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)',
-    iconBg: 'rgba(156, 39, 176, 0.12)',
-    iconColor: '#9c27b0',
-    valueColor: '#9c27b0',
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    iconBg: 'rgba(240, 147, 251, 0.15)',
+    iconColor: '#f093fb',
+    valueColor: '#f093fb',
+    glow: 'rgba(240, 147, 251, 0.25)',
   },
   success: {
-    gradient: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
-    iconBg: 'rgba(46, 125, 50, 0.12)',
-    iconColor: '#2e7d32',
-    valueColor: '#2e7d32',
+    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    iconBg: 'rgba(16, 185, 129, 0.15)',
+    iconColor: '#10b981',
+    valueColor: '#10b981',
+    glow: 'rgba(16, 185, 129, 0.25)',
   },
   warning: {
-    gradient: 'linear-gradient(135deg, #ed6c02 0%, #e65100 100%)',
-    iconBg: 'rgba(237, 108, 2, 0.12)',
-    iconColor: '#ed6c02',
-    valueColor: '#ed6c02',
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    iconBg: 'rgba(245, 158, 11, 0.15)',
+    iconColor: '#f59e0b',
+    valueColor: '#f59e0b',
+    glow: 'rgba(245, 158, 11, 0.25)',
   },
   error: {
-    gradient: 'linear-gradient(135deg, #d32f2f 0%, #c62828 100%)',
-    iconBg: 'rgba(211, 47, 47, 0.12)',
-    iconColor: '#d32f2f',
-    valueColor: '#d32f2f',
+    gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+    iconBg: 'rgba(239, 68, 68, 0.15)',
+    iconColor: '#ef4444',
+    valueColor: '#ef4444',
+    glow: 'rgba(239, 68, 68, 0.25)',
   },
   info: {
-    gradient: 'linear-gradient(135deg, #0288d1 0%, #01579b 100%)',
-    iconBg: 'rgba(2, 136, 209, 0.12)',
-    iconColor: '#0288d1',
-    valueColor: '#0288d1',
+    gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    iconBg: 'rgba(59, 130, 246, 0.15)',
+    iconColor: '#3b82f6',
+    valueColor: '#3b82f6',
+    glow: 'rgba(59, 130, 246, 0.25)',
   },
 };
 
@@ -58,7 +70,7 @@ export const StatCard = ({
   loading = false,
   color = 'primary',
   subtitle,
-  onClick
+  onClick,
 }: StatCardProps) => {
   const styles = colorStyles[color];
 
@@ -66,15 +78,16 @@ export const StatCard = ({
     return (
       <Box
         sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          p: 2.5,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+          borderRadius: 4,
+          p: 3,
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
         }}
       >
-        <Skeleton variant="circular" width={44} height={44} sx={{ mb: 2 }} />
-        <Skeleton variant="text" width="50%" height={36} />
-        <Skeleton variant="text" width="70%" height={20} />
+        <Skeleton variant="circular" width={56} height={56} sx={{ mb: 2 }} />
+        <Skeleton variant="text" width="60%" height={36} />
+        <Skeleton variant="text" width="80%" height={20} />
       </Box>
     );
   }
@@ -83,32 +96,43 @@ export const StatCard = ({
     <Box
       onClick={onClick}
       sx={{
-        bgcolor: 'white',
-        borderRadius: 2,
-        p: { xs: 1.5, sm: 2, md: 2.5 },
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: 4,
+        p: { xs: 2, sm: 2.5, md: 2, lg: 3 }, // Compact on iPad, spacious on desktop
         height: '100%',
-        minHeight: { xs: 110, sm: 120, md: 140 },
+        minHeight: { xs: 140, sm: 160, md: 120, lg: 160 }, // Shorter on iPad
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
-        border: '1px solid rgba(0,0,0,0.04)',
+        boxShadow: `0 4px 20px ${styles.glow}`,
+        border: '1px solid rgba(102, 126, 234, 0.15)',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': onClick ? {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 8px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06)',
-        } : {},
-        // Subtle accent bar at top
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        '&:hover': onClick
+          ? {
+              transform: 'translateY(-4px)',
+              boxShadow: `0 8px 32px ${styles.glow}`,
+              '&::before': {
+                opacity: 1,
+              },
+            }
+          : {
+              transform: 'translateY(-2px)',
+              boxShadow: `0 6px 24px ${styles.glow}`,
+            },
+        // Gradient top border
         '&::before': {
           content: '""',
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
-          height: 3,
+          height: '4px',
           background: styles.gradient,
+          opacity: 0.8,
+          transition: 'opacity 0.3s',
         },
       }}
     >
@@ -116,17 +140,18 @@ export const StatCard = ({
       {icon && (
         <Box
           sx={{
-            width: { xs: 36, sm: 40, md: 44 },
-            height: { xs: 36, sm: 40, md: 44 },
-            borderRadius: 1.5,
-            bgcolor: styles.iconBg,
+            width: { xs: 48, sm: 52, md: 44, lg: 56 }, // Smaller on iPad
+            height: { xs: 48, sm: 52, md: 44, lg: 56 },
+            borderRadius: 3,
+            background: styles.iconBg,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: styles.iconColor,
-            mb: { xs: 1, sm: 1.5 },
+            mb: { xs: 1.5, sm: 2, md: 1.25, lg: 2 }, // Less margin on iPad
+            boxShadow: `0 4px 12px ${styles.glow}`,
             '& svg': {
-              fontSize: { xs: 20, sm: 22, md: 24 },
+              fontSize: { xs: 24, sm: 26, md: 22, lg: 28 }, // Smaller icons on iPad
             },
           }}
         >
@@ -139,11 +164,11 @@ export const StatCard = ({
         variant="body2"
         sx={{
           color: 'text.secondary',
-          fontWeight: 500,
-          fontSize: { xs: '0.7rem', sm: '0.75rem', md: '0.8rem' },
+          fontWeight: 600,
+          fontSize: { xs: '0.75rem', sm: '0.8125rem' },
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
-          mb: 0.5,
+          mb: 0.75,
           lineHeight: 1.3,
         }}
       >
@@ -154,10 +179,13 @@ export const StatCard = ({
       <Typography
         variant="h3"
         sx={{
-          fontWeight: 700,
-          color: styles.valueColor,
+          fontWeight: 800,
+          background: styles.gradient,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
           lineHeight: 1.2,
-          fontSize: { xs: '1.75rem', sm: '2rem' },
+          fontSize: { xs: '2rem', sm: '2.25rem', md: '1.75rem', lg: '2.5rem' }, // Smaller on iPad
         }}
       >
         {value}
@@ -170,9 +198,10 @@ export const StatCard = ({
           sx={{
             color: 'text.secondary',
             mt: 'auto',
-            pt: 0.5,
-            fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
-            lineHeight: 1.3,
+            pt: 1,
+            fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+            lineHeight: 1.4,
+            fontWeight: 500,
           }}
         >
           {subtitle}

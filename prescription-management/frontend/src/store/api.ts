@@ -814,6 +814,15 @@ export const api = createApi({
       providesTags: ['DentalAttachment'],
     }),
 
+    updateAttachment: builder.mutation<any, { attachmentId: string; caption: string }>({
+      query: ({ attachmentId, caption }) => ({
+        url: `/dental/attachments/${attachmentId}`,
+        method: 'PUT',
+        body: { caption },
+      }),
+      invalidatesTags: ['DentalAttachment'],
+    }),
+
     deleteAttachment: builder.mutation<void, string>({
       query: (attachmentId) => ({
         url: `/dental/attachments/${attachmentId}`,
@@ -1476,5 +1485,6 @@ export const {
   // Dental Attachment hooks
   useUploadObservationAttachmentMutation,
   useGetObservationAttachmentsQuery,
+  useUpdateAttachmentMutation,
   useDeleteAttachmentMutation,
 } = api;

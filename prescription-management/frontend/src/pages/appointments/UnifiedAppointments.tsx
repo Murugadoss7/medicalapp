@@ -212,14 +212,34 @@ export const UnifiedAppointments = () => {
         gap={{ xs: 2, sm: 0 }}
         mb={3}
       >
-        <Typography
-          variant="h4"
-          component="h1"
-          fontWeight={600}
-          sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
-        >
-          {isAdmin ? 'Appointment Management' : 'My Appointments'}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              bgcolor: '#667eea',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+            }}
+          >
+            <CalendarToday sx={{ fontSize: 24, color: 'white' }} />
+          </Box>
+          <Typography
+            variant="h5"
+            component="h1"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+              color: '#667eea',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {isAdmin ? 'Appointment Management' : 'My Appointments'}
+          </Typography>
+        </Box>
 
         <Box display="flex" gap={{ xs: 1, sm: 2 }} alignItems="center" flexWrap="wrap">
           <Button
@@ -227,7 +247,19 @@ export const UnifiedAppointments = () => {
             onClick={handleRefresh}
             variant="outlined"
             size="medium"
-            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              minHeight: 44,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderWidth: 2,
+              fontWeight: 700,
+              '&:hover': {
+                borderColor: '#667eea',
+                borderWidth: 2,
+                background: 'rgba(102, 126, 234, 0.05)'
+              }
+            }}
           >
             Refresh
           </Button>
@@ -237,7 +269,17 @@ export const UnifiedAppointments = () => {
             variant="contained"
             size="medium"
             onClick={() => navigate('/appointments/book')}
-            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              minHeight: 44,
+              bgcolor: '#667eea',
+              fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                bgcolor: '#5568d3',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+              }
+            }}
           >
             New Appointment
           </Button>
@@ -246,7 +288,14 @@ export const UnifiedAppointments = () => {
 
       {/* Doctor Selector (for admin/receptionist) */}
       {isAdmin && (
-        <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        <Paper sx={{
+          p: { xs: 2, sm: 3 },
+          mb: 3,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          borderRadius: 2
+        }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
             Select Doctor to View Appointments
           </Typography>
@@ -307,11 +356,17 @@ export const UnifiedAppointments = () => {
 
             {/* Selected Doctor Info */}
             {selectedDoctor && (
-              <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1, minWidth: { xs: '100%', md: 250 } }}>
-                <Typography variant="body2" color="text.secondary">
+              <Box sx={{
+                p: 1.5,
+                background: 'rgba(102, 126, 234, 0.08)',
+                border: '1px solid rgba(102, 126, 234, 0.2)',
+                borderRadius: 1.5,
+                minWidth: { xs: '100%', md: 250 }
+              }}>
+                <Typography variant="body2" color="text.secondary" fontWeight={600}>
                   Selected Doctor
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={600}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#667eea' }}>
                   Dr. {selectedDoctor.first_name} {selectedDoctor.last_name}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -334,7 +389,11 @@ export const UnifiedAppointments = () => {
       {selectedDoctorId && (
         <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3 }}>
           <Grid item xs={6} sm={6} md={3}>
-            <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Card sx={{
+              background: '#667eea',
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }}>
               <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
@@ -348,8 +407,8 @@ export const UnifiedAppointments = () => {
                     </Typography>
                     <Typography
                       variant="body2"
-                      color="rgba(255,255,255,0.9)"
-                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      color="rgba(255,255,255,0.95)"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, fontWeight: 600 }}
                     >
                       Today's Appointments
                     </Typography>
@@ -367,7 +426,11 @@ export const UnifiedAppointments = () => {
           </Grid>
 
           <Grid item xs={6} sm={6} md={3}>
-            <Card sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <Card sx={{
+              background: '#f59e0b',
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+            }}>
               <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
@@ -381,8 +444,8 @@ export const UnifiedAppointments = () => {
                     </Typography>
                     <Typography
                       variant="body2"
-                      color="rgba(255,255,255,0.9)"
-                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      color="rgba(255,255,255,0.95)"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, fontWeight: 600 }}
                     >
                       Upcoming (7 days)
                     </Typography>
@@ -400,7 +463,11 @@ export const UnifiedAppointments = () => {
           </Grid>
 
           <Grid item xs={6} sm={6} md={3}>
-            <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <Card sx={{
+              background: '#10b981',
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+            }}>
               <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
@@ -414,8 +481,8 @@ export const UnifiedAppointments = () => {
                     </Typography>
                     <Typography
                       variant="body2"
-                      color="rgba(255,255,255,0.9)"
-                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      color="rgba(255,255,255,0.95)"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, fontWeight: 600 }}
                     >
                       Completed
                     </Typography>
@@ -433,7 +500,11 @@ export const UnifiedAppointments = () => {
           </Grid>
 
           <Grid item xs={6} sm={6} md={3}>
-            <Card sx={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
+            <Card sx={{
+              background: '#ef4444',
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+            }}>
               <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
@@ -447,8 +518,8 @@ export const UnifiedAppointments = () => {
                     </Typography>
                     <Typography
                       variant="body2"
-                      color="rgba(255,255,255,0.9)"
-                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      color="rgba(255,255,255,0.95)"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, fontWeight: 600 }}
                     >
                       Cancelled
                     </Typography>
@@ -469,7 +540,14 @@ export const UnifiedAppointments = () => {
 
       {/* Filters and View Toggles */}
       {selectedDoctorId && (
-        <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
+        <Paper sx={{
+          p: { xs: 1.5, sm: 2 },
+          mb: 3,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          borderRadius: 2
+        }}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={{ xs: 1.5, sm: 2 }}

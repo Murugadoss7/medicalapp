@@ -13,6 +13,7 @@ from fastapi import HTTPException, status, UploadFile
 import os
 
 from app.models.dental import DentalAttachment, DentalObservation, DentalProcedure
+from app.models.appointment import Appointment
 from app.schemas.dental_attachments import (
     DentalAttachmentCreate,
     DentalAttachmentUpdate,
@@ -195,16 +196,32 @@ class AttachmentService:
             )
 
         # Get patient info from procedure's observation or appointment
-        observation = None
+        patient_mobile = None
+        patient_first_name = None
+
+        # Try to get patient info from observation first
         if procedure.observation_id:
             observation = self.db.query(DentalObservation).filter(
                 DentalObservation.id == procedure.observation_id
             ).first()
+            if observation:
+                patient_mobile = observation.patient_mobile_number
+                patient_first_name = observation.patient_first_name
 
-        if not observation:
+        # If no observation, get from appointment
+        if not patient_mobile and procedure.appointment_id:
+            appointment = self.db.query(Appointment).filter(
+                Appointment.id == procedure.appointment_id
+            ).first()
+            if appointment:
+                patient_mobile = appointment.patient_mobile_number
+                patient_first_name = appointment.patient_first_name
+
+        # If still no patient info, raise error
+        if not patient_mobile or not patient_first_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot upload attachment: procedure has no associated observation with patient info"
+                detail="Cannot upload attachment: procedure has no associated patient info"
             )
 
         # Validate file
@@ -212,8 +229,8 @@ class AttachmentService:
 
         # Generate storage path
         file_path = self.generate_file_path(
-            observation.patient_mobile_number,
-            observation.patient_first_name,
+            patient_mobile,
+            patient_first_name,
             file_type,
             file.filename
         )
@@ -235,8 +252,8 @@ class AttachmentService:
         # Create attachment record
         attachment = DentalAttachment(
             procedure_id=procedure_id,
-            patient_mobile_number=observation.patient_mobile_number,
-            patient_first_name=observation.patient_first_name,
+            patient_mobile_number=patient_mobile,
+            patient_first_name=patient_first_name,
             file_type=file_type,
             file_name=file.filename,
             file_path=file_url,

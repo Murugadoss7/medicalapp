@@ -20,6 +20,8 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Fade,
+  Avatar,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -30,8 +32,11 @@ import {
   Edit as EditIcon,
   Add as AddIcon,
   CalendarToday as AgeIcon,
+  Group as FamilyIcon,
+  Wc as GenderIcon,
 } from '@mui/icons-material';
 import { useGetFamilyMembersQuery } from '../../store/api';
+import theme from '../../theme/medicalFuturismTheme';
 
 export const FamilyView = () => {
   const { mobileNumber } = useParams<{ mobileNumber: string }>();
@@ -105,167 +110,272 @@ export const FamilyView = () => {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Button
-            startIcon={<BackIcon />}
-            onClick={() => navigate('/patients')}
-          >
-            Back to Patients
-          </Button>
-          <Typography variant="h4" component="h1">
-            Family Details
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate(`/patients/register?mobile=${mobileNumber}&mode=add_family`)}
-        >
-          Add Family Member
-        </Button>
-      </Box>
+    <Box
+      sx={{
+        ...theme.layouts.pageContainer,
+        py: 2,
+      }}
+    >
+      {/* Floating Gradient Orb */}
+      <Box sx={theme.layouts.floatingOrb} />
 
-      {familyData && (
-        <>
-          {/* Primary Member Details */}
-          {familyData.primary_member && (
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PersonIcon color="primary" />
-                Primary Member Details
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {familyData.primary_member.full_name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <PhoneIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
+      {/* Content Container */}
+      <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 1.5, sm: 2 } }}>
+        {/* Header */}
+        <Fade in timeout={600}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Button
+                startIcon={<BackIcon />}
+                onClick={() => navigate('/patients')}
+                sx={{
+                  ...theme.components.outlinedButton,
+                  minHeight: 40,
+                  px: 2,
+                }}
+              >
+                Back
+              </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: theme.colors.primary.gradient,
+                    color: 'white',
+                    mr: 1.5,
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  }}
+                >
+                  <FamilyIcon sx={{ fontSize: 22 }} />
+                </Box>
+                <Typography sx={{ ...theme.typography.pageTitle }}>
+                  Family Details
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`/patients/register?mobile=${mobileNumber}&mode=add_family`)}
+              sx={{
+                ...theme.components.primaryButton,
+              }}
+            >
+              Add Family Member
+            </Button>
+          </Box>
+        </Fade>
+
+        {familyData && (
+          <>
+            {/* Primary Member Details */}
+            {familyData.primary_member && (
+              <Fade in timeout={800}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    ...theme.components.glassPaper,
+                    p: { xs: 1.5, sm: 2 },
+                    mb: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        background: theme.colors.primary.gradient,
+                        color: 'white',
+                        mr: 1.5,
+                      }}
+                    >
+                      <PersonIcon sx={{ fontSize: 18 }} />
+                    </Box>
+                    <Typography sx={{ ...theme.typography.sectionTitle }}>
+                      Primary Member
+                    </Typography>
+                  </Box>
+
+                  <Card
+                    sx={{
+                      ...theme.components.glassPaper,
+                      p: { xs: 1.5, sm: 2 },
+                      border: `1px solid ${theme.colors.primary.border}`,
+                    }}
+                  >
+                    <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Avatar
+                          sx={{
+                            ...theme.components.avatar,
+                            mr: 1.5,
+                          }}
+                        >
+                          {familyData.primary_member.full_name.charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography sx={{ ...theme.typography.cardTitle, fontSize: '0.9375rem' }}>
+                            {familyData.primary_member.full_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
                             {familyData.primary_member.mobile_number}
+                            {familyData.primary_member.email && ` • ${familyData.primary_member.email}`}
                           </Typography>
                         </Box>
-                        {familyData.primary_member.email && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <EmailIcon fontSize="small" color="action" />
-                            <Typography variant="body2">
-                              {familyData.primary_member.email}
-                            </Typography>
-                          </Box>
-                        )}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <AgeIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {formatAge(familyData.primary_member.date_of_birth)} years old
-                          </Typography>
-                        </Box>
-                        {familyData.primary_member.address && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <AddressIcon fontSize="small" color="action" />
-                            <Typography variant="body2">
-                              {familyData.primary_member.address}
-                            </Typography>
-                          </Box>
-                        )}
                       </Box>
-                      <Box sx={{ mt: 2 }}>
+
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                        {formatAge(familyData.primary_member.date_of_birth)} years • {familyData.primary_member.gender}
+                        {familyData.primary_member.address && ` • ${familyData.primary_member.address}`}
+                      </Typography>
+
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
                         <Chip
                           label={familyData.primary_member.relationship_to_primary}
                           size="small"
-                          color="primary"
-                          sx={{ textTransform: 'capitalize', mr: 1 }}
+                          sx={{
+                            ...theme.components.chip,
+                            height: 24,
+                          }}
                         />
                         <Chip
                           label={familyData.primary_member.gender}
                           size="small"
-                          variant="outlined"
-                          sx={{ textTransform: 'capitalize' }}
+                          sx={{
+                            textTransform: 'capitalize',
+                            fontWeight: 600,
+                            fontSize: '0.6875rem',
+                            height: 24,
+                            background: theme.colors.primary.light,
+                            color: theme.colors.primary.main,
+                            border: `1px solid ${theme.colors.primary.border}`,
+                          }}
                         />
                       </Box>
                     </CardContent>
                   </Card>
-                </Grid>
-              </Grid>
-            </Paper>
-          )}
-
-          {/* Family Members */}
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Family Members ({familyData.family_members.filter(m => m.relationship_to_primary !== 'self').length} additional members)
-              </Typography>
-            </Box>
-
-            {familyData.family_members.filter(m => m.relationship_to_primary !== 'self').length > 0 ? (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Age</TableCell>
-                      <TableCell>Gender</TableCell>
-                      <TableCell>Relationship</TableCell>
-                      <TableCell>Contact</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {familyData.family_members
-                      .filter(member => member.relationship_to_primary !== 'self') // Exclude primary member
-                      .map((member) => (
-                        <TableRow key={`${member.mobile_number}-${member.first_name}`}>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body1" fontWeight="medium">
-                              {member.full_name}
-                            </Typography>
-                            {member.email && (
-                              <Typography variant="body2" color="text.secondary">
-                                {member.email}
-                              </Typography>
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell>{formatAge(member.date_of_birth)} years</TableCell>
-                        <TableCell sx={{ textTransform: 'capitalize' }}>{member.gender}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={member.relationship_to_primary}
-                            size="small"
-                            color={getRelationshipColor(member.relationship_to_primary) as any}
-                            sx={{ textTransform: 'capitalize' }}
-                          />
-                        </TableCell>
-                        <TableCell>{member.mobile_number}</TableCell>
-                        <TableCell>
-                          <Tooltip title="Edit Member">
-                            <IconButton 
-                              size="small"
-                              onClick={() => navigate(`/patients/register?edit=true&mobile=${member.mobile_number}&firstName=${member.first_name}&mode=family`)}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Alert severity="info">
-                No additional family members found. This patient is the only member in this family.
-              </Alert>
+                </Paper>
+              </Fade>
             )}
-          </Paper>
-        </>
-      )}
+
+            {/* Family Members */}
+            <Fade in timeout={1000}>
+              <Paper
+                elevation={0}
+                sx={{
+                  ...theme.components.glassPaper,
+                  p: { xs: 1.5, sm: 2 },
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography sx={{ ...theme.typography.sectionTitle }}>
+                    Family Members ({familyData.family_members.filter(m => m.relationship_to_primary !== 'self').length})
+                  </Typography>
+                </Box>
+
+                {familyData.family_members.filter(m => m.relationship_to_primary !== 'self').length > 0 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {familyData.family_members
+                      .filter(member => member.relationship_to_primary !== 'self')
+                      .map((member, index) => (
+                        <Fade key={`${member.mobile_number}-${member.first_name}`} in timeout={1200 + index * 100}>
+                          <Card
+                            sx={{
+                              ...theme.components.glassPaper,
+                              p: { xs: 1.5, sm: 2 },
+                              border: `1px solid ${theme.colors.primary.border}`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
+                                borderColor: theme.colors.primary.main,
+                              },
+                            }}
+                          >
+                            <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                {/* Member Info */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                  <Avatar
+                                    sx={{
+                                      ...theme.components.avatar,
+                                      width: { xs: 36, sm: 40 },
+                                      height: { xs: 36, sm: 40 },
+                                      mr: 1.5,
+                                    }}
+                                  >
+                                    {member.full_name.charAt(0)}
+                                  </Avatar>
+                                  <Box sx={{ flex: 1 }}>
+                                    <Typography sx={{ ...theme.typography.cardTitle }}>
+                                      {member.full_name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {formatAge(member.date_of_birth)} years • {member.gender} • {member.mobile_number}
+                                      {member.email && ` • ${member.email}`}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+
+                                {/* Relationship Chip & Actions */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Chip
+                                    label={member.relationship_to_primary}
+                                    size="small"
+                                    sx={{
+                                      ...theme.components.chip,
+                                      height: 24,
+                                    }}
+                                  />
+                                  <IconButton
+                                    onClick={() => navigate(`/patients/register?edit=true&mobile=${member.mobile_number}&firstName=${member.first_name}&mode=family`)}
+                                    sx={{
+                                      minWidth: 40,
+                                      minHeight: 40,
+                                      background: theme.colors.primary.light,
+                                      color: theme.colors.primary.main,
+                                      '&:hover': {
+                                        background: theme.colors.primary.border,
+                                        transform: 'scale(1.05)',
+                                      },
+                                    }}
+                                  >
+                                    <EditIcon sx={{ fontSize: 18 }} />
+                                  </IconButton>
+                                </Box>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Fade>
+                      ))}
+                  </Box>
+                ) : (
+                  <Alert
+                    severity="info"
+                    sx={{
+                      borderRadius: 2,
+                      border: `1px solid ${theme.colors.primary.border}`,
+                      background: theme.colors.primary.light,
+                    }}
+                  >
+                    <Typography variant="caption">
+                      No additional family members found. This patient is the only member in this family.
+                    </Typography>
+                  </Alert>
+                )}
+              </Paper>
+            </Fade>
+          </>
+        )}
+      </Box>
     </Box>
   );
 };

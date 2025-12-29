@@ -25,6 +25,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  IconButton,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -213,116 +214,204 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
     // Determine if actions should be shown (not for completed/cancelled)
     const showActions = proc.status !== 'completed' && proc.status !== 'cancelled';
 
+    // Status color mapping
+    const statusColors = {
+      completed: { bg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', text: '#fff' },
+      cancelled: { bg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', text: '#fff' },
+      planned: { bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', text: '#fff' },
+    };
+    const statusStyle = statusColors[proc.status as keyof typeof statusColors] || statusColors.planned;
+
     return (
-      <Card key={proc.id} sx={{ mb: 2, minHeight: 60 }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          {/* Procedure Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                {proc.procedure_name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Code: {proc.procedure_code}
-                {proc.tooth_numbers && ` • Tooth #${proc.tooth_numbers}`}
-              </Typography>
+      <Card
+        key={proc.id}
+        sx={{
+          mb: 1,
+          borderRadius: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 1px 8px rgba(102, 126, 234, 0.1)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
+          },
+        }}
+      >
+        <CardContent sx={{ p: { xs: 1.25, sm: 1.5 }, '&:last-child': { pb: { xs: 1.25, sm: 1.5 } } }}>
+          {/* Row 1: Name + Action Buttons + Status (INLINE) */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, gap: 1, flexWrap: 'wrap' }}>
+            {/* Left: Procedure Name */}
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                lineHeight: 1.3,
+                flex: { xs: '1 1 100%', sm: '0 1 auto' },
+              }}
+            >
+              {proc.procedure_name}
+            </Typography>
+
+            {/* Right: Action Buttons (Compact Text Buttons) + Status */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+              {showActions && (
+                <>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => handleCompleteClick(proc)}
+                    sx={{
+                      minHeight: 28,
+                      px: 1,
+                      py: 0.5,
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: 1.5,
+                      boxShadow: '0 1px 4px rgba(16, 185, 129, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                      },
+                    }}
+                  >
+                    Complete
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<CancelIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => handleCancelClick(proc)}
+                    sx={{
+                      minHeight: 28,
+                      px: 1,
+                      py: 0.5,
+                      borderColor: '#ef4444',
+                      color: '#ef4444',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: 1.5,
+                      '&:hover': {
+                        borderColor: '#dc2626',
+                        background: 'rgba(239, 68, 68, 0.05)',
+                      },
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ScheduleIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => handleRescheduleClick(proc)}
+                    sx={{
+                      minHeight: 28,
+                      px: 1,
+                      py: 0.5,
+                      borderColor: '#667eea',
+                      color: '#667eea',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: 1.5,
+                      '&:hover': {
+                        borderColor: '#5568d3',
+                        background: 'rgba(102, 126, 234, 0.05)',
+                      },
+                    }}
+                  >
+                    Reschedule
+                  </Button>
+                </>
+              )}
+              {/* Only show status chip for completed/cancelled, not for planned */}
+              {proc.status !== 'planned' && (
+                <Chip
+                  label={proc.status}
+                  size="small"
+                  sx={{
+                    textTransform: 'capitalize',
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    height: 24,
+                    background: statusStyle.bg,
+                    color: statusStyle.text,
+                    border: 'none',
+                  }}
+                />
+              )}
             </Box>
-            <Chip
-              label={proc.status}
-              color={
-                proc.status === 'completed'
-                  ? 'success'
-                  : proc.status === 'cancelled'
-                  ? 'error'
-                  : 'warning'
-              }
-              size="small"
-              sx={{ textTransform: 'capitalize' }}
-            />
           </Box>
 
-          {/* Description */}
+          {/* Row 2: Code + Tooth + Duration + Date + Cost (ALL INLINE) */}
+          <Box sx={{ display: 'flex', gap: 1, mb: proc.description || proc.procedure_notes ? 0.5 : 0, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+              {proc.procedure_code}
+            </Typography>
+            {proc.tooth_numbers && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • Tooth #{proc.tooth_numbers}
+              </Typography>
+            )}
+            {proc.duration_minutes && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • {proc.duration_minutes}min
+              </Typography>
+            )}
+            {proc.procedure_date && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • 📅 {new Date(proc.procedure_date).toLocaleDateString()}
+              </Typography>
+            )}
+            {proc.completed_date && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • ✅ {new Date(proc.completed_date).toLocaleDateString()}
+              </Typography>
+            )}
+            {proc.estimated_cost && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • ${proc.estimated_cost.toFixed(2)}
+              </Typography>
+            )}
+            {proc.actual_cost && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
+                • ${proc.actual_cost.toFixed(2)}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Row 3: Description (if exists) */}
           {proc.description && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.75rem',
+                lineHeight: 1.3,
+                display: 'block',
+                mb: proc.procedure_notes ? 0.25 : 0,
+              }}
+            >
               {proc.description}
             </Typography>
           )}
 
-          {/* Procedure Details */}
-          <Stack direction="row" spacing={2} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
-            {proc.procedure_date && (
-              <Typography variant="caption" color="text.secondary">
-                Date: {new Date(proc.procedure_date).toLocaleDateString()}
-              </Typography>
-            )}
-            {proc.completed_date && (
-              <Typography variant="caption" color="text.secondary">
-                Completed: {new Date(proc.completed_date).toLocaleDateString()}
-              </Typography>
-            )}
-            {proc.duration_minutes && (
-              <Typography variant="caption" color="text.secondary">
-                Duration: {proc.duration_minutes} min
-              </Typography>
-            )}
-          </Stack>
-
-          {/* Cost */}
-          {(proc.estimated_cost || proc.actual_cost) && (
-            <Box sx={{ mt: 1 }}>
-              {proc.estimated_cost && (
-                <Typography variant="caption" color="text.secondary">
-                  Estimated: ${proc.estimated_cost.toFixed(2)}
-                </Typography>
-              )}
-              {proc.actual_cost && (
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-                  Actual: ${proc.actual_cost.toFixed(2)}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {/* Notes */}
+          {/* Row 4: Notes (if exists) */}
           {proc.procedure_notes && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}>
-              Notes: {proc.procedure_notes}
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.75rem',
+                fontStyle: 'italic',
+                display: 'block',
+              }}
+            >
+              📝 {proc.procedure_notes}
             </Typography>
-          )}
-
-          {/* Action Buttons */}
-          {showActions && (
-            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Button
-                size="small"
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircleIcon />}
-                onClick={() => handleCompleteClick(proc)}
-                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-              >
-                Complete
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<CancelIcon />}
-                onClick={() => handleCancelClick(proc)}
-                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<ScheduleIcon />}
-                onClick={() => handleRescheduleClick(proc)}
-                sx={{ minHeight: 44, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
-              >
-                Reschedule
-              </Button>
-            </Box>
           )}
         </CardContent>
       </Card>
@@ -330,90 +419,202 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
   };
 
   return (
-    <Stack spacing={2}>
-      {/* Add Procedure Button */}
-      <Button
-        variant="contained"
-        startIcon={<AddIcon />}
-        onClick={handleAddProcedureClick}
-        sx={{ minHeight: 44 }}
-      >
-        Add New Procedure
-      </Button>
-
-      {/* Upcoming Procedures */}
+    <Stack spacing={1.5}>
+      {/* Upcoming Procedures - Compact & Themed with Add Button */}
       <Accordion
         expanded={expanded === 'upcoming'}
         onChange={handleAccordionChange('upcoming')}
-        sx={{ minHeight: 60 }} // iPad-friendly
+        sx={{
+          borderRadius: 2,
+          '&:before': { display: 'none' },
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.08)',
+        }}
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
-          sx={{ minHeight: 60 }}
+          sx={{
+            minHeight: 48,
+            '& .MuiAccordionSummary-content': { my: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+          }}
         >
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            Upcoming
-            <Chip label={procedures.upcoming.length} size="small" color="warning" />
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.9375rem',
+              }}
+            >
+              Planned
+            </Typography>
+            <Chip
+              label={procedures.upcoming.length}
+              size="small"
+              sx={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: 'white',
+                fontWeight: 700,
+                height: 22,
+                fontSize: '0.6875rem',
+              }}
+            />
+          </Box>
+          {/* Add Procedure Button - Right Side */}
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent accordion toggle
+              handleAddProcedureClick();
+            }}
+            sx={{
+              minHeight: 32,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+              },
+            }}
+          >
+            Add New
+          </Button>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={{ pt: 0 }}>
           {procedures.upcoming.length === 0 ? (
-            <Typography color="text.secondary">No upcoming procedures</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+              No upcoming procedures
+            </Typography>
           ) : (
             <Box>{procedures.upcoming.map(renderProcedureCard)}</Box>
           )}
         </AccordionDetails>
       </Accordion>
 
-      {/* Completed Procedures */}
+      {/* Completed Procedures - Compact & Themed */}
       <Accordion
         expanded={expanded === 'completed'}
         onChange={handleAccordionChange('completed')}
-        sx={{ minHeight: 60 }}
+        sx={{
+          borderRadius: 2,
+          '&:before': { display: 'none' },
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.08)',
+        }}
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
-          sx={{ minHeight: 60 }}
+          sx={{
+            minHeight: 48,
+            '& .MuiAccordionSummary-content': { my: 1 },
+          }}
         >
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              fontWeight: 700,
+              fontSize: '0.9375rem',
+            }}
+          >
             Completed
-            <Chip label={procedures.completed.length} size="small" color="success" />
+            <Chip
+              label={procedures.completed.length}
+              size="small"
+              sx={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                fontWeight: 700,
+                height: 22,
+                fontSize: '0.6875rem',
+              }}
+            />
           </Typography>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={{ pt: 0 }}>
           {procedures.completed.length === 0 ? (
-            <Typography color="text.secondary">No completed procedures</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+              No completed procedures
+            </Typography>
           ) : (
             <Box>{procedures.completed.map(renderProcedureCard)}</Box>
           )}
         </AccordionDetails>
       </Accordion>
 
-      {/* Cancelled Procedures */}
+      {/* Cancelled Procedures - Compact & Themed */}
       {procedures.cancelled.length > 0 && (
         <Accordion
           expanded={expanded === 'cancelled'}
           onChange={handleAccordionChange('cancelled')}
-          sx={{ minHeight: 60 }}
+          sx={{
+            borderRadius: 2,
+            '&:before': { display: 'none' },
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(102, 126, 234, 0.15)',
+            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.08)',
+          }}
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            sx={{ minHeight: 60 }}
+            sx={{
+              minHeight: 48,
+              '& .MuiAccordionSummary-content': { my: 1 },
+            }}
           >
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontWeight: 700,
+                fontSize: '0.9375rem',
+              }}
+            >
               Cancelled
-              <Chip label={procedures.cancelled.length} size="small" color="error" />
+              <Chip
+                label={procedures.cancelled.length}
+                size="small"
+                sx={{
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: 'white',
+                  fontWeight: 700,
+                  height: 22,
+                  fontSize: '0.6875rem',
+                }}
+              />
             </Typography>
           </AccordionSummary>
-          <AccordionDetails>
+          <AccordionDetails sx={{ pt: 0 }}>
             <Box>{procedures.cancelled.map(renderProcedureCard)}</Box>
           </AccordionDetails>
         </Accordion>
       )}
 
-      {/* Confirmation Dialog */}
-      <Dialog open={confirmDialogOpen} onClose={() => !actionLoading && setConfirmDialogOpen(false)}>
-        <DialogTitle>
+      {/* Confirmation Dialog - Themed */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => !actionLoading && setConfirmDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            border: '1px solid rgba(102, 126, 234, 0.2)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: '#667eea' }}>
           {confirmAction === 'complete' ? 'Complete Procedure?' : 'Cancel Procedure?'}
         </DialogTitle>
         <DialogContent>
@@ -431,7 +632,16 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
             onClick={() => setConfirmDialogOpen(false)}
             disabled={actionLoading}
             variant="outlined"
-            sx={{ minHeight: 44 }}
+            sx={{
+              minHeight: 40,
+              borderColor: '#667eea',
+              color: '#667eea',
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: '#5568d3',
+                background: 'rgba(102, 126, 234, 0.05)',
+              },
+            }}
           >
             No, Go Back
           </Button>
@@ -439,8 +649,18 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
             onClick={handleConfirmAction}
             disabled={actionLoading}
             variant="contained"
-            color={confirmAction === 'complete' ? 'success' : 'error'}
-            sx={{ minHeight: 44 }}
+            sx={{
+              minHeight: 40,
+              fontWeight: 600,
+              background: confirmAction === 'complete'
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              '&:hover': {
+                background: confirmAction === 'complete'
+                  ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                  : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+              },
+            }}
           >
             {actionLoading ? 'Processing...' : `Yes, ${confirmAction === 'complete' ? 'Complete' : 'Cancel'}`}
           </Button>

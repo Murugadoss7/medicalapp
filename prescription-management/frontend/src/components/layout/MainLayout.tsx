@@ -130,16 +130,24 @@ export const MainLayout = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <Box sx={{
+      display: 'flex',
+      height: '100vh',
+      height: '100dvh', // Dynamic viewport height for mobile
+      height: '-webkit-fill-available', // Safari fallback
+      overflow: 'hidden'
+    }}>
       <CssBaseline />
       
-      {/* App Bar */}
+      {/* App Bar - Medical Futurism Purple Gradient */}
       <AppBar
         position="fixed"
         sx={{
           width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
           ml: { sm: sidebarOpen ? `${drawerWidth}px` : 0 },
           transition: 'width 0.3s, margin-left 0.3s',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
         }}
       >
         <Toolbar>
@@ -270,9 +278,22 @@ export const MainLayout = () => {
           },
         }}
       >
-        <Toolbar>
-          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-            RX Manager
+        <Toolbar sx={{
+          borderBottom: '1px solid rgba(102, 126, 234, 0.15)',
+          mb: 1
+        }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '0.5px',
+            }}
+          >
+            Medical Portal
           </Typography>
         </Toolbar>
         <Divider />
@@ -315,9 +336,22 @@ export const MainLayout = () => {
           },
         }}
       >
-        <Toolbar>
-          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-            RX Manager
+        <Toolbar sx={{
+          borderBottom: '1px solid rgba(102, 126, 234, 0.15)',
+          mb: 1
+        }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '0.5px',
+            }}
+          >
+            Medical Portal
           </Typography>
         </Toolbar>
         <Divider />
@@ -353,7 +387,7 @@ export const MainLayout = () => {
           ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
           mr: rightSidebarWidth > 0 ? `${rightSidebarWidth}px` : 0,
           transition: 'margin-left 0.3s, margin-right 0.3s',
-          height: '100vh',
+          height: '100%', // Use 100% instead of 100vh to inherit from parent
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
