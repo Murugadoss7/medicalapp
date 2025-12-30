@@ -50,9 +50,10 @@ def get_current_doctor_id(current_user: User = Depends(get_current_active_user))
 @router.get("/patients")
 def get_patients_with_treatment_summary(
     doctor_id: Optional[str] = Query(None, description="Filter by doctor ID (admin only)"),
-    status: Optional[str] = Query(None, description="Filter by treatment status (active, completed, planned)"),
-    date_from: Optional[date] = Query(None, description="Filter appointments from date"),
-    date_to: Optional[date] = Query(None, description="Filter appointments to date"),
+    treatment_types: Optional[str] = Query(None, description="Comma-separated treatment types (appointments,procedures,observations)"),
+    statuses: Optional[str] = Query(None, description="Comma-separated statuses (scheduled,in_progress,completed,cancelled,planned)"),
+    date_from: Optional[date] = Query(None, description="Filter from date"),
+    date_to: Optional[date] = Query(None, description="Filter to date"),
     search: Optional[str] = Query(None, description="Search by patient name or mobile"),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -68,9 +69,10 @@ def get_patients_with_treatment_summary(
 
     **Query Parameters:**
     - `doctor_id`: Filter by specific doctor (admin only)
-    - `status`: Filter by treatment status (active, completed, planned)
-    - `date_from`: Filter appointments from date
-    - `date_to`: Filter appointments to date
+    - `treatment_types`: Filter by treatment types (appointments, procedures, observations) - comma-separated
+    - `statuses`: Filter by status (scheduled, in_progress, completed, cancelled, planned) - comma-separated
+    - `date_from`: Filter from date
+    - `date_to`: Filter to date
     - `search`: Search by patient name or mobile
     - `page`: Page number (default 1)
     - `per_page`: Items per page (default 20, max 100)
@@ -112,11 +114,21 @@ def get_patients_with_treatment_summary(
                     detail="Invalid doctor_id format"
                 )
 
+    # Parse comma-separated filter parameters
+    treatment_types_list = None
+    if treatment_types:
+        treatment_types_list = [t.strip() for t in treatment_types.split(',') if t.strip()]
+
+    statuses_list = None
+    if statuses:
+        statuses_list = [s.strip() for s in statuses.split(',') if s.strip()]
+
     # Get patients with treatment summary
     result = TreatmentService.get_patients_with_treatment_summary(
         db=db,
         doctor_id=filter_doctor_id,
-        status_filter=status,
+        treatment_types=treatment_types_list,
+        statuses=statuses_list,
         date_from=date_from,
         date_to=date_to,
         search_query=search,
@@ -124,8 +136,6 @@ def get_patients_with_treatment_summary(
         per_page=per_page
     )
 
-    # Service now handles filtering and returns only non-None patients
-    # with correct pagination total
     return result
 
 

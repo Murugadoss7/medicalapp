@@ -85,7 +85,8 @@ export interface ProcedureGroup {
 
 export interface PatientListParams {
   doctor_id?: string;
-  status?: 'active' | 'completed' | 'planned';
+  treatment_types?: string; // Comma-separated: 'appointments,procedures,observations'
+  statuses?: string; // Comma-separated: 'scheduled,in_progress,completed,cancelled,planned'
   date_from?: string;
   date_to?: string;
   search?: string;
