@@ -124,10 +124,8 @@ def get_patients_with_treatment_summary(
         per_page=per_page
     )
 
-    # Filter out None values (from status filter mismatch)
-    result["patients"] = [p for p in result["patients"] if p is not None]
-    result["pagination"]["total"] = len(result["patients"])
-
+    # Service now handles filtering and returns only non-None patients
+    # with correct pagination total
     return result
 
 

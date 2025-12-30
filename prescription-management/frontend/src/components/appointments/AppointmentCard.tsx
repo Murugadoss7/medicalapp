@@ -96,11 +96,12 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
         py: 1.25,
         px: 2,
         borderBottom: '1px solid',
-        borderColor: 'divider',
+        borderColor: 'rgba(102, 126, 234, 0.15)',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
+        minHeight: 44,
         '&:hover': showActions ? {
-          bgcolor: 'action.hover',
+          bgcolor: 'rgba(102, 126, 234, 0.05)',
           transform: 'translateX(4px)',
         } : {},
       }}
@@ -158,7 +159,6 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <Button
             size="small"
             variant={isDentalDoctor ? "contained" : "outlined"}
-            color={isDentalDoctor ? "secondary" : "primary"}
             startIcon={isDentalDoctor ? <MedicalServices sx={{ fontSize: 14 }} /> : <Visibility sx={{ fontSize: 14 }} />}
             onClick={(e) => {
               e.stopPropagation();
@@ -170,7 +170,17 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               px: 1,
               minWidth: 'auto',
               lineHeight: 1.2,
-              height: 28
+              height: 28,
+              ...(isDentalDoctor ? {
+                bgcolor: '#667eea',
+                fontWeight: 700,
+                '&:hover': { bgcolor: '#5568d3' }
+              } : {
+                borderColor: '#667eea',
+                color: '#667eea',
+                fontWeight: 700,
+                '&:hover': { borderColor: '#5568d3', color: '#5568d3' }
+              })
             }}
           >
             {isDentalDoctor ? 'Dental' : 'View'}

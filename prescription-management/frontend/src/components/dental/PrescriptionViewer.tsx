@@ -477,52 +477,93 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         }
       `}</style>
       <Box className="prescription-print-area">
-        {/* Doctor/Clinic Header - Prominent for printing */}
-        <Paper elevation={1} sx={{ p: 3, mb: 2, borderBottom: 3, borderColor: 'primary.main' }}>
+        {/* Doctor/Clinic Header with Purple Theme */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            mb: 2,
+            borderBottom: '3px solid #667eea',
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(102, 126, 234, 0.15)',
+            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+          }}
+        >
           <Box sx={{ textAlign: 'center', mb: 2 }}>
-            <Typography variant="h4" fontWeight="bold" color="primary">
+            <Typography variant="h4" fontWeight={700} color="#667eea">
               {prescription?.clinic_name || clinicName}
             </Typography>
-            <Typography variant="h6" color="text.secondary">
+            <Typography variant="h6" color="text.secondary" fontWeight={600}>
               {prescription?.doctor_name || doctorName}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" fontWeight={500}>
               {prescription?.doctor_specialization || doctorSpecialization}
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ mt: 1 }} fontWeight={500}>
               {prescription?.clinic_address || clinicAddress}
             </Typography>
-            <Typography variant="body2">
+            <Typography variant="body2" fontWeight={500}>
               Phone: {clinicPhone}
             </Typography>
           </Box>
         </Paper>
 
-        {/* Prescription Header */}
-      <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
+        {/* Prescription Header with Glassmorphism */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 2,
+          borderRadius: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+        }}
+      >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" gutterBottom fontWeight={700} color="#667eea">
               Prescription Created
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" fontWeight={500}>
               Prescription #{prescription.prescription_number}
             </Typography>
             <Chip
               label={prescription.status}
-              color="success"
               size="small"
-              sx={{ mt: 1 }}
+              sx={{
+                mt: 1,
+                fontWeight: 700,
+                fontSize: '0.6875rem',
+                height: 24,
+                bgcolor: '#10b981',
+                color: 'white',
+              }}
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="contained"
-              color="primary"
               startIcon={<PrintIcon />}
               onClick={handlePrint}
               size="small"
               className="no-print"
+              sx={{
+                minHeight: 36,
+                px: 2,
+                fontWeight: 700,
+                bgcolor: '#667eea',
+                color: 'white',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                borderRadius: 1.5,
+                '&:hover': {
+                  bgcolor: '#5568d3',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                },
+              }}
             >
               Print
             </Button>
@@ -541,19 +582,49 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         </Box>
       </Paper>
 
-      {/* Medicines Table */}
-      <Paper elevation={1}>
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
+      {/* Medicines Table with Glassmorphism */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+        }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: '1px solid rgba(102, 126, 234, 0.15)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            bgcolor: 'rgba(102, 126, 234, 0.03)',
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} color="#667eea">
             Prescribed Medicines ({prescription.items?.filter(item => item.is_active !== false).length || 0})
           </Typography>
           <Button
             variant="contained"
-            color="primary"
             startIcon={<AddIcon />}
             size="small"
             className="no-print"
             onClick={handleAddNewRow}
+            sx={{
+              minHeight: 36,
+              px: 2,
+              fontWeight: 700,
+              bgcolor: '#10b981',
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+              borderRadius: 1.5,
+              '&:hover': {
+                bgcolor: '#059669',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+              },
+            }}
           >
             Add Medicine
           </Button>

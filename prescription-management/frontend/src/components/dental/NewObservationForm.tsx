@@ -114,6 +114,7 @@ interface NewObservationFormProps {
   // Attachments (only for saved observations with IDs)
   attachments?: FileAttachment[];
   onUploadAttachment?: (file: File, fileType: string, caption?: string) => Promise<void>;
+  onUpdateCaption?: (attachmentId: string, caption: string) => Promise<void>;
   onDeleteAttachment?: (attachmentId: string) => Promise<void>;
   isUploadingAttachment?: boolean;
 }
@@ -127,6 +128,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   isEditMode = false,
   attachments = [],
   onUploadAttachment,
+  onUpdateCaption,
   onDeleteAttachment,
   isUploadingAttachment = false,
 }) => {
@@ -322,27 +324,56 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
             </Box>
           </Box>
 
-          {/* Right: Action Buttons */}
+          {/* Right: Action Buttons with Purple Theme */}
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             <Button
               variant="outlined"
               size="small"
-              color={isEditMode ? 'error' : 'inherit'}
               startIcon={isEditMode ? <CloseIcon /> : <ClearIcon />}
               onClick={onClear}
               disabled={saving}
-              sx={{ textTransform: 'none', fontSize: '0.7rem', minWidth: 80 }}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                minWidth: 80,
+                minHeight: 36,
+                borderColor: isEditMode ? '#ef4444' : '#667eea',
+                color: isEditMode ? '#ef4444' : '#667eea',
+                borderRadius: 1.5,
+                '&:hover': {
+                  borderColor: isEditMode ? '#dc2626' : '#5568d3',
+                  bgcolor: isEditMode ? 'rgba(239, 68, 68, 0.05)' : 'rgba(102, 126, 234, 0.05)',
+                },
+              }}
             >
               {isEditMode ? 'Cancel' : 'Clear'}
             </Button>
             <Button
               variant="contained"
-              color={isEditMode ? 'primary' : 'success'}
               size="small"
               startIcon={<SaveIcon />}
               onClick={handleSave}
               disabled={!isValid || saving}
-              sx={{ textTransform: 'none', fontSize: '0.7rem', minWidth: 80 }}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                minWidth: 80,
+                minHeight: 36,
+                bgcolor: isEditMode ? '#667eea' : '#10b981',
+                color: 'white',
+                boxShadow: isEditMode ? '0 2px 8px rgba(102, 126, 234, 0.3)' : '0 2px 8px rgba(16, 185, 129, 0.3)',
+                borderRadius: 1.5,
+                '&:hover': {
+                  bgcolor: isEditMode ? '#5568d3' : '#059669',
+                  boxShadow: isEditMode ? '0 4px 12px rgba(102, 126, 234, 0.4)' : '0 4px 12px rgba(16, 185, 129, 0.4)',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: isEditMode ? 'rgba(102, 126, 234, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+                  color: 'rgba(255, 255, 255, 0.5)',
+                },
+              }}
             >
               {saving ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update' : 'Save')}
             </Button>
@@ -380,8 +411,16 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
         color="default"
       />
 
-      {/* Template Notes Selector */}
-      <Box sx={{ mb: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+      {/* Template Notes Selector with Purple Theme */}
+      <Box
+        sx={{
+          mb: 1.5,
+          border: '1px solid rgba(102, 126, 234, 0.2)',
+          borderRadius: 2,
+          p: 1.5,
+          background: 'rgba(102, 126, 234, 0.02)',
+        }}
+      >
         <TemplateNotesSelector
           conditionType={observation.conditionType}
           toothSurface={observation.toothSurface}
@@ -394,20 +433,26 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
         />
       </Box>
 
-      {/* Treatment Required */}
+      {/* Treatment Required with Purple Checkbox */}
       <FormControlLabel
         control={
           <Checkbox
             checked={observation.treatmentRequired}
             onChange={(e) => handleChange('treatmentRequired', e.target.checked)}
             size="small"
+            sx={{
+              color: '#667eea',
+              '&.Mui-checked': {
+                color: '#667eea',
+              },
+            }}
           />
         }
-        label={<Typography variant="body2">Treatment Required</Typography>}
+        label={<Typography variant="body2" fontWeight={500}>Treatment Required</Typography>}
         sx={{ mb: 1 }}
       />
 
-      {/* Book Procedures Checkbox */}
+      {/* Book Procedures Checkbox with Purple Theme */}
       <FormControlLabel
         control={
           <Checkbox
@@ -422,9 +467,15 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
               }
             }}
             size="small"
+            sx={{
+              color: '#667eea',
+              '&.Mui-checked': {
+                color: '#667eea',
+              },
+            }}
           />
         }
-        label={<Typography variant="body2">Book Procedures</Typography>}
+        label={<Typography variant="body2" fontWeight={500}>Book Procedures</Typography>}
         sx={{ mb: 0.75 }}
       />
 
@@ -438,29 +489,44 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
             return (
               <Paper
                 key={procedure.id}
-                elevation={1}
+                elevation={0}
                 sx={{
                   p: 2,
                   mb: 2,
-                  border: 2,
-                  borderColor: isCompleted ? 'success.main' : 'success.light',
-                  borderRadius: 1,
-                  bgcolor: isCompleted ? 'success.50' : 'grey.50',
+                  border: '2px solid',
+                  borderColor: isCompleted ? '#10b981' : 'rgba(16, 185, 129, 0.3)',
+                  borderRadius: 2,
+                  background: isCompleted
+                    ? 'rgba(16, 185, 129, 0.08)'
+                    : 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
                   opacity: isCompleted ? 0.85 : 1,
+                  boxShadow: isCompleted
+                    ? '0 2px 8px rgba(16, 185, 129, 0.15)'
+                    : '0 2px 8px rgba(102, 126, 234, 0.1)',
                 }}
               >
-                {/* Procedure Header */}
+                {/* Procedure Header with Purple Theme */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" color={isCompleted ? 'success.dark' : 'primary.dark'}>
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      color={isCompleted ? '#10b981' : '#667eea'}
+                    >
                       Procedure {index + 1}
                     </Typography>
                     {isCompleted && (
                       <Chip
                         label="✓ Completed"
                         size="small"
-                        color="success"
-                        sx={{ fontWeight: 600, fontSize: '0.65rem', height: 20 }}
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.65rem',
+                          height: 20,
+                          bgcolor: '#10b981',
+                          color: 'white',
+                        }}
                       />
                     )}
                   </Box>
@@ -468,15 +534,20 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                     <IconButton
                       size="small"
                       onClick={() => handleRemoveProcedure(procedure.id)}
-                      sx={{ color: 'error.main' }}
                       title="Remove procedure"
+                      sx={{
+                        color: '#ef4444',
+                        '&:hover': {
+                          bgcolor: 'rgba(239, 68, 68, 0.1)',
+                        },
+                      }}
                     >
                       <DeleteIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   )}
                 </Box>
 
-              <Divider sx={{ mb: 1.5 }} />
+              <Divider sx={{ mb: 1.5, borderColor: 'rgba(102, 126, 234, 0.15)' }} />
 
               {/* Teeth Selection for this Procedure */}
               <Box sx={{ mb: 1.5 }}>
@@ -652,14 +723,25 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
           );
           })}
 
-          {/* Add Another Procedure Button */}
+          {/* Add Another Procedure Button with Purple Theme */}
           <Button
             variant="outlined"
-            color="success"
             startIcon={<AddIcon />}
             onClick={handleAddProcedure}
             fullWidth
-            sx={{ textTransform: 'none', fontWeight: 500, fontSize: '0.75rem' }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              minHeight: 40,
+              borderColor: '#10b981',
+              color: '#10b981',
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#059669',
+                bgcolor: 'rgba(16, 185, 129, 0.05)',
+              },
+            }}
           >
             Add Another Procedure
           </Button>
@@ -732,6 +814,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
             {attachments.length > 0 ? (
               <FileGallery
                 attachments={attachments}
+                onUpdateCaption={onUpdateCaption}
                 onDelete={onDeleteAttachment}
                 readOnly={!onDeleteAttachment}
               />

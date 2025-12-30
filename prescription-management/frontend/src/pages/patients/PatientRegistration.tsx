@@ -1,3 +1,8 @@
+/**
+ * Patient Registration - Medical Futurism Design
+ * Wizard-style registration with iPad-optimized inputs
+ */
+
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -13,9 +18,11 @@ import {
   Checkbox,
   Paper,
   Container,
+  Fade,
+  Chip,
 } from '@mui/material';
 import StandardDatePicker from '../../components/common/StandardDatePicker';
-import { Person as PersonIcon } from '@mui/icons-material';
+import { Person as PersonIcon, CheckCircle as CheckIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useCreatePatientMutation,
@@ -43,7 +50,7 @@ interface RegistrationState {
   primaryPatient: PatientFormData;
   familyMembers: FamilyMember[];
   registrationMode: 'new_family' | 'add_to_family' | 'individual';
-  editingMemberId?: string; // Track which family member is being edited
+  editingMemberId?: string;
 }
 
 export const PatientRegistration = () => {
@@ -52,21 +59,18 @@ export const PatientRegistration = () => {
   const [createPatient, { isLoading: isCreatingPatient }] = useCreatePatientMutation();
   const [createFamilyMember, { isLoading: isCreatingFamilyMember }] = useCreateFamilyMemberMutation();
   const [updatePatient, { isLoading: isUpdatingPatient }] = useUpdatePatientMutation();
-  
-  // Check if we're in edit mode or add family mode
+
   const isEditMode = searchParams.get('edit') === 'true';
   const editMobile = searchParams.get('mobile');
   const editFirstName = searchParams.get('firstName');
-  const editMode = searchParams.get('mode'); // 'family' or 'primary' or 'add_family'
-
-  // add_family mode: Adding a new family member to an existing family
+  const editMode = searchParams.get('mode');
   const isAddFamilyMode = editMode === 'add_family' && editMobile;
 
   const [registrationState, setRegistrationState] = useState<RegistrationState>({
-    currentStep: (isEditMode && editMode === 'family') || isAddFamilyMode ? 1 : 0, // Start at family step for family edits and add family
+    currentStep: (isEditMode && editMode === 'family') || isAddFamilyMode ? 1 : 0,
     primaryPatient: {
       mobile_number: editMobile || '',
-      first_name: isEditMode && editMode !== 'family' ? editFirstName || '' : '', // Only pre-fill for primary edits
+      first_name: isEditMode && editMode !== 'family' ? editFirstName || '' : '',
       last_name: '',
       date_of_birth: null,
       gender: 'male',
@@ -82,11 +86,10 @@ export const PatientRegistration = () => {
     registrationMode: 'new_family',
     editingMemberId: isEditMode && editMode === 'family' ? `${editMobile}-${editFirstName}` : undefined,
   });
-  
+
   const [shouldCheckFamily, setShouldCheckFamily] = useState(false);
   const [error, setError] = useState<string>('');
-  
-  // Check if family exists when mobile number is entered
+
   const {
     data: familyExistsData,
     isLoading: isCheckingFamily,
@@ -98,7 +101,6 @@ export const PatientRegistration = () => {
     }
   );
 
-  // Fetch family data for edit mode or add family mode
   const {
     data: editFamilyData,
     isLoading: isLoadingEditData,
@@ -106,10 +108,9 @@ export const PatientRegistration = () => {
   } = useGetFamilyMembersQuery(editMobile || '', {
     skip: (!isEditMode && !isAddFamilyMode) || !editMobile,
   });
-  
+
   const isLoading = isCreatingPatient || isCreatingFamilyMember || isUpdatingPatient || isLoadingEditData;
 
-  // Check family existence when mobile number changes
   useEffect(() => {
     if (registrationState.primaryPatient.mobile_number.length === 10) {
       setShouldCheckFamily(true);
@@ -118,13 +119,10 @@ export const PatientRegistration = () => {
     }
   }, [registrationState.primaryPatient.mobile_number]);
 
-  // Populate form with edit data when available (including add_family mode)
   useEffect(() => {
     if ((isEditMode || isAddFamilyMode) && editFamilyData && editMobile) {
       if (editMode === 'family' || editMode === 'add_family') {
-        // For family member edits or adding new family members
         if (editFamilyData.primary_member) {
-          // Set primary member data (always needed for context)
           setRegistrationState(prev => ({
             ...prev,
             primaryPatient: {
@@ -141,12 +139,10 @@ export const PatientRegistration = () => {
               emergency_contact_phone: editFamilyData.primary_member.emergency_contact?.phone || '',
               emergency_contact_relationship: editFamilyData.primary_member.emergency_contact?.relationship || '',
             },
-            // For add_family mode: start with empty array (only add NEW members)
-            // For family edit mode: load existing members for editing
             familyMembers: editMode === 'add_family'
               ? []
               : editFamilyData.family_members
-                  .filter(member => member.relationship_to_primary !== 'self') // Exclude primary member
+                  .filter(member => member.relationship_to_primary !== 'self')
                   .map(member => ({
                     first_name: member.first_name,
                     last_name: member.last_name,
@@ -158,7 +154,6 @@ export const PatientRegistration = () => {
           }));
         }
       } else {
-        // For primary member edits, just populate the primary patient
         const patientToEdit = editFamilyData.primary_member;
         if (patientToEdit && patientToEdit.first_name === editFirstName) {
           setRegistrationState(prev => ({
@@ -204,7 +199,7 @@ export const PatientRegistration = () => {
   const handleStepChange = (step: number) => {
     setRegistrationState(prev => ({ ...prev, currentStep: step }));
   };
-  
+
   const handleNext = () => {
     if (registrationState.currentStep < 2) {
       setRegistrationState(prev => ({
@@ -213,7 +208,7 @@ export const PatientRegistration = () => {
       }));
     }
   };
-  
+
   const handleBack = () => {
     if (registrationState.currentStep > 0) {
       setRegistrationState(prev => ({
@@ -222,20 +217,20 @@ export const PatientRegistration = () => {
       }));
     }
   };
-  
+
   const validateCurrentStep = (): boolean => {
     const { currentStep, primaryPatient } = registrationState;
 
     switch (currentStep) {
-      case 0: // Primary Patient
+      case 0:
         return !!(primaryPatient.mobile_number &&
                  primaryPatient.first_name &&
                  primaryPatient.last_name &&
                  primaryPatient.date_of_birth &&
                  primaryPatient.gender);
-      case 1: // Family Members (optional)
+      case 1:
         return true;
-      case 2: // Review
+      case 2:
         return true;
       default:
         return false;
@@ -245,7 +240,7 @@ export const PatientRegistration = () => {
   const validateForSubmission = (): boolean => {
     return validateCurrentStep() && registrationState.currentStep === 2;
   };
-  
+
   const handleSubmit = async () => {
     if (!registrationState.primaryPatient.date_of_birth) {
       setError('Date of birth is required');
@@ -256,13 +251,9 @@ export const PatientRegistration = () => {
       setError('');
 
       if (isEditMode || isAddFamilyMode) {
-        // Edit mode or add family mode: Only save changes, don't create new patients
         if (editMode === 'family' || editMode === 'add_family') {
-          // In family edit/add mode, we're only adding/updating family members
-          // The primary patient already exists, so we only handle new family members
           if (registrationState.familyMembers.length > 0) {
             if (editMode === 'add_family') {
-              // In add_family mode, all members in the array are NEW
               for (const member of registrationState.familyMembers) {
                 await createFamilyMember({
                   mobile_number: registrationState.primaryPatient.mobile_number,
@@ -270,9 +261,8 @@ export const PatientRegistration = () => {
                 }).unwrap();
               }
             } else {
-              // In family edit mode, find new/updated family members
               const originalMembers = editFamilyData?.family_members
-                .filter(m => m.relationship_to_primary !== 'self') // Exclude primary member from comparison
+                .filter(m => m.relationship_to_primary !== 'self')
                 .map(m => ({
                   firstName: m.first_name,
                   lastName: m.last_name,
@@ -282,13 +272,11 @@ export const PatientRegistration = () => {
               for (const member of registrationState.familyMembers) {
                 const memberFullName = `${member.first_name} ${member.last_name}`;
 
-                // Check if this member already exists in the original data
                 const existingMember = originalMembers.find(
                   m => m.firstName === member.first_name && m.lastName === member.last_name
                 );
 
                 if (existingMember) {
-                  // Update existing member
                   await updatePatient({
                     mobile_number: registrationState.primaryPatient.mobile_number,
                     first_name: member.first_name,
@@ -300,7 +288,6 @@ export const PatientRegistration = () => {
                     }
                   }).unwrap();
                 } else {
-                  // Add new member
                   await createFamilyMember({
                     mobile_number: registrationState.primaryPatient.mobile_number,
                     ...member
@@ -310,7 +297,6 @@ export const PatientRegistration = () => {
             }
           }
         } else {
-          // Primary member edit mode - Update the primary patient
           if (editMobile && editFirstName) {
             await updatePatient({
               mobile_number: editMobile,
@@ -327,7 +313,6 @@ export const PatientRegistration = () => {
           }
         }
       } else {
-        // New registration mode: Create new primary patient and family members
         const primaryPatientData: PatientCreate = {
           mobile_number: registrationState.primaryPatient.mobile_number,
           first_name: registrationState.primaryPatient.first_name,
@@ -336,12 +321,11 @@ export const PatientRegistration = () => {
           gender: registrationState.primaryPatient.gender,
           email: registrationState.primaryPatient.email || undefined,
           address: registrationState.primaryPatient.address || undefined,
-          relationship: 'self',  // Primary patient is always 'self'
-          primary_member: true,  // Primary patient is always true
+          relationship: 'self',
+          primary_member: true,
         };
 
-        // Add emergency contact if provided
-        if (registrationState.primaryPatient.has_emergency_contact && 
+        if (registrationState.primaryPatient.has_emergency_contact &&
             registrationState.primaryPatient.emergency_contact_name) {
           primaryPatientData.emergency_contact = {
             name: registrationState.primaryPatient.emergency_contact_name,
@@ -350,10 +334,8 @@ export const PatientRegistration = () => {
           };
         }
 
-        // Create primary patient first
         const createdPatient = await createPatient(primaryPatientData).unwrap();
-        
-        // Then add family members one by one if any exist
+
         if (registrationState.familyMembers.length > 0) {
           for (const member of registrationState.familyMembers) {
             await createFamilyMember({
@@ -363,20 +345,17 @@ export const PatientRegistration = () => {
           }
         }
       }
-      
-      // Navigate to family view
+
       navigate(`/patients/family/${registrationState.primaryPatient.mobile_number}`);
     } catch (err: any) {
       console.error('Failed to register patient/family:', err);
-      
-      // Extract meaningful error message
+
       let errorMessage = 'Failed to register patient';
-      
+
       if (err?.data?.detail) {
         if (typeof err.data.detail === 'string') {
           errorMessage = err.data.detail;
         } else if (Array.isArray(err.data.detail)) {
-          // Handle validation errors
           const firstError = err.data.detail[0];
           if (firstError?.msg) {
             errorMessage = `${firstError.loc?.join(' → ') || 'Field'}: ${firstError.msg}`;
@@ -387,24 +366,20 @@ export const PatientRegistration = () => {
       } else if (err?.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     }
   };
-  
-  // Family exists alert handlers
+
   const handleAddToFamily = () => {
-    // Navigate to add family member page
     navigate(`/patients/family/${registrationState.primaryPatient.mobile_number}/add-member`);
   };
-  
+
   const handleViewFamily = () => {
-    // Navigate to family view
     navigate(`/patients/family/${registrationState.primaryPatient.mobile_number}`);
   };
-  
+
   const handleContinueNewRegistration = () => {
-    // Continue with current registration (ignore existing family)
     setRegistrationState(prev => ({ ...prev, registrationMode: 'individual' }));
   };
 
@@ -442,44 +417,124 @@ export const PatientRegistration = () => {
     }
   };
 
-  // Show loading state while fetching edit data or family data
   if ((isEditMode || isAddFamilyMode) && isLoadingEditData) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress sx={{ color: '#667eea', mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">
+          Loading patient data...
+        </Typography>
       </Box>
     );
   }
 
-  // Show error if edit data failed to load
   if ((isEditMode || isAddFamilyMode) && editDataError) {
     return (
-      <Alert severity="error">
-        Failed to load {isAddFamilyMode ? 'family' : 'patient'} data. Please try again.
-      </Alert>
+      <Container maxWidth="md">
+        <Alert severity="error" sx={{ borderRadius: 2 }}>
+          Failed to load {isAddFamilyMode ? 'family' : 'patient'} data. Please try again.
+        </Alert>
+      </Container>
     );
   }
 
   return (
-      <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <PersonIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
-          <Typography variant="h4" component="h1">
-            {isAddFamilyMode
-              ? 'Add Family Member'
-              : isEditMode
-                ? 'Edit Patient Information'
-                : 'Patient & Family Registration'
-            }
-          </Typography>
-        </Box>
+    <Box
+      sx={{
+        minHeight: '100%',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
+        position: 'relative',
+        py: 2,
+      }}
+    >
+      {/* Background gradient orb */}
+      <Box
+        sx={{
+          position: 'fixed',
+          width: '600px',
+          height: '600px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(102, 126, 234, 0.08) 0%, transparent 70%)',
+          top: '-200px',
+          right: '-150px',
+          animation: 'float 20s ease-in-out infinite',
+          zIndex: 0,
+          '@keyframes float': {
+            '0%, 100%': {
+              transform: 'translate(0, 0) scale(1)',
+            },
+            '50%': {
+              transform: 'translate(-30px, 30px) scale(1.05)',
+            },
+          },
+        }}
+      />
 
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+        {/* Header with Back Button */}
+        <Fade in timeout={600}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Button
+              startIcon={<BackIcon />}
+              onClick={() => navigate('/patients')}
+              sx={{
+                minHeight: 40,
+                px: 2,
+                color: '#667eea',
+                fontWeight: 600,
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                border: '1px solid rgba(102, 126, 234, 0.3)',
+                '&:hover': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                  borderColor: '#667eea',
+                },
+              }}
+            >
+              Back
+            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  mr: 1.5,
+                }}
+              >
+                <PersonIcon sx={{ color: 'white', fontSize: 22 }} />
+              </Box>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                  color: '#667eea',
+                  letterSpacing: '-0.01em',
+                  lineHeight: 1.2,
+                }}
+              >
+                {isAddFamilyMode
+                  ? 'Add Family Member'
+                  : isEditMode
+                    ? 'Edit Patient'
+                    : 'Patient Registration'
+                }
+              </Typography>
+            </Box>
+          </Box>
+        </Fade>
+
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
           {isAddFamilyMode
-            ? `Adding a new family member to the existing family with mobile number: ${editMobile}`
+            ? `Adding to family: ${editMobile}`
             : isEditMode
-              ? `Editing information for ${editFirstName} (${editMobile})`
-              : 'Register patients and family members using a single mobile number for convenient healthcare management.'
+              ? `Editing: ${editFirstName} (${editMobile})`
+              : 'Create new patient record'
           }
         </Typography>
 
@@ -497,13 +552,14 @@ export const PatientRegistration = () => {
             isAddFamilyMode
               ? 'Add Family Member'
               : isEditMode
-                ? (editMode === 'family' ? 'Save Family Changes' : 'Save Patient Changes')
+                ? (editMode === 'family' ? 'Save Family Changes' : 'Save Changes')
                 : 'Complete Registration'
           }
         >
           {renderStepContent()}
         </PatientRegistrationWizard>
       </Container>
+    </Box>
   );
 };
 
@@ -535,7 +591,6 @@ const PrimaryPatientStep = ({
 
   return (
     <Box>
-      {/* Family Exists Alert */}
       {familyExistsData?.exists && (
         <FamilyExistsAlert
           familyData={familyExistsData}
@@ -545,14 +600,22 @@ const PrimaryPatientStep = ({
         />
       )}
 
-      <Typography variant="h6" gutterBottom color="primary">
+      <Typography
+        variant="subtitle1"
+        sx={{
+          fontWeight: 700,
+          fontSize: '0.9375rem',
+          color: '#667eea',
+          mb: 0.5,
+        }}
+      >
         Primary Patient Information
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Enter the main patient details. This person will be the primary contact for the family.
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', mb: 2, display: 'block' }}>
+        Enter the main patient details
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
@@ -560,9 +623,25 @@ const PrimaryPatientStep = ({
             required
             value={formData.mobile_number}
             onChange={handleInputChange('mobile_number')}
-            helperText={isCheckingFamily ? "Checking family..." : "10-digit mobile number"}
+            helperText={isCheckingFamily ? "Checking family..." : "10-digit mobile"}
             InputProps={{
-              endAdornment: isCheckingFamily ? <CircularProgress size={20} /> : undefined,
+              endAdornment: isCheckingFamily ? <CircularProgress size={20} sx={{ color: '#667eea' }} /> : undefined,
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
             }}
           />
         </Grid>
@@ -574,6 +653,22 @@ const PrimaryPatientStep = ({
             required
             value={formData.first_name}
             onChange={handleInputChange('first_name')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           />
         </Grid>
 
@@ -584,6 +679,22 @@ const PrimaryPatientStep = ({
             required
             value={formData.last_name}
             onChange={handleInputChange('last_name')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           />
         </Grid>
 
@@ -605,6 +716,22 @@ const PrimaryPatientStep = ({
             required
             value={formData.gender}
             onChange={handleInputChange('gender')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           >
             <MenuItem value="male">Male</MenuItem>
             <MenuItem value="female">Female</MenuItem>
@@ -619,6 +746,22 @@ const PrimaryPatientStep = ({
             type="email"
             value={formData.email}
             onChange={handleInputChange('email')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           />
         </Grid>
 
@@ -627,23 +770,49 @@ const PrimaryPatientStep = ({
             fullWidth
             label="Address"
             multiline
-            rows={3}
+            rows={2}
             value={formData.address}
             onChange={handleInputChange('address')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           />
         </Grid>
 
         {/* Emergency Contact */}
         <Grid item xs={12}>
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 1, borderColor: 'rgba(102, 126, 234, 0.15)' }} />
           <FormControlLabel
             control={
               <Checkbox
                 checked={formData.has_emergency_contact}
                 onChange={(e) => onChange('has_emergency_contact', e.target.checked)}
+                sx={{
+                  color: '#667eea',
+                  '&.Mui-checked': {
+                    color: '#667eea',
+                  },
+                }}
               />
             }
-            label="Add Emergency Contact"
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Add Emergency Contact
+              </Typography>
+            }
           />
         </Grid>
 
@@ -655,6 +824,22 @@ const PrimaryPatientStep = ({
                 label="Emergency Contact Name"
                 value={formData.emergency_contact_name}
                 onChange={handleInputChange('emergency_contact_name')}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: 'rgba(102, 126, 234, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#667eea',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                }}
               />
             </Grid>
 
@@ -664,15 +849,47 @@ const PrimaryPatientStep = ({
                 label="Emergency Contact Phone"
                 value={formData.emergency_contact_phone}
                 onChange={handleInputChange('emergency_contact_phone')}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: 'rgba(102, 126, 234, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#667eea',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                }}
               />
             </Grid>
 
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Emergency Contact Relationship"
+                label="Relationship"
                 value={formData.emergency_contact_relationship}
                 onChange={handleInputChange('emergency_contact_relationship')}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: 'rgba(102, 126, 234, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#667eea',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                }}
               />
             </Grid>
           </>
@@ -686,6 +903,22 @@ const PrimaryPatientStep = ({
             rows={2}
             value={formData.notes}
             onChange={handleInputChange('notes')}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(102, 126, 234, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#667eea',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#667eea',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#667eea',
+              },
+            }}
           />
         </Grid>
       </Grid>
@@ -702,34 +935,58 @@ interface ReviewStepProps {
 const ReviewStep = ({ primaryPatient, familyMembers }: ReviewStepProps) => {
   return (
     <Box>
-      <Typography variant="h6" gutterBottom color="primary">
-        Review & Confirm Registration
+      <Typography
+        variant="subtitle1"
+        sx={{
+          fontWeight: 700,
+          fontSize: '0.9375rem',
+          color: '#667eea',
+          mb: 0.5,
+        }}
+      >
+        Review & Confirm
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please review all information before submitting the registration.
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', mb: 2, display: 'block' }}>
+        Please review before submitting
       </Typography>
 
       {/* Primary Patient Summary */}
-      <Paper sx={{ p: 3, mb: 3, bgcolor: 'action.hover' }}>
-        <Typography variant="h6" gutterBottom>
-          Primary Patient
-        </Typography>
-        <Grid container spacing={2}>
+      <Paper
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          background: 'rgba(102, 126, 234, 0.05)',
+          border: '1px solid rgba(102, 126, 234, 0.15)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <CheckIcon sx={{ color: '#667eea', fontSize: 20 }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            Primary Patient
+          </Typography>
+        </Box>
+        <Grid container spacing={1}>
           <Grid item xs={12} sm={6}>
-            <Typography variant="body2"><strong>Name:</strong> {primaryPatient.first_name} {primaryPatient.last_name}</Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+              {primaryPatient.first_name} {primaryPatient.last_name}
+            </Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <Typography variant="body2"><strong>Mobile:</strong> {primaryPatient.mobile_number}</Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+              📱 {primaryPatient.mobile_number}
+            </Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <Typography variant="body2"><strong>Gender:</strong> {primaryPatient.gender}</Typography>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="body2"><strong>Date of Birth:</strong> {primaryPatient.date_of_birth?.toLocaleDateString()}</Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+              {primaryPatient.gender} • {primaryPatient.date_of_birth?.toLocaleDateString()}
+            </Typography>
           </Grid>
           {primaryPatient.email && (
             <Grid item xs={12}>
-              <Typography variant="body2"><strong>Email:</strong> {primaryPatient.email}</Typography>
+              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                ✉️ {primaryPatient.email}
+              </Typography>
             </Grid>
           )}
         </Grid>
@@ -737,30 +994,55 @@ const ReviewStep = ({ primaryPatient, familyMembers }: ReviewStepProps) => {
 
       {/* Family Members Summary */}
       {familyMembers.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'action.hover' }}>
-          <Typography variant="h6" gutterBottom>
-            Family Members ({familyMembers.length})
-          </Typography>
-          {familyMembers.map((member, index) => (
-            <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <Typography variant="body2"><strong>{member.first_name} {member.last_name}</strong> - {member.relationship}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {member.gender} • Born: {member.date_of_birth}
-              </Typography>
-            </Box>
-          ))}
+        <Paper
+          sx={{
+            p: 2,
+            mb: 2,
+            borderRadius: 2,
+            background: 'rgba(102, 126, 234, 0.05)',
+            border: '1px solid rgba(102, 126, 234, 0.15)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <CheckIcon sx={{ color: '#667eea', fontSize: 20 }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+              Family Members ({familyMembers.length})
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {familyMembers.map((member, index) => (
+              <Box
+                key={index}
+                sx={{
+                  p: 1,
+                  borderRadius: 1,
+                  border: '1px solid rgba(102, 126, 234, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.5)',
+                }}
+              >
+                <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                  {member.first_name} {member.last_name}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', display: 'block' }}>
+                  {member.relationship} • {member.gender} • {member.date_of_birth}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Paper>
       )}
 
-      <Alert severity="info">
-        <Typography variant="body2">
-          <strong>Registration Summary:</strong>
-          <br />
-          • {familyMembers.length > 0 ? 'Family' : 'Individual'} registration for mobile number {primaryPatient.mobile_number}
-          <br />
-          • Total members: {familyMembers.length + 1}
-          <br />
-          • All members will share the same mobile number for appointments
+      <Alert
+        severity="info"
+        sx={{
+          borderRadius: 2,
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          background: 'rgba(59, 130, 246, 0.05)',
+        }}
+      >
+        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+          <strong>Summary:</strong> {familyMembers.length > 0 ? 'Family' : 'Individual'} registration •
+          {familyMembers.length + 1} member(s) • Mobile: {primaryPatient.mobile_number}
         </Typography>
       </Alert>
     </Box>

@@ -34,6 +34,7 @@ import {
   type DoctorUpdate,
   type DoctorScheduleUpdate,
 } from '../../store/api';
+import theme from '../../theme/medicalFuturismTheme';
 
 interface OfficeLocation {
   id: string;
@@ -443,82 +444,186 @@ export const DoctorEdit = () => {
   const isLoading = isUpdating || isUpdatingSchedule;
 
   return (
-    <Container maxWidth="md" disableGutters sx={{ mx: 'auto' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button
-          startIcon={<BackIcon />}
-          onClick={() => navigate(`/doctors/${doctorId}`)}
-          sx={{ mr: 2 }}
-        >
-          Back
-        </Button>
-        <DoctorIcon sx={{ mr: 1, fontSize: 32, color: 'primary.main' }} />
-        <Typography variant="h4" component="h1">
-          Edit Doctor Profile
-        </Typography>
-      </Box>
+    <Box
+      sx={{
+        ...theme.layouts.pageContainer,
+      }}
+    >
+      {/* Floating Gradient Orb */}
+      <Box sx={theme.layouts.floatingOrb} />
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Update professional credentials and availability schedule for Dr. {doctor.full_name || `${doctor.first_name} ${doctor.last_name}`}.
-      </Typography>
-
-      {/* Stepper */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Stepper activeStep={editState.currentStep} alternativeLabel>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Step Content */}
-      <Card>
-        <CardContent sx={{ p: 4 }}>
-          {renderStepContent()}
-        </CardContent>
-      </Card>
-
-      {/* Navigation Buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-        <Button
-          variant="outlined"
-          onClick={handleBack}
-          disabled={editState.currentStep === 0 || isLoading}
-        >
-          Back
-        </Button>
-        
-        <Box>
-          {editState.currentStep === steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={!validateForSubmission() || isLoading}
-              startIcon={isLoading ? <CircularProgress size={20} /> : undefined}
+      {/* Content Container */}
+      <Container
+        maxWidth="md"
+        disableGutters
+        sx={{
+          position: 'relative',
+          zIndex: 1,
+          px: { xs: 1.5, sm: 2 },
+          flex: { xs: 'none', md: 1 },
+          overflowY: { xs: 'visible', md: 'auto' },
+          overflowX: 'hidden',
+          ...theme.components.scrollbar,
+          minHeight: { xs: 'auto', md: 0 },
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Button
+            startIcon={<BackIcon />}
+            onClick={() => navigate(`/doctors/${doctorId}`)}
+            sx={{
+              ...theme.components.outlinedButton,
+              minHeight: 40,
+              px: 2,
+            }}
+          >
+            Back
+          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: theme.colors.primary.gradient,
+                color: 'white',
+                mr: 1.5,
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+              }}
             >
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={!validateCurrentStep()}
-            >
-              Next
-            </Button>
-          )}
+              <DoctorIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Typography sx={{ ...theme.typography.pageTitle }}>
+              Edit Doctor Profile
+            </Typography>
+          </Box>
         </Box>
-      </Box>
-    </Container>
+
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+          Update professional credentials and availability schedule for Dr. {doctor.full_name || `${doctor.first_name} ${doctor.last_name}`}.
+        </Typography>
+
+        {/* Stepper */}
+        <Paper
+          elevation={0}
+          sx={{
+            ...theme.components.glassPaper,
+            p: { xs: 1.5, sm: 2 },
+            mb: 2,
+          }}
+        >
+          <Stepper
+            activeStep={editState.currentStep}
+            alternativeLabel
+            sx={{
+              '& .MuiStepConnector-line': {
+                borderColor: theme.colors.primary.border,
+              },
+              '& .MuiStepLabel-label': {
+                fontSize: '0.75rem',
+                fontWeight: 600,
+              },
+              '& .MuiStepLabel-label.Mui-active': {
+                color: theme.colors.primary.main,
+                fontWeight: 700,
+              },
+              '& .MuiStepLabel-label.Mui-completed': {
+                color: theme.colors.primary.main,
+              },
+              '& .MuiStepIcon-root': {
+                color: theme.colors.primary.light,
+                '&.Mui-active': {
+                  color: theme.colors.primary.main,
+                },
+                '&.Mui-completed': {
+                  color: theme.colors.primary.main,
+                },
+              },
+            }}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Paper>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 2,
+              borderRadius: 2,
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        {/* Step Content */}
+        <Paper
+          elevation={0}
+          sx={{
+            ...theme.components.glassPaper,
+            p: { xs: 2, sm: 3 },
+            mb: 2,
+          }}
+        >
+          {renderStepContent()}
+        </Paper>
+
+        {/* Navigation Buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={handleBack}
+            disabled={editState.currentStep === 0 || isLoading}
+            sx={{
+              ...theme.components.outlinedButton,
+              minHeight: 44,
+            }}
+          >
+            Back
+          </Button>
+
+          <Box>
+            {editState.currentStep === steps.length - 1 ? (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={!validateForSubmission() || isLoading}
+                startIcon={isLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : undefined}
+                sx={{
+                  ...theme.components.primaryButton,
+                  minHeight: 44,
+                }}
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={!validateCurrentStep()}
+                sx={{
+                  ...theme.components.primaryButton,
+                  minHeight: 44,
+                }}
+              >
+                Next
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 
@@ -538,17 +643,24 @@ const BasicInformationStep = ({ formData, onChange, doctor }: BasicInformationSt
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom color="primary">
+      <Typography sx={{ ...theme.typography.sectionTitle, mb: 1 }}>
         Basic Information
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
         Update the basic professional details for the doctor profile.
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={1.5}>
         <Grid item xs={12}>
-          <Alert severity="info">
-            <Typography variant="body2">
+          <Alert
+            severity="info"
+            sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.colors.primary.border}`,
+              background: theme.colors.primary.light,
+            }}
+          >
+            <Typography variant="caption">
               <strong>User Account:</strong> {doctor?.first_name} {doctor?.last_name} ({doctor?.user_email})
               <br />
               Account details cannot be changed from this form.
@@ -564,6 +676,9 @@ const BasicInformationStep = ({ formData, onChange, doctor }: BasicInformationSt
             value={formData.license_number}
             onChange={handleInputChange('license_number')}
             helperText="Medical license number"
+            sx={{
+              ...theme.components.textField,
+            }}
           />
         </Grid>
 
@@ -576,6 +691,9 @@ const BasicInformationStep = ({ formData, onChange, doctor }: BasicInformationSt
             value={formData.specialization}
             onChange={handleInputChange('specialization')}
             helperText="Primary medical specialization"
+            sx={{
+              ...theme.components.textField,
+            }}
           >
             {specializations.map((spec) => (
               <MenuItem key={spec} value={spec}>
@@ -594,6 +712,9 @@ const BasicInformationStep = ({ formData, onChange, doctor }: BasicInformationSt
             value={formData.qualification}
             onChange={handleInputChange('qualification')}
             helperText="Educational qualifications and certifications"
+            sx={{
+              ...theme.components.textField,
+            }}
           />
         </Grid>
 

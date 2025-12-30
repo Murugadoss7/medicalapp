@@ -64,20 +64,35 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
         mb: 3,
         overflow: 'hidden',
         border: 1,
-        borderColor: selectedVisitsCount > 0 ? 'primary.light' : 'divider',
+        borderColor: selectedVisitsCount > 0 ? '#667eea' : 'rgba(102, 126, 234, 0.15)',
+        borderRadius: 3,
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: selectedVisitsCount > 0
+          ? '0 4px 20px rgba(102, 126, 234, 0.25)'
+          : '0 2px 12px rgba(102, 126, 234, 0.1)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       {/* Header */}
       <Box
         sx={{
           p: 2,
-          bgcolor: selectedVisitsCount > 0 ? 'primary.light' : 'grey.100',
-          color: selectedVisitsCount > 0 ? 'primary.contrastText' : 'text.primary',
+          background: selectedVisitsCount > 0
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+          color: selectedVisitsCount > 0 ? 'white' : 'text.primary',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           minHeight: 60, // iPad-friendly
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            background: selectedVisitsCount > 0
+              ? 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)'
+              : 'linear-gradient(90deg, rgba(102, 126, 234, 0.12) 0%, rgba(118, 75, 162, 0.12) 100%)',
+          },
         }}
         onClick={() => setExpanded(!expanded)}
       >
@@ -90,9 +105,15 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
               label={group.summary.treatmentType}
               size="small"
               sx={{
-                bgcolor: selectedVisitsCount > 0 ? 'white' : 'primary.main',
-                color: selectedVisitsCount > 0 ? 'primary.main' : 'white',
+                background: selectedVisitsCount > 0
+                  ? 'white'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: selectedVisitsCount > 0 ? '#667eea' : 'white',
                 fontWeight: 600,
+                border: selectedVisitsCount > 0 ? '1px solid #667eea' : 'none',
+                boxShadow: selectedVisitsCount > 0
+                  ? '0 2px 8px rgba(102, 126, 234, 0.2)'
+                  : '0 2px 8px rgba(102, 126, 234, 0.3)',
               }}
             />
           </Box>
@@ -136,7 +157,7 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
             />
           ))}
 
-          {/* Action buttons */}
+          {/* Action buttons - Themed */}
           <Box
             sx={{
               display: 'flex',
@@ -144,7 +165,7 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
               mt: 2,
               pt: 2,
               borderTop: 1,
-              borderColor: 'divider',
+              borderColor: 'rgba(102, 126, 234, 0.15)',
             }}
           >
             <Button
@@ -156,6 +177,14 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
               sx={{
                 minHeight: 44, // iPad
                 flex: 1,
+                borderColor: '#667eea',
+                color: '#667eea',
+                fontWeight: 600,
+                borderRadius: 2,
+                '&:hover': {
+                  borderColor: '#5568d3',
+                  background: 'rgba(102, 126, 234, 0.05)',
+                },
               }}
             >
               Select All Visits
@@ -169,6 +198,14 @@ const ToothTreatmentCard: React.FC<ToothTreatmentCardProps> = ({
               sx={{
                 minHeight: 44, // iPad
                 flex: 1,
+                borderColor: '#667eea',
+                color: '#667eea',
+                fontWeight: 600,
+                borderRadius: 2,
+                '&:hover': {
+                  borderColor: '#5568d3',
+                  background: 'rgba(102, 126, 234, 0.05)',
+                },
               }}
             >
               Deselect All

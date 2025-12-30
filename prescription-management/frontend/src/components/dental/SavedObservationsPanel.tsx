@@ -222,29 +222,44 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
 
   return (
     <Paper
-      elevation={2}
+      elevation={0}
       sx={{
         p: 2,
         display: 'flex',
         flexDirection: 'column',
+        borderRadius: 2,
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(102, 126, 234, 0.15)',
+        boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
       }}
     >
-      {/* Header */}
+      {/* Header with Purple Theme */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
-          <Typography variant="h6" fontWeight="bold">
+          <Typography variant="h6" fontWeight={700} color="#667eea">
             Today's Observations ({observations.length})
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" fontWeight={500}>
             {scheduledProcedures} Scheduled | {doneProcedures} Done
           </Typography>
         </Box>
-        <IconButton size="small" onClick={onRefresh} title="Refresh" color="primary">
+        <IconButton
+          size="small"
+          onClick={onRefresh}
+          title="Refresh"
+          sx={{
+            color: '#667eea',
+            '&:hover': {
+              bgcolor: 'rgba(102, 126, 234, 0.1)',
+            },
+          }}
+        >
           <RefreshIcon />
         </IconButton>
       </Box>
 
-      <Divider sx={{ mb: 2 }} />
+      <Divider sx={{ mb: 2, borderColor: 'rgba(102, 126, 234, 0.15)' }} />
 
       {/* Cards */}
       <Box>
@@ -265,49 +280,68 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
             return (
               <Card
                 key={obs.id}
+                elevation={0}
                 sx={{
-                  mb: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
+                  mb: 1.5,
+                  border: '1px solid rgba(102, 126, 234, 0.15)',
+                  borderRadius: 2,
                   overflow: 'hidden',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 8px rgba(102, 126, 234, 0.08)',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+                    borderColor: 'rgba(102, 126, 234, 0.25)',
+                  },
                 }}
               >
-                {/* Card Header - Always Visible */}
+                {/* Card Header - Always Visible with Purple Theme */}
                 <Box
                   sx={{
-                    p: 2,
+                    p: 1.5,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
                     cursor: 'pointer',
-                    bgcolor: 'grey.50',
+                    bgcolor: 'rgba(102, 126, 234, 0.03)',
+                    transition: 'background 0.2s',
                     '&:hover': {
-                      bgcolor: 'grey.100',
+                      bgcolor: 'rgba(102, 126, 234, 0.06)',
                     },
                   }}
                   onClick={() => toggleCard(obs.id)}
                 >
                   <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    {/* Teeth and Status */}
+                    {/* Teeth and Status with Purple Theme */}
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mb: 1 }}>
                       {/* Single chip showing all teeth numbers */}
                       <Chip
                         label={`Teeth: ${obs.selectedTeeth.join(', ')}`}
                         size="small"
-                        color="primary"
-                        sx={{ fontWeight: 600 }}
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.6875rem',
+                          height: 24,
+                          bgcolor: '#667eea',
+                          color: 'white',
+                        }}
                       />
                       {obs.severity && (
                         <Chip
                           label={obs.severity}
                           size="small"
-                          color={
-                            obs.severity === 'Severe' ? 'error' :
-                            obs.severity === 'Moderate' ? 'warning' : 'success'
-                          }
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: '0.6875rem',
+                            height: 24,
+                            bgcolor: obs.severity === 'Severe' ? '#ef4444' :
+                              obs.severity === 'Moderate' ? '#f59e0b' : '#10b981',
+                            color: 'white',
+                          }}
                         />
                       )}
-                      {/* Show procedure count for THIS observation - support both new and legacy */}
+                      {/* Show procedure count for THIS observation - with Purple Theme */}
                       {((obs.procedures && obs.procedures.length > 0) || (obs.hasProcedure && obs.backendProcedureId)) && (
                         <Chip
                           label={(() => {
@@ -318,22 +352,35 @@ const SavedObservationsPanel: React.FC<SavedObservationsPanelProps> = ({
                             return `${newScheduled + legacyScheduled} Scheduled | ${newDone + legacyDone} Done`;
                           })()}
                           size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.6875rem',
+                            height: 24,
+                            borderColor: '#3b82f6',
+                            color: '#3b82f6',
+                            bgcolor: 'rgba(59, 130, 246, 0.05)',
+                          }}
                           variant="outlined"
-                          color="secondary"
                         />
                       )}
-                      {/* Show attachment count badge if files exist */}
+                      {/* Show attachment count badge with Purple Theme */}
                       {(() => {
                         const attachmentCount = observationAttachments[obs.id]?.length || 0;
                         if (attachmentCount > 0) {
                           return (
                             <Chip
-                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              icon={<AttachFileIcon sx={{ fontSize: 14, color: '#3b82f6' }} />}
                               label={attachmentCount}
                               size="small"
                               variant="outlined"
-                              color="info"
-                              sx={{ fontWeight: 600 }}
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: '0.6875rem',
+                                height: 24,
+                                borderColor: '#3b82f6',
+                                color: '#3b82f6',
+                                bgcolor: 'rgba(59, 130, 246, 0.05)',
+                              }}
                             />
                           );
                         }

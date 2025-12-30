@@ -16,7 +16,10 @@
 /* CRITICAL FIX: Override any default #root styles that might break the application layout */
 #root {
   width: 100%;
+  /* Mobile-friendly viewport height: use dynamic viewport units */
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height - adapts to mobile browser UI */
+  height: -webkit-fill-available; /* Safari fallback */
   margin: 0;
   padding: 0;
   max-width: none;
@@ -38,15 +41,102 @@ body {
   margin: 0;
   padding: 0;
   min-width: 320px;
+  /* Mobile-friendly viewport height */
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height - adapts to mobile browser UI */
+  min-height: -webkit-fill-available; /* Safari fallback */
   width: 100%;
   height: 100%;
   overflow: hidden; /* Prevent document-level scroll; MainLayout handles its own scroll */
-  /* CRITICAL FIX: Removed 'display: flex' and 'place-items: center' that was breaking scroll behavior
-   * These properties are only suitable for landing pages, not for full applications with their own layouts
-   * MainLayout handles its own flex layout, so body should be block-level
-   */
 }
+
+/* Global Autocomplete (Dropdown Search) Styling - Medical Futurism */
+.MuiAutocomplete-root .MuiOutlinedInput-root {
+  min-height: 56px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.MuiAutocomplete-root .MuiAutocomplete-input {
+  min-height: 24px !important;
+  padding: 8px 4px !important;
+}
+
+.MuiAutocomplete-root .MuiInputLabel-root {
+  transform: translate(14px, 16px) scale(1);
+}
+
+.MuiAutocomplete-root .MuiInputLabel-shrink {
+  transform: translate(14px, -9px) scale(0.75) !important;
+}
+
+/* Autocomplete Popper (Dropdown) Styling - More space for readability */
+.MuiAutocomplete-popper {
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15) !important;
+  border-radius: 8px !important;
+  margin-top: 4px !important;
+  min-width: 400px !important;
+}
+
+.MuiAutocomplete-paper {
+  border-radius: 8px !important;
+  border: 1px solid rgba(102, 126, 234, 0.15) !important;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.1) !important;
+}
+
+.MuiAutocomplete-listbox {
+  padding: 8px !important;
+  max-height: 400px !important;
+}
+
+.MuiAutocomplete-option {
+  min-height: 48px !important;
+  padding: 12px 20px !important;
+  border-radius: 6px !important;
+  margin-bottom: 4px !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  transition: all 0.2s ease !important;
+}
+
+.MuiAutocomplete-option:hover {
+  background-color: rgba(102, 126, 234, 0.08) !important;
+}
+
+.MuiAutocomplete-option[aria-selected="true"] {
+  background-color: rgba(102, 126, 234, 0.12) !important;
+  font-weight: 600 !important;
+}
+
+.MuiAutocomplete-option.Mui-focused {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+.MuiAutocomplete-noOptions {
+  padding: 16px !important;
+  min-height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(0, 0, 0, 0.6) !important;
+  font-size: 0.875rem !important;
+}
+
+.MuiAutocomplete-loading {
+  padding: 16px !important;
+  min-height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* CRITICAL FIX: Removed 'display: flex' and 'place-items: center' that was breaking scroll behavior
+ * These properties are only suitable for landing pages, not for full applications with their own layouts
+ * MainLayout handles its own flex layout, so body should be block-level
+ */
 
 /* CRITICAL FIX: Prevent Material-UI from blocking interactions when drawers/modals are open
  * This fixes the iPad freezing issue where aria-hidden="true" blocks all clicks

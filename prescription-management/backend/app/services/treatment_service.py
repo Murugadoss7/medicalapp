@@ -53,25 +53,61 @@ class TreatmentService:
             Dict with patients list and pagination info
         """
 
-        # Base query: Get distinct patients who have appointments
+        # Base query: Get distinct patients who have appointments OR observations OR procedures
+        # Build subquery to find all patients with treatment activity
+        from sqlalchemy import union_all, select
+
+        # Patients with appointments
+        appt_patients = select(
+            Appointment.patient_mobile_number,
+            Appointment.patient_first_name
+        ).where(Appointment.is_active == True)
+
+        # Patients with dental observations
+        obs_patients = select(
+            DentalObservation.patient_mobile_number,
+            DentalObservation.patient_first_name
+        ).where(DentalObservation.is_active == True)
+
+        # Apply doctor filter to subqueries if needed
+        if doctor_id:
+            appt_patients = appt_patients.where(Appointment.doctor_id == doctor_id)
+            # For observations, we need to join with appointments to filter by doctor
+            obs_patients = obs_patients.join(
+                Appointment,
+                and_(
+                    DentalObservation.appointment_id == Appointment.id,
+                    Appointment.doctor_id == doctor_id
+                )
+            )
+
+        # Combine both sources
+        all_treatment_patients = union_all(appt_patients, obs_patients).alias('treatment_patients')
+
+        # Join with Patient table
         base_query = db.query(Patient).join(
-            Appointment,
+            all_treatment_patients,
             and_(
-                Appointment.patient_mobile_number == Patient.mobile_number,
-                Appointment.patient_first_name == Patient.first_name,
-                Appointment.is_active == True
+                Patient.mobile_number == all_treatment_patients.c.patient_mobile_number,
+                Patient.first_name == all_treatment_patients.c.patient_first_name
             )
         ).filter(Patient.is_active == True)
 
-        # Doctor filter (required for doctors, optional for admins)
-        if doctor_id:
-            base_query = base_query.filter(Appointment.doctor_id == doctor_id)
-
-        # Date range filter
-        if date_from:
-            base_query = base_query.filter(Appointment.appointment_date >= date_from)
-        if date_to:
-            base_query = base_query.filter(Appointment.appointment_date <= date_to)
+        # Date range filter - need to join with Appointment again for date filtering
+        if date_from or date_to:
+            base_query = base_query.join(
+                Appointment,
+                and_(
+                    Appointment.patient_mobile_number == Patient.mobile_number,
+                    Appointment.patient_first_name == Patient.first_name,
+                    Appointment.is_active == True
+                ),
+                isouter=False  # Inner join to filter by dates
+            )
+            if date_from:
+                base_query = base_query.filter(Appointment.appointment_date >= date_from)
+            if date_to:
+                base_query = base_query.filter(Appointment.appointment_date <= date_to)
 
         # Search filter (patient name or mobile)
         if search_query:
@@ -87,21 +123,30 @@ class TreatmentService:
         # Get distinct patients
         base_query = base_query.distinct()
 
-        # Pagination
-        total = base_query.count()
-        pages = (total + per_page - 1) // per_page
+        # Get all patients (we need this for accurate counting with status filter)
+        all_patients = base_query.order_by(Patient.created_at.desc()).all()
 
-        patients = base_query.order_by(Patient.created_at.desc()).offset(
-            (page - 1) * per_page
-        ).limit(per_page).all()
-
-        # Build patient summaries
-        patient_summaries = []
-        for patient in patients:
+        # Build summaries for ALL patients and count matches
+        all_summaries = []
+        for patient in all_patients:
             summary = TreatmentService._build_patient_summary(
                 db, patient, doctor_id, status_filter
             )
-            patient_summaries.append(summary)
+            if summary is not None:  # Only include non-None (matching status)
+                all_summaries.append(summary)
+
+        # Calculate pagination based on filtered results
+        total = len(all_summaries)
+        pages = (total + per_page - 1) // per_page if total > 0 else 1
+
+        # Debug logging
+        import logging
+        logging.info(f"[TREATMENT] all_patients: {len(all_patients)}, all_summaries: {len(all_summaries)}, total: {total}")
+
+        # Get the page of results
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        patient_summaries = all_summaries[start_idx:end_idx]
 
         return {
             "patients": patient_summaries,
@@ -178,8 +223,9 @@ class TreatmentService:
                     "specialization": doctor.specialization
                 }
 
-        # Get dental procedures
-        proc_query = db.query(DentalProcedure).join(
+        # Get dental procedures - include procedures via appointments OR observations
+        # First, get procedures via appointments
+        proc_query_appt = db.query(DentalProcedure).join(
             Appointment,
             DentalProcedure.appointment_id == Appointment.id
         ).filter(
@@ -188,13 +234,37 @@ class TreatmentService:
             DentalProcedure.is_active == True
         )
         if doctor_id:
-            proc_query = proc_query.filter(Appointment.doctor_id == doctor_id)
+            proc_query_appt = proc_query_appt.filter(Appointment.doctor_id == doctor_id)
 
-        total_procedures = proc_query.count()
-        pending_procedures = proc_query.filter(
+        # Second, get procedures via observations (for patients who have observations but no appointments)
+        proc_query_obs = db.query(DentalProcedure).join(
+            DentalObservation,
+            DentalProcedure.observation_id == DentalObservation.id
+        ).filter(
+            DentalObservation.patient_mobile_number == patient.mobile_number,
+            DentalObservation.patient_first_name == patient.first_name,
+            DentalProcedure.is_active == True,
+            DentalProcedure.appointment_id == None  # Only procedures without appointment_id
+        )
+        if doctor_id:
+            # For observation-based procedures, check if observation has appointment_id matching doctor
+            proc_query_obs = proc_query_obs.filter(
+                or_(
+                    DentalObservation.appointment_id == None,
+                    DentalObservation.appointment_id.in_(
+                        db.query(Appointment.id).filter(Appointment.doctor_id == doctor_id)
+                    )
+                )
+            )
+
+        # Combine both queries using union
+        all_procedures = proc_query_appt.union(proc_query_obs)
+
+        total_procedures = all_procedures.count()
+        pending_procedures = all_procedures.filter(
             DentalProcedure.status.in_(["planned", "in_progress"])
         ).count()
-        completed_procedures = proc_query.filter(
+        completed_procedures = all_procedures.filter(
             DentalProcedure.status == "completed"
         ).count()
 
@@ -211,10 +281,17 @@ class TreatmentService:
         active_prescriptions = presc_query.count()
 
         # Determine treatment status
-        treatment_status = "completed"
-        if pending_procedures > 0 or scheduled_appointments > 0:
+        # "Planned" = Only future items scheduled, nothing completed yet
+        if completed_appointments == 0 and completed_procedures == 0 and (scheduled_appointments > 0 or pending_procedures > 0):
+            treatment_status = "planned"
+        # "Active" = Has some completed work AND still has pending work
+        elif (completed_appointments > 0 or completed_procedures > 0) and (pending_procedures > 0 or scheduled_appointments > 0):
             treatment_status = "active"
-        elif total_appointments == 0 and total_procedures == 0:
+        # "Completed" = Has completed work but nothing pending
+        elif (completed_appointments > 0 or completed_procedures > 0) and pending_procedures == 0 and scheduled_appointments == 0:
+            treatment_status = "completed"
+        # Brand new patients with no history - assign to "planned" so they appear in "All Patients"
+        else:
             treatment_status = "planned"
 
         # Apply status filter
