@@ -26,15 +26,18 @@ import {
   Close as CloseIcon,
   AttachFile as AttachFileIcon,
   ExpandMore as ExpandMoreIcon,
+  MedicalServices as MedicalServicesIcon,
 } from '@mui/icons-material';
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ButtonGroupSelect from '../common/ButtonGroupSelect';
 import TemplateNotesSelector from './TemplateNotesSelector';
+import NotesManagementDialog from './NotesManagementDialog';
 import FileUpload from '../common/FileUpload';
 import FileGallery from '../common/FileGallery';
 import PostProcedureUploadDialog from '../common/PostProcedureUploadDialog';
 import { type ObservationData, type ProcedureData } from './ObservationRow';
+import dentalService from '../../services/dentalService';
 
 // Dental conditions - MUST match backend DENTAL_CONDITION_TYPES (models/dental.py:169)
 const DENTAL_CONDITIONS = [
@@ -117,6 +120,8 @@ interface NewObservationFormProps {
   onUpdateCaption?: (attachmentId: string, caption: string) => Promise<void>;
   onDeleteAttachment?: (attachmentId: string) => Promise<void>;
   isUploadingAttachment?: boolean;
+  // Refresh callback to reload observations and dental chart after changes
+  onRefresh?: () => Promise<void>;
 }
 
 const NewObservationForm: React.FC<NewObservationFormProps> = ({
@@ -131,6 +136,7 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   onUpdateCaption,
   onDeleteAttachment,
   isUploadingAttachment = false,
+  onRefresh,
 }) => {
   // Auto-show procedures section when in edit mode with existing procedures
   const hasProcedures = observation.procedures && observation.procedures.length > 0;
@@ -142,6 +148,9 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   // NEW: Post-procedure upload dialog
   const [showPostProcedureDialog, setShowPostProcedureDialog] = useState(false);
   const [completedProcedure, setCompletedProcedure] = useState<ProcedureData | null>(null);
+
+  // Notes Management Dialog
+  const [showNotesManagementDialog, setShowNotesManagementDialog] = useState(false);
 
   // Update showProcedures when edit mode changes
   React.useEffect(() => {
@@ -196,13 +205,50 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
   };
 
   // Remove procedure
-  const handleRemoveProcedure = (procedureId: string) => {
+  const handleRemoveProcedure = async (procedureId: string) => {
+    // Find the procedure to check if it has a backend ID
+    const procedureToDelete = observation.procedures.find(p => p.id === procedureId);
+
+    if (!procedureToDelete) {
+      console.error('Procedure not found:', procedureId);
+      return;
+    }
+
+    // If procedure has a backend ID, delete it from backend first
+    if (procedureToDelete.backendProcedureId) {
+      try {
+        console.log('Deleting procedure from backend:', procedureToDelete.backendProcedureId);
+        await dentalService.procedures.delete(procedureToDelete.backendProcedureId);
+        console.log('✅ Procedure deleted from backend successfully');
+      } catch (error: any) {
+        console.error('❌ Failed to delete procedure from backend:', error);
+        // Show error and don't update UI if backend delete failed
+        const errorMsg = error?.response?.data?.detail || 'Failed to delete procedure from server';
+        alert(`Error: ${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
+        return; // CRITICAL: Don't update UI if backend delete failed
+      }
+    } else {
+      console.log('Removing unsaved procedure from UI:', procedureId);
+    }
+
+    // Remove from local state only after successful backend delete (or if no backend ID)
     const updatedProcedures = observation.procedures.filter(p => p.id !== procedureId);
     onUpdate({
       ...observation,
       procedures: updatedProcedures,
       hasProcedure: updatedProcedures.length > 0,
     });
+
+    // CRITICAL: Refresh data to ensure UI is in sync with backend
+    if (onRefresh) {
+      try {
+        await onRefresh();
+        console.log('✅ Data refreshed after procedure deletion');
+      } catch (error) {
+        console.error('❌ Failed to refresh data:', error);
+        // Don't show error - the deletion was successful
+      }
+    }
   };
 
   // Update specific procedure
@@ -419,8 +465,51 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
           borderRadius: 2,
           p: 1.5,
           background: 'rgba(102, 126, 234, 0.02)',
+          position: 'relative',
         }}
       >
+        {/* Manage All Notes Button - Top Right */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 1,
+          }}
+        >
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<MedicalServicesIcon sx={{ fontSize: 14 }} />}
+            onClick={() => setShowNotesManagementDialog(true)}
+            disableRipple
+            sx={{
+              minHeight: 32,
+              px: 1.5,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              borderRadius: 1.5,
+              textTransform: 'none',
+              bgcolor: 'white',
+              '&:hover': {
+                borderColor: '#5568d3',
+                bgcolor: 'rgba(102, 126, 234, 0.08)',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)',
+              },
+              '&::before': {
+                display: 'none',
+              },
+              '&::after': {
+                display: 'none',
+              },
+            }}
+          >
+            Manage All
+          </Button>
+        </Box>
+
         <TemplateNotesSelector
           conditionType={observation.conditionType}
           toothSurface={observation.toothSurface}
@@ -432,6 +521,14 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
           disabled={saving}
         />
       </Box>
+
+      {/* Notes Management Dialog */}
+      <NotesManagementDialog
+        open={showNotesManagementDialog}
+        onClose={() => setShowNotesManagementDialog(false)}
+        selectedTemplateIds={observation.selectedTemplateIds || []}
+        onTemplateSelect={(ids) => handleChange('selectedTemplateIds', ids)}
+      />
 
       {/* Treatment Required with Purple Checkbox */}
       <FormControlLabel

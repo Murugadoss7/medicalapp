@@ -101,21 +101,23 @@ logger.info(f"📁 Static files mounted at /uploads -> {uploads_dir}")
 async def log_requests(request: Request, call_next):
     """
     Log all requests for audit and monitoring
+    Also ensures CORS headers are present on all responses (including errors)
     """
     start_time = time.time()
-    
+
     # Extract request information
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
     method = request.method
     url = str(request.url)
-    
+    origin = request.headers.get("origin")
+
     # Process request
     response = await call_next(request)
-    
+
     # Calculate processing time
     process_time = time.time() - start_time
-    
+
     # Log request
     logger.info(
         f"{method} {url} - "
@@ -124,11 +126,19 @@ async def log_requests(request: Request, call_next):
         f"IP: {client_ip} - "
         f"User-Agent: {user_agent[:100]}..."
     )
-    
+
     # Add response headers
     response.headers["X-Process-Time"] = str(process_time)
     response.headers["X-API-Version"] = settings.VERSION
-    
+
+    # Ensure CORS headers are present on all responses (including error responses)
+    # This fixes the issue where authentication errors don't include CORS headers
+    if origin and origin in settings.ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = ", ".join(settings.ALLOWED_METHODS)
+        response.headers["Access-Control-Allow-Headers"] = ", ".join(settings.ALLOWED_HEADERS)
+
     return response
 
 

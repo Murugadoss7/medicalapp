@@ -16,6 +16,7 @@ export { default as SavedObservationsPanel } from './SavedObservationsPanel';
 export { default as ObservationEditModal } from './ObservationEditModal';
 export { default as AnatomicalDentalChart } from './AnatomicalDentalChart';
 export { default as TemplateNotesSelector } from './TemplateNotesSelector';
+export { default as NotesManagementDialog } from './NotesManagementDialog';
 
 // Note: Old components moved to _backup folder:
 // - DentalChart.tsx (replaced by AnatomicalDentalChart)

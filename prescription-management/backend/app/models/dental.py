@@ -172,14 +172,21 @@ DENTAL_CONDITION_TYPES = [
     "Fracture",
     "Crack",
     "Discoloration",
+    "Stain",
     "Wear",
     "Erosion",
     "Abscess",
     "Gum Disease",
     "Root Exposure",
+    "Root Canal",
     "Sensitivity",
     "Missing",
     "Impacted",
+    "Calculus",
+    "Plaque",
+    "Mobility",
+    "Crown",
+    "Filling",
     "Other"
 ]
 

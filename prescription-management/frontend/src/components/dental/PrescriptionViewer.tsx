@@ -545,6 +545,30 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* New Prescription Button - Only show if onAddMore callback is provided */}
+            {onAddMore && (
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={onAddMore}
+                size="small"
+                className="no-print"
+                sx={{
+                  minHeight: 36,
+                  px: 2,
+                  fontWeight: 700,
+                  borderColor: '#667eea',
+                  color: '#667eea',
+                  borderRadius: 1.5,
+                  '&:hover': {
+                    borderColor: '#5568d3',
+                    bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  },
+                }}
+              >
+                New Prescription
+              </Button>
+            )}
             <Button
               variant="contained"
               startIcon={<PrintIcon />}

@@ -68,17 +68,24 @@ class DentalTemplateService:
             DentalObservationTemplate.condition_type.is_(None)
         )
 
-        surface_filter = or_(
-            DentalObservationTemplate.tooth_surface == tooth_surface,
-            DentalObservationTemplate.tooth_surface.is_(None)
-        ) if tooth_surface else DentalObservationTemplate.tooth_surface.is_(None)
+        # For surface and severity:
+        # - If provided: match exact value OR NULL (wildcard)
+        # - If NOT provided: don't filter (show all templates regardless of surface/severity)
+        query = query.filter(condition_filter)
 
-        severity_filter = or_(
-            DentalObservationTemplate.severity == severity,
-            DentalObservationTemplate.severity.is_(None)
-        ) if severity else DentalObservationTemplate.severity.is_(None)
+        if tooth_surface:
+            surface_filter = or_(
+                DentalObservationTemplate.tooth_surface == tooth_surface,
+                DentalObservationTemplate.tooth_surface.is_(None)
+            )
+            query = query.filter(surface_filter)
 
-        query = query.filter(condition_filter, surface_filter, severity_filter)
+        if severity:
+            severity_filter = or_(
+                DentalObservationTemplate.severity == severity,
+                DentalObservationTemplate.severity.is_(None)
+            )
+            query = query.filter(severity_filter)
 
         templates = query.all()
 

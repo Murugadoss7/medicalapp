@@ -4,16 +4,25 @@ import { useGetCurrentUserQuery } from '../../store/api';
 import { CircularProgress, Box } from '@mui/material';
 
 export const DashboardRedirect = () => {
-  const { data: user, isLoading, error } = useGetCurrentUserQuery();
+  // Check if we have a token before making API call
+  const hasToken = !!localStorage.getItem('access_token');
+  const { data: user, isLoading, error } = useGetCurrentUserQuery(undefined, {
+    skip: !hasToken, // Skip API call if no token
+  });
+
+  // If no token, redirect to login immediately
+  if (!hasToken) {
+    return <Navigate to="/auth/login" replace />;
+  }
 
   if (isLoading) {
     return (
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100vh' 
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh'
         }}
       >
         <CircularProgress />

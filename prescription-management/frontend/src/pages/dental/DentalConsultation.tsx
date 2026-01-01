@@ -453,7 +453,8 @@ const DentalConsultation: React.FC = () => {
               }
             });
 
-            // Handle procedures without matching observations (standalone procedures)
+            // Handle procedures without matching observations (standalone/orphaned procedures)
+            // CRITICAL FIX: These shouldn't exist - log warning and auto-clean them
             procedures.forEach((proc, index) => {
               const procTeeth = proc.tooth_numbers?.split(',') || [];
               const hasMatchingObs = Object.values(groupedObs).some(obs =>
@@ -461,10 +462,22 @@ const DentalConsultation: React.FC = () => {
               );
 
               if (!hasMatchingObs) {
-                // Create a standalone observation row for this procedure
-                const key = `proc_${proc.id}`;
+                // ⚠️ ORPHANED PROCEDURE DETECTED - This is a data integrity issue
+                console.warn(
+                  `⚠️ Orphaned procedure detected (ID: ${proc.id}):`,
+                  `Procedure "${proc.procedure_name}" has no linked observation.`,
+                  `This shouldn't happen - procedures must be linked to observations.`,
+                  `observation_id:`, proc.observation_id,
+                  `teeth:`, procTeeth
+                );
 
-                // FIX: Create procedure data for procedures array
+                // OPTION 1: Don't display orphaned procedures (cleaner UX)
+                // Comment this out if you want to show them
+
+                // OPTION 2: Create a standalone observation row (current behavior - causes bugs)
+                // Uncomment below ONLY if you absolutely need to display orphaned procedures
+                /*
+                const key = `proc_${proc.id}`;
                 const procedureData: ProcedureData = {
                   id: proc.id,
                   selectedTeeth: procTeeth,
@@ -482,9 +495,9 @@ const DentalConsultation: React.FC = () => {
                   id: `saved_proc_${proc.id}`,
                   selectedTeeth: procTeeth,
                   toothSurface: '',
-                  conditionType: '',
+                  conditionType: 'Orphaned Procedure', // Mark as orphaned
                   severity: '',
-                  observationNotes: '',
+                  observationNotes: '⚠️ This procedure is not linked to an observation. Please delete and recreate it properly.',
                   treatmentRequired: true,
                   hasProcedure: true,
                   procedureCode: proc.procedure_code,
@@ -495,9 +508,9 @@ const DentalConsultation: React.FC = () => {
                   procedureStatus: proc.status || 'planned',
                   isSaved: true,
                   backendProcedureId: proc.id,
-                  // FIX: Add procedures array
                   procedures: [procedureData],
                 };
+                */
               }
             });
 
@@ -1676,6 +1689,133 @@ const DentalConsultation: React.FC = () => {
     setPendingDeleteObservationId(null);
   }, []);
 
+  // Refresh observations and dental chart after changes (e.g., procedure deletion)
+  const handleRefreshData = useCallback(async () => {
+    if (!appointmentId) return;
+
+    try {
+      // Reload observations and procedures from backend
+      const [obsResponse, procResponse] = await Promise.all([
+        dentalService.observations.getByAppointment(appointmentId),
+        dentalService.procedures.getByAppointment(appointmentId),
+      ]);
+
+      const fetchedObservations = obsResponse.observations || [];
+      const procedures = procResponse.procedures || [];
+
+      // Reprocess data (same logic as initial load)
+      const groupedObs: Record<string, ObservationData> = {};
+
+      fetchedObservations.forEach(obs => {
+        const key = `${obs.condition_type}_${obs.tooth_surface || 'none'}_${obs.severity || 'none'}`;
+
+        if (groupedObs[key]) {
+          if (!groupedObs[key].selectedTeeth.includes(obs.tooth_number)) {
+            groupedObs[key].selectedTeeth.push(obs.tooth_number);
+            if (!groupedObs[key].backendObservationIds) {
+              groupedObs[key].backendObservationIds = {};
+            }
+            groupedObs[key].backendObservationIds![obs.tooth_number] = obs.id;
+          }
+        } else {
+          groupedObs[key] = {
+            id: `saved_${obs.id}`,
+            selectedTeeth: [obs.tooth_number],
+            toothSurface: obs.tooth_surface || '',
+            conditionType: obs.condition_type,
+            severity: obs.severity || '',
+            observationNotes: obs.observation_notes || '',
+            treatmentRequired: obs.treatment_required,
+            hasProcedure: false,
+            procedureCode: '',
+            procedureName: '',
+            customProcedureName: '',
+            procedureDate: new Date(),
+            procedureNotes: '',
+            isSaved: true,
+            backendObservationIds: {
+              [obs.tooth_number]: obs.id
+            },
+            selectedTemplateIds: obs.selected_template_ids || [],
+            customNotes: obs.custom_notes || '',
+            procedures: [],
+          };
+        }
+      });
+
+      // Match procedures to observations
+      procedures.forEach(proc => {
+        const procTeeth = proc.tooth_numbers?.split(',') || [];
+        let matchedKey: string | null = null;
+
+        if (proc.observation_id) {
+          for (const key of Object.keys(groupedObs)) {
+            const obsGroup = groupedObs[key];
+            if (obsGroup.backendObservationIds) {
+              const hasMatchingId = Object.values(obsGroup.backendObservationIds).includes(proc.observation_id);
+              if (hasMatchingId) {
+                matchedKey = key;
+                break;
+              }
+            }
+          }
+        }
+
+        if (matchedKey) {
+          const obsGroup = groupedObs[matchedKey];
+          const procedureData: ProcedureData = {
+            id: proc.id,
+            selectedTeeth: procTeeth,
+            procedureCode: proc.procedure_code,
+            procedureName: proc.procedure_name,
+            customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : undefined,
+            procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+            procedureTime: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+            procedureNotes: proc.procedure_notes || '',
+            procedureStatus: (proc.status || 'planned') as 'planned' | 'cancelled' | 'completed',
+            backendProcedureId: proc.id,
+          };
+
+          obsGroup.procedures = obsGroup.procedures || [];
+          obsGroup.procedures.push(procedureData);
+
+          if (!obsGroup.hasProcedure) {
+            obsGroup.hasProcedure = true;
+            obsGroup.procedureCode = proc.procedure_code;
+            obsGroup.procedureName = proc.procedure_name;
+            obsGroup.procedureDate = proc.procedure_date ? new Date(proc.procedure_date) : new Date();
+            obsGroup.procedureNotes = proc.procedure_notes || '';
+            obsGroup.procedureStatus = proc.status || 'planned';
+            obsGroup.backendProcedureId = proc.id;
+            if (proc.procedure_code === 'CUSTOM') {
+              obsGroup.customProcedureName = proc.procedure_name;
+            }
+          }
+        }
+      });
+
+      const savedObservations = Object.values(groupedObs);
+
+      // Update observations state (preserve newObservation if in edit mode, otherwise create new)
+      if (isEditMode && editingObservationId) {
+        // Keep existing newObservation for editing
+        setObservations(savedObservations);
+      } else {
+        const newObs = createNewObservation();
+        setObservations([...savedObservations, newObs]);
+        setActiveObservationId(newObs.id);
+      }
+
+      // Reload dental chart
+      await loadDentalChart();
+
+      console.log('✅ Data refreshed successfully');
+    } catch (error: any) {
+      console.error('Failed to refresh data:', error);
+      toast.error('Failed to refresh data. Please reload the page.');
+    }
+  }, [appointmentId, isEditMode, editingObservationId, loadDentalChart, toast]);
+
   // ============================================================
   // END NEW HANDLERS
   // ============================================================
@@ -1939,12 +2079,18 @@ const DentalConsultation: React.FC = () => {
               Summary
             </Button>
 
-            {/* Prescription Button - Primary Purple */}
+            {/* Prescription Button - Primary Purple (changes based on prescription existence) */}
             <Button
               variant="contained"
               startIcon={<ArticleIcon />}
               onClick={() => {
-                setCreatedPrescriptionId(null);
+                // If patient has prescriptions, show the latest one; otherwise create new
+                if (patientPrescriptions && patientPrescriptions.length > 0) {
+                  setCreatedPrescriptionId(patientPrescriptions[0].id);
+                  setSelectedPrescriptionIndex(0);
+                } else {
+                  setCreatedPrescriptionId(null);
+                }
                 setShowPrescriptionDialog(true);
               }}
               sx={{
@@ -1964,7 +2110,9 @@ const DentalConsultation: React.FC = () => {
                 },
               }}
             >
-              Prescription
+              {patientPrescriptions && patientPrescriptions.length > 0
+                ? 'View Prescriptions'
+                : 'Create Prescription'}
             </Button>
 
             {/* Complete Visit Button - Success Green */}
@@ -2107,6 +2255,7 @@ const DentalConsultation: React.FC = () => {
                 onUpdateCaption={handleUpdateAttachmentCaption}
                 onDeleteAttachment={handleDeleteAttachment}
                 isUploadingAttachment={isUploadingAttachment}
+                onRefresh={handleRefreshData}
               />
             </Collapse>
           </Paper>
