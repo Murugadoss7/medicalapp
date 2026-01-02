@@ -217,6 +217,86 @@ def get_patient_treatment_timeline(
 
 
 # ============================================================================
+# GET /treatments/patients/{mobile}/{first_name}/timeline-grouped - Get grouped timeline
+# ============================================================================
+
+@router.get("/patients/{mobile}/{first_name}/timeline-grouped")
+def get_patient_treatment_timeline_grouped(
+    mobile: str,
+    first_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get treatment timeline grouped by appointment/visit
+
+    Groups observations, procedures, and prescriptions under their appointment.
+    Shows one card per appointment with all related data.
+
+    **Authorization:**
+    - Doctor: Can only access their own consulted patients
+    - Admin: Can access all patients
+
+    **Path Parameters:**
+    - `mobile`: Patient mobile number
+    - `first_name`: Patient first name
+
+    **Returns:**
+    - List of grouped timeline entries (one per appointment/visit)
+    - Each entry includes:
+      - Appointment details
+      - All observations for that appointment
+      - All procedures for that appointment
+      - All prescriptions for that appointment
+      - Summary counts
+    """
+
+    # Authorization check
+    if current_user.role not in ["doctor", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors and admins can access treatment dashboard"
+        )
+
+    # For doctors: Verify they have consulted this patient
+    if current_user.role == "doctor":
+        from app.models import Doctor
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+        if not doctor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Doctor profile not found"
+            )
+
+        has_access = TreatmentService.verify_doctor_patient_access(
+            db=db,
+            doctor_id=doctor.id,
+            patient_mobile=mobile,
+            patient_first_name=first_name
+        )
+
+        if not has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this patient's records"
+            )
+
+        doctor_filter = doctor.id
+    else:
+        doctor_filter = None
+
+    # Get grouped timeline
+    timeline = TreatmentService.get_patient_timeline_grouped(
+        db=db,
+        patient_mobile=mobile,
+        patient_first_name=first_name,
+        doctor_id=doctor_filter
+    )
+
+    return {"timeline": timeline}
+
+
+# ============================================================================
 # GET /treatments/patients/{mobile}/{first_name}/procedures - Get procedures
 # ============================================================================
 

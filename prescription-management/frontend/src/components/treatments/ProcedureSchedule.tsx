@@ -462,29 +462,40 @@ const ProcedureSchedule = ({ patientMobile, patientFirstName }: ProcedureSchedul
               }}
             />
           </Box>
-          {/* Add Procedure Button - Right Side */}
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
+          {/* Add Procedure Button - Right Side (using Box to avoid nested buttons) */}
+          <Box
             onClick={(e) => {
               e.stopPropagation(); // Prevent accordion toggle
               handleAddProcedureClick();
             }}
             sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
               minHeight: 32,
+              px: 2,
+              py: 0.5,
+              borderRadius: 1,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
               fontWeight: 600,
               fontSize: '0.8125rem',
               boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
               '&:hover': {
                 background: 'linear-gradient(135deg, #5568d3 0%, #66348a 100%)',
                 boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                transform: 'translateY(-1px)',
+              },
+              '&:active': {
+                transform: 'translateY(0)',
               },
             }}
           >
+            <AddIcon sx={{ fontSize: 18 }} />
             Add New
-          </Button>
+          </Box>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           {procedures.upcoming.length === 0 ? (

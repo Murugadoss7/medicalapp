@@ -10,7 +10,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import DescriptionIcon from '@mui/icons-material/Description';
 import { PatientSummary } from '../../services/treatmentService';
-import TreatmentTimeline from './TreatmentTimeline';
+import TreatmentTimeline from './TreatmentTimelineGrouped';
 import ProcedureSchedule from './ProcedureSchedule';
 import CaseStudyView from './CaseStudyView';
 
@@ -27,6 +27,19 @@ const TreatmentDetailsPanel = ({
   onTabChange,
   onBack,
 }: TreatmentDetailsPanelProps) => {
+
+  // Handle prescription click - open prescription in new tab
+  const handlePrescriptionClick = (prescriptionId: string) => {
+    const prescriptionUrl = `/prescriptions/${prescriptionId}/view`;
+    window.open(prescriptionUrl, '_blank');
+  };
+
+  // Handle procedure click - switch to procedures tab
+  const handleProcedureClick = (procedureId: string) => {
+    onTabChange('procedures');
+    // Store the procedure ID to highlight it
+    sessionStorage.setItem('highlightProcedureId', procedureId);
+  };
   if (!patient) {
     return (
       <Paper
@@ -298,6 +311,8 @@ const TreatmentDetailsPanel = ({
               <TreatmentTimeline
                 patientMobile={patient.patient.mobile_number}
                 patientFirstName={patient.patient.first_name}
+                onProcedureClick={handleProcedureClick}
+                onPrescriptionClick={handlePrescriptionClick}
               />
             )}
 

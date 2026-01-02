@@ -83,6 +83,61 @@ export interface ProcedureGroup {
   cancelled: Array<any>;
 }
 
+export interface GroupedTimelineEntry {
+  appointment_id: string;
+  date: string;
+  time: string | null;
+  appointment_number: string;
+  appointment_status: string;
+  reason_for_visit: string;
+  doctor_name: string;
+  doctor_id: string;
+  observations: Array<{
+    id: string;
+    tooth_number: string;
+    condition_type: string;
+    severity: string;
+    tooth_surface: string;
+    observation_notes: string;
+    treatment_required: boolean;
+    treatment_done: boolean;
+    created_at: string;
+    prescription: {
+      id: string;
+      prescription_number: string;
+      diagnosis: string;
+      chief_complaint: string;
+      status: string;
+      visit_date: string | null;
+    } | null;
+  }>;
+  procedures: Array<{
+    id: string;
+    procedure_code: string;
+    procedure_name: string;
+    tooth_numbers: string;
+    description: string | null;
+    status: string;
+    procedure_date: string | null;
+    estimated_cost: number | null;
+    actual_cost: number | null;
+    procedure_notes: string | null;
+  }>;
+  prescriptions: Array<{
+    id: string;
+    prescription_number: string;
+    diagnosis: string;
+    chief_complaint: string;
+    status: string;
+  }>;
+  summary: {
+    total_observations: number;
+    total_procedures: number;
+    total_prescriptions: number;
+    teeth_affected: string[];
+  };
+}
+
 export interface PatientListParams {
   doctor_id?: string;
   treatment_types?: string; // Comma-separated: 'appointments,procedures,observations'
@@ -116,6 +171,19 @@ export const fetchPatientTimeline = async (
 };
 
 /**
+ * Get patient treatment timeline grouped by appointment
+ */
+export const fetchPatientTimelineGrouped = async (
+  mobile: string,
+  firstName: string
+) => {
+  const response = await axiosInstance.get(
+    `/treatments/patients/${mobile}/${firstName}/timeline-grouped`
+  );
+  return response.data;
+};
+
+/**
  * Get patient procedures grouped by status
  */
 export const fetchPatientProcedures = async (
@@ -131,6 +199,7 @@ export const fetchPatientProcedures = async (
 const treatmentService = {
   fetchPatients,
   fetchPatientTimeline,
+  fetchPatientTimelineGrouped,
   fetchPatientProcedures,
 };
 

@@ -1,7 +1,7 @@
 /**
  * Treatment Timeline Component - Medical Futurism Design
- * Shows chronological treatment events with color-coded types
- * iPad-friendly with staggered animations and enhanced visual design
+ * Shows chronological treatment events grouped by appointment
+ * Each card represents one appointment with all related observations and procedures
  */
 
 import { useState, useEffect } from 'react';
@@ -15,6 +15,13 @@ import {
   CircularProgress,
   Alert,
   Fade,
+  Collapse,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -23,8 +30,9 @@ import {
   Assignment as PrescriptionIcon,
   EventNote as AppointmentIcon,
   Visibility as ObservationIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { TimelineEvent } from '../../services/treatmentService';
+import { GroupedTimelineEntry } from '../../services/treatmentService';
 import treatmentService from '../../services/treatmentService';
 
 interface TreatmentTimelineProps {
@@ -33,9 +41,10 @@ interface TreatmentTimelineProps {
 }
 
 const TreatmentTimeline = ({ patientMobile, patientFirstName }: TreatmentTimelineProps) => {
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [timeline, setTimeline] = useState<GroupedTimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadTimeline();
@@ -46,7 +55,7 @@ const TreatmentTimeline = ({ patientMobile, patientFirstName }: TreatmentTimelin
       setLoading(true);
       setError(null);
 
-      const response = await treatmentService.fetchPatientTimeline(
+      const response = await treatmentService.fetchPatientTimelineGrouped(
         patientMobile,
         patientFirstName
       );
@@ -58,6 +67,18 @@ const TreatmentTimeline = ({ patientMobile, patientFirstName }: TreatmentTimelin
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCard = (appointmentId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(appointmentId)) {
+        newSet.delete(appointmentId);
+      } else {
+        newSet.add(appointmentId);
+      }
+      return newSet;
+    });
   };
 
   const getEventIcon = (type: string) => {

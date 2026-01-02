@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { Box, CircularProgress, Alert, Paper } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import PatientDetailHeader from '../../components/treatments/PatientDetailHeader';
-import TreatmentTimeline from '../../components/treatments/TreatmentTimeline';
+import TreatmentTimeline from '../../components/treatments/TreatmentTimelineGrouped';
 import treatmentService, { PatientSummary } from '../../services/treatmentService';
 
 export const TimelinePage = () => {
@@ -16,6 +16,12 @@ export const TimelinePage = () => {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle prescription click - open prescription in new tab
+  const handlePrescriptionClick = (prescriptionId: string) => {
+    const prescriptionUrl = `/prescriptions/${prescriptionId}/view`;
+    window.open(prescriptionUrl, '_blank');
+  };
 
   useEffect(() => {
     loadPatient();
@@ -129,6 +135,7 @@ export const TimelinePage = () => {
           <TreatmentTimeline
             patientMobile={patient.patient.mobile_number}
             patientFirstName={patient.patient.first_name}
+            onPrescriptionClick={handlePrescriptionClick}
           />
         </Paper>
       )}

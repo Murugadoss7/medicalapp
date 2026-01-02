@@ -489,13 +489,16 @@ class TreatmentService:
         for proc in procedures:
             proc_date = proc.procedure_date or proc.created_at.date()
 
+            # Fallback: If procedure_name is empty, use procedure_code
+            title = proc.procedure_name if proc.procedure_name else proc.procedure_code
+
             timeline_events.append({
                 "date": proc_date.isoformat(),
                 "time": None,
                 "type": "procedure",
                 "event": {
                     "id": str(proc.id),
-                    "title": proc.procedure_name,
+                    "title": title,
                     "description": proc.description or f"Tooth: {proc.tooth_numbers}",
                     "procedure_code": proc.procedure_code,
                     "tooth_numbers": proc.tooth_numbers,
@@ -509,6 +512,170 @@ class TreatmentService:
         timeline_events.sort(key=lambda x: (x["date"], x["time"] or "00:00"), reverse=True)
 
         return timeline_events
+
+    @staticmethod
+    def get_patient_timeline_grouped(
+        db: Session,
+        patient_mobile: str,
+        patient_first_name: str,
+        doctor_id: Optional[UUID] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get patient treatment timeline grouped by appointment/visit
+        Groups observations, procedures, and prescriptions under their appointment
+
+        Args:
+            db: Database session
+            patient_mobile: Patient mobile number
+            patient_first_name: Patient first name
+            doctor_id: Optional doctor filter
+
+        Returns:
+            List of grouped timeline entries (one per appointment/visit)
+        """
+
+        # Get all appointments
+        apt_query = db.query(Appointment).filter(
+            Appointment.patient_mobile_number == patient_mobile,
+            Appointment.patient_first_name == patient_first_name,
+            Appointment.is_active == True
+        )
+
+        if doctor_id:
+            apt_query = apt_query.filter(Appointment.doctor_id == doctor_id)
+
+        appointments = apt_query.order_by(desc(Appointment.appointment_date)).all()
+
+        grouped_timeline = []
+
+        for apt in appointments:
+            # Get doctor info
+            doctor = db.query(Doctor).filter(Doctor.id == apt.doctor_id).first()
+            doctor_user = db.query(User).filter(User.id == doctor.user_id).first() if doctor else None
+            doctor_name = f"Dr. {doctor_user.first_name} {doctor_user.last_name}" if doctor_user else "Unknown"
+
+            # Get observations for this appointment
+            observations = db.query(DentalObservation).filter(
+                DentalObservation.appointment_id == apt.id,
+                DentalObservation.is_active == True
+            ).all()
+
+            obs_list = []
+            for obs in observations:
+                # Get prescription details if linked
+                prescription_data = None
+                if obs.prescription_id:
+                    presc = db.query(Prescription).filter(
+                        Prescription.id == obs.prescription_id,
+                        Prescription.is_active == True
+                    ).first()
+                    if presc:
+                        prescription_data = {
+                            "id": str(presc.id),
+                            "prescription_number": presc.prescription_number,
+                            "diagnosis": presc.diagnosis,
+                            "chief_complaint": presc.chief_complaint,
+                            "status": presc.status,
+                            "visit_date": presc.visit_date.isoformat() if presc.visit_date else None
+                        }
+                    else:
+                        # DEBUG: Prescription ID exists but prescription not found or inactive
+                        print(f"⚠️ WARNING: Observation {obs.id} has prescription_id {obs.prescription_id} but prescription not found or inactive")
+                else:
+                    # DEBUG: Check if there's a prescription for this appointment that should be linked
+                    # This helps identify data consistency issues
+                    apt_prescriptions = db.query(Prescription).filter(
+                        Prescription.patient_mobile_number == patient_mobile,
+                        Prescription.patient_first_name == patient_first_name,
+                        Prescription.is_active == True
+                    ).all()
+
+                    # Check if any prescription exists for the same appointment date
+                    for p in apt_prescriptions:
+                        if p.visit_date and p.visit_date == apt.appointment_date:
+                            print(f"⚠️ DATA INCONSISTENCY: Observation {obs.id} (tooth {obs.tooth_number}) on {apt.appointment_date} has NO prescription_id, but prescription {p.prescription_number} exists for same date. These should be linked!")
+
+                obs_list.append({
+                    "id": str(obs.id),
+                    "tooth_number": obs.tooth_number,
+                    "condition_type": obs.condition_type,
+                    "severity": obs.severity,
+                    "tooth_surface": obs.tooth_surface,
+                    "observation_notes": obs.observation_notes,
+                    "treatment_required": obs.treatment_required,
+                    "treatment_done": obs.treatment_done,
+                    "created_at": obs.created_at.isoformat(),
+                    "prescription": prescription_data
+                })
+
+            # Get procedures for this appointment
+            # IMPORTANT: Only include procedures that are linked to observations
+            # Orphaned procedures (observation_id = NULL) should not appear
+            procedures = db.query(DentalProcedure).filter(
+                DentalProcedure.appointment_id == apt.id,
+                DentalProcedure.observation_id.isnot(None),  # Filter out orphaned procedures
+                DentalProcedure.is_active == True
+            ).all()
+
+            proc_list = []
+            for proc in procedures:
+                # Fallback: If procedure_name is empty, use procedure_code
+                proc_name = proc.procedure_name if proc.procedure_name else proc.procedure_code
+
+                proc_list.append({
+                    "id": str(proc.id),
+                    "procedure_code": proc.procedure_code,
+                    "procedure_name": proc_name,
+                    "tooth_numbers": proc.tooth_numbers,
+                    "description": proc.description,
+                    "status": proc.status,
+                    "procedure_date": proc.procedure_date.isoformat() if proc.procedure_date else None,
+                    "estimated_cost": float(proc.estimated_cost) if proc.estimated_cost else None,
+                    "actual_cost": float(proc.actual_cost) if proc.actual_cost else None,
+                    "procedure_notes": proc.procedure_notes
+                })
+
+            # Get prescriptions for this appointment (if prescription_id is linked)
+            prescriptions = db.query(Prescription).filter(
+                Prescription.appointment_id == apt.id,
+                Prescription.is_active == True
+            ).all() if hasattr(Prescription, 'appointment_id') else []
+
+            presc_list = []
+            for presc in prescriptions:
+                presc_list.append({
+                    "id": str(presc.id),
+                    "prescription_number": presc.prescription_number,
+                    "diagnosis": presc.diagnosis,
+                    "chief_complaint": presc.chief_complaint,
+                    "status": presc.status
+                })
+
+            # Build grouped entry
+            grouped_timeline.append({
+                "appointment_id": str(apt.id),
+                "date": apt.appointment_date.isoformat(),
+                "time": apt.appointment_time.strftime("%H:%M") if apt.appointment_time else None,
+                "appointment_number": apt.appointment_number,
+                "appointment_status": apt.status,
+                "reason_for_visit": apt.reason_for_visit,
+                "doctor_name": doctor_name,
+                "doctor_id": str(apt.doctor_id),
+                "observations": obs_list,
+                "procedures": proc_list,
+                "prescriptions": presc_list,
+                "summary": {
+                    "total_observations": len(obs_list),
+                    "total_procedures": len(proc_list),
+                    "total_prescriptions": len(presc_list),
+                    "teeth_affected": list(set(
+                        [obs["tooth_number"] for obs in obs_list] +
+                        [tooth for proc in proc_list for tooth in (proc["tooth_numbers"] or "").split(",") if tooth]
+                    ))
+                }
+            })
+
+        return grouped_timeline
 
     @staticmethod
     def get_patient_procedures(
