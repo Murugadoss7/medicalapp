@@ -95,6 +95,7 @@ const createNewObservation = (teeth: string[] = []): ObservationData => ({
 });
 
 import dentalService, { type DentalChart as DentalChartType } from '../../services/dentalService';
+import { api } from '../../store/api';
 import {
   useGetAppointmentDetailsQuery,
   useGetPatientMedicalHistoryQuery,
@@ -113,6 +114,12 @@ const DentalConsultation: React.FC = () => {
   const toast = useToast();
   const dispatch = useDispatch();
   const theme = useTheme();
+
+  // Helper to invalidate dashboard cache when creating observations/procedures
+  const invalidateDashboardCache = useCallback(() => {
+    // Invalidate both Appointment and Prescription tags to refresh dashboard
+    dispatch(api.util.invalidateTags(['Appointment', 'Prescription']));
+  }, [dispatch]);
 
   // Responsive breakpoint for tablet optimizations
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
@@ -915,6 +922,9 @@ const DentalConsultation: React.FC = () => {
       setHasUnsavedChanges(false);
       loadDentalChart();
 
+      // Invalidate dashboard cache to refresh appointment and procedure counts
+      invalidateDashboardCache();
+
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save observations');
     } finally {
@@ -945,6 +955,9 @@ const DentalConsultation: React.FC = () => {
 
       toast.success('Procedure added successfully');
       loadDentalChart(); // Reload chart
+
+      // Invalidate dashboard cache to refresh procedure counts
+      invalidateDashboardCache();
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to add procedure');
     } finally {
@@ -1086,6 +1099,9 @@ const DentalConsultation: React.FC = () => {
         toast.success('Observation updated successfully');
         await loadDentalChart(); // Refresh chart
 
+        // Invalidate dashboard cache to refresh counts
+        invalidateDashboardCache();
+
         // Return the updated observation ID
         return updatedObservationId;
 
@@ -1212,6 +1228,9 @@ const DentalConsultation: React.FC = () => {
         toast.success('Observation saved successfully');
         await loadDentalChart(); // Refresh chart
 
+        // Invalidate dashboard cache to refresh counts
+        invalidateDashboardCache();
+
         // Return the first observation ID for use by upload handler
         return firstObservationId;
       }
@@ -1222,7 +1241,7 @@ const DentalConsultation: React.FC = () => {
     } finally {
       setSavingObservations(false);
     }
-  }, [newObservation, appointmentId, patientData, loadDentalChart, isEditMode, editingObservationId]);
+  }, [newObservation, appointmentId, patientData, loadDentalChart, isEditMode, editingObservationId, invalidateDashboardCache]);
 
   // Clear new observation form
   const handleClearNewObservation = useCallback(() => {
@@ -1538,11 +1557,14 @@ const DentalConsultation: React.FC = () => {
       toast.success('Observation updated');
       await loadDentalChart(); // Refresh chart
 
+      // Invalidate dashboard cache
+      invalidateDashboardCache();
+
     } catch (error: any) {
       toast.error('Failed to update observation');
       throw error;
     }
-  }, [editingObservation, loadDentalChart]);
+  }, [editingObservation, loadDentalChart, invalidateDashboardCache]);
 
   // Delete observation from modal
   const handleDeleteObservationFromModal = useCallback(async (id: string) => {
@@ -1569,11 +1591,14 @@ const DentalConsultation: React.FC = () => {
       toast.success('Observation deleted');
       await loadDentalChart(); // Refresh chart
 
+      // Invalidate dashboard cache
+      invalidateDashboardCache();
+
     } catch (error: any) {
       toast.error('Failed to delete observation');
       throw error;
     }
-  }, [observations, loadDentalChart]);
+  }, [observations, loadDentalChart, invalidateDashboardCache]);
 
   // Update procedure (from SavedObservationsPanel)
   const handleUpdateProcedure = useCallback(async (obsId: string, procedureData: Partial<ObservationData>) => {
@@ -1618,11 +1643,14 @@ const DentalConsultation: React.FC = () => {
       toast.success('Procedure updated');
       await loadDentalChart(); // Refresh chart
 
+      // Invalidate dashboard cache
+      invalidateDashboardCache();
+
     } catch (error: any) {
       toast.error('Failed to update procedure');
       throw error;
     }
-  }, [observations, loadDentalChart]);
+  }, [observations, loadDentalChart, invalidateDashboardCache]);
 
   // Show delete confirmation dialog (called from SavedObservationsPanel)
   const handleRequestDeleteObservation = useCallback((obsId: string) => {
@@ -1677,11 +1705,14 @@ const DentalConsultation: React.FC = () => {
       toast.success('Observation and all procedures deleted');
       await loadDentalChart(); // Refresh chart to remove markings
 
+      // Invalidate dashboard cache
+      invalidateDashboardCache();
+
     } catch (error: any) {
       toast.error('Failed to delete observation');
       throw error;
     }
-  }, [pendingDeleteObservationId, observations, editingObservationId, loadDentalChart]);
+  }, [pendingDeleteObservationId, observations, editingObservationId, loadDentalChart, invalidateDashboardCache]);
 
   // Cancel delete
   const handleCancelDelete = useCallback(() => {
@@ -2604,7 +2635,7 @@ const DentalConsultation: React.FC = () => {
             fontWeight: 700,
           }}
         >
-          <Typography variant="h6" fontWeight={700}>Consultation Status</Typography>
+          Consultation Status
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
@@ -2679,7 +2710,7 @@ const DentalConsultation: React.FC = () => {
             fontWeight: 700,
           }}
         >
-          <Typography variant="h6" fontWeight={700}>Unsaved Changes</Typography>
+          Unsaved Changes
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
@@ -2752,7 +2783,7 @@ const DentalConsultation: React.FC = () => {
             fontWeight: 700,
           }}
         >
-          <Typography variant="h6" fontWeight={700}>Delete Observation?</Typography>
+          Delete Observation?
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           {editingObservationId === pendingDeleteObservationId ? (

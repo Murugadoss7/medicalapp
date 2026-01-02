@@ -1,0 +1,125 @@
+name: Deploy Backend to Google Cloud Run
+
+# Trigger on push to development branch (same as Render)
+on:
+  push:
+    branches:
+      - development
+    paths:
+      - 'prescription-management/backend/**'
+      - '.github/workflows/deploy-cloudrun.yml'
+
+env:
+  PROJECT_ID: medical-app-prod
+  SERVICE_NAME: medical-app-backend
+  REGION: us-central1
+  DOCKER_IMAGE: gcr.io/medical-app-prod/backend
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Authenticate with Google Cloud
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 3. Set up Cloud SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      # 4. Configure Docker to use gcloud as credential helper
+      - name: Configure Docker
+        run: gcloud auth configure-docker
+
+      # 5. Build Docker image
+      - name: Build Docker image
+        working-directory: prescription-management/backend
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t ${{ env.DOCKER_IMAGE }}:${IMAGE_TAG} \
+                       -t ${{ env.DOCKER_IMAGE }}:latest \
+                       -f Dockerfile .
+
+      # 6. Push Docker image to Google Container Registry
+      - name: Push Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push ${{ env.DOCKER_IMAGE }}:${IMAGE_TAG}
+          docker push ${{ env.DOCKER_IMAGE }}:latest
+
+      # 7. Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.DOCKER_IMAGE }}:${IMAGE_TAG} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 300 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --port 8000 \
+            --set-env-vars ENVIRONMENT=production \
+            --set-env-vars DEBUG=False \
+            --set-env-vars API_V1_STR=/api/v1 \
+            --set-env-vars DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            --set-env-vars JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
+            --set-env-vars SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            --set-env-vars ALLOWED_ORIGINS='${{ secrets.ALLOWED_ORIGINS }}' \
+            --set-env-vars CLOUD_STORAGE_PROVIDER=cloudflare \
+            --set-env-vars CLOUDFLARE_R2_ACCESS_KEY=${{ secrets.CLOUDFLARE_R2_ACCESS_KEY }} \
+            --set-env-vars CLOUDFLARE_R2_SECRET_KEY=${{ secrets.CLOUDFLARE_R2_SECRET_KEY }} \
+            --set-env-vars CLOUDFLARE_R2_BUCKET=dental-attachments \
+            --set-env-vars CLOUDFLARE_R2_ENDPOINT=${{ secrets.CLOUDFLARE_R2_ENDPOINT }} \
+            --set-env-vars CLOUDFLARE_R2_PUBLIC_URL=${{ secrets.CLOUDFLARE_R2_PUBLIC_URL }} \
+            --set-env-vars OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            --set-env-vars OPENAI_MODEL=gpt-4o-mini \
+            --set-env-vars BASE_URL=${{ secrets.BASE_URL }}
+
+      # 8. Get service URL
+      - name: Get Cloud Run URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)')
+          echo "Service deployed to: $URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      # 9. Test health endpoint
+      - name: Test deployment
+        run: |
+          sleep 10
+          curl -f ${{ steps.get-url.outputs.url }}/health || exit 1
+
+    outputs:
+      service_url: ${{ steps.get-url.outputs.url }}
+
+  # Optional: Notify on deployment success
+  notify:
+    name: Deployment Notification
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Deployment Success
+        run: |
+          echo "✅ Backend deployed successfully!"
+          echo "🌐 URL: ${{ needs.deploy.outputs.service_url }}"
+          echo "📊 API Docs: ${{ needs.deploy.outputs.service_url }}/docs"

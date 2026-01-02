@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from './index';
+import { format } from 'date-fns';
 
 // Types
 export interface LoginRequest {
@@ -681,7 +682,7 @@ export const api = createApi({
       query: () => ({
         url: '/appointments/',
         params: {
-          appointment_date: new Date().toISOString().split('T')[0],
+          appointment_date: format(new Date(), 'yyyy-MM-dd'), // Today's date in user's local timezone
           page_size: 100, // Get all today's appointments
         },
       }),
@@ -703,7 +704,7 @@ export const api = createApi({
       query: (doctorId) => ({
         url: `/appointments/doctor/${doctorId}`,
         params: {
-          appointment_date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+          appointment_date: format(new Date(), 'yyyy-MM-dd'), // Today's date in user's local timezone
           // No status filter - get ALL appointments for today
         },
       }),
