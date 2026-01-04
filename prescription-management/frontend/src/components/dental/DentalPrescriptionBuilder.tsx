@@ -269,12 +269,13 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
             fullWidth
           />
           <TextField
-            label="Clinical Notes"
+            label="Clinical Findings (auto-filled from observations)"
             value={consultationNotes.clinical_notes}
             onChange={(e) => setConsultationNotes({ ...consultationNotes, clinical_notes: e.target.value })}
             multiline
-            rows={2}
+            rows={4}
             fullWidth
+            placeholder="Clinical findings will be auto-filled from observations..."
           />
           <TextField
             label="Doctor Instructions"

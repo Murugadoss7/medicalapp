@@ -435,17 +435,34 @@ const ObservationRow: React.FC<ObservationRowProps> = ({
               select
               size="small"
               label="Procedure"
-              value={observation.procedureCode}
+              value={observation.procedureCode || ''}
               onChange={(e) => {
                 handleChange('procedureCode', e.target.value);
                 if (e.target.value !== 'CUSTOM') {
                   handleChange('procedureName', getProcedureName(e.target.value));
                 }
               }}
-              sx={{ flex: 2, minWidth: 200 }}
+              sx={{
+                flex: 2,
+                minWidth: 200,
+                // Highlight if not selected
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: observation.procedureCode ? 'rgba(76, 175, 80, 0.08)' : 'rgba(255, 152, 0, 0.08)',
+                  '& fieldset': {
+                    borderColor: observation.procedureCode ? 'success.main' : 'warning.main',
+                    borderWidth: observation.procedureCode ? 1 : 2,
+                  },
+                },
+              }}
               onClick={(e) => e.stopPropagation()}
               disabled={isSaved}
+              required
+              error={!observation.procedureCode}
+              helperText={!observation.procedureCode ? 'Please select a procedure' : ''}
             >
+              <MenuItem value="" disabled>
+                <em>-- Select Procedure --</em>
+              </MenuItem>
               {COMMON_PROCEDURES.map((proc) => (
                 <MenuItem key={proc.code} value={proc.code}>
                   {proc.code === 'CUSTOM' ? '✏️ Custom Procedure' : `${proc.name}`}

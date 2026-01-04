@@ -138,9 +138,27 @@ class PrescriptionService:
         # Track short key usage if applicable
         if prescription_data.short_key_code:
             self._track_short_key_usage(prescription_data.short_key_code, created_by)
-        
+
+        # CRITICAL: Auto-link observations to prescription
+        # If prescription is created for an appointment, link all observations for that appointment
+        if prescription_data.appointment_id:
+            from app.models.dental import DentalObservation
+            observations = self.db.query(DentalObservation).filter(
+                DentalObservation.appointment_id == prescription_data.appointment_id,
+                DentalObservation.is_active == True,
+                DentalObservation.prescription_id.is_(None)  # Only link unlinked observations
+            ).all()
+
+            if observations:
+                print(f"[PRESCRIPTION-LINK] Linking {len(observations)} observations to prescription {prescription.id}")
+                for obs in observations:
+                    obs.prescription_id = prescription.id
+                    print(f"  - Linked observation {obs.id} (tooth {obs.tooth_number}) to prescription")
+            else:
+                print(f"[PRESCRIPTION-LINK] No unlinked observations found for appointment {prescription_data.appointment_id}")
+
         self.db.commit()
-        
+
         # Reload with relationships
         return self._get_prescription_with_relationships(prescription.id)
     

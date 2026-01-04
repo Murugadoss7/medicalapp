@@ -282,6 +282,46 @@ const DentalConsultation: React.FC = () => {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [savingObservations, setSavingObservations] = useState(false);
 
+  // Generate meaningful clinical notes from observations for prescription
+  const clinicalNotesForPrescription = React.useMemo(() => {
+    const savedObservations = observations.filter(obs => obs.isSaved);
+
+    if (savedObservations.length === 0) {
+      return 'No observations recorded yet';
+    }
+
+    const notes: string[] = ['CLINICAL FINDINGS:\n'];
+
+    savedObservations.forEach((obs, index) => {
+      // Observation header
+      notes.push(`${index + 1}. Teeth: ${obs.selectedTeeth.map(t => `#${t}`).join(', ')}`);
+
+      // Condition and severity
+      if (obs.conditionType) {
+        notes.push(`   Condition: ${obs.conditionType}${obs.severity ? ` (${obs.severity})` : ''}`);
+      }
+
+      // Observation notes
+      if (obs.observationNotes) {
+        notes.push(`   Notes: ${obs.observationNotes}`);
+      }
+
+      // Procedures planned
+      if (obs.procedures && obs.procedures.length > 0) {
+        obs.procedures.forEach(proc => {
+          const procName = proc.procedureCode === 'CUSTOM'
+            ? proc.customProcedureName
+            : proc.procedureName;
+          notes.push(`   Procedure: ${procName} (${proc.procedureStatus || 'planned'})`);
+        });
+      }
+
+      notes.push(''); // Empty line between observations
+    });
+
+    return notes.join('\n');
+  }, [observations]);
+
   // NEW REDESIGN STATE
   const [newObservation, setNewObservation] = useState<ObservationData>(() => createNewObservation());
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -2483,6 +2523,7 @@ const DentalConsultation: React.FC = () => {
                     toast.info('Edit functionality coming soon');
                   }}
                   refetch={refetchPrescriptions}
+                  hidePrice={true}
                 />
               </>
             ) : (
@@ -2504,7 +2545,7 @@ const DentalConsultation: React.FC = () => {
                       patientUuid={appointmentDetails.patient_uuid}
                       appointmentId={appointmentId || ''}
                       doctorId={doctorId}
-                      dentalNotes={dentalChart ? `Dental Consultation Summary:\n- Total Observations: ${dentalChart.total_observations}\n- Total Procedures: ${dentalChart.total_procedures}\n- Active Treatments: ${dentalChart.active_treatments}` : ''}
+                      dentalNotes={clinicalNotesForPrescription}
                       onSuccess={(prescriptionId) => {
                         setCreatedPrescriptionId(prescriptionId);
                         toast.success('Prescription created successfully!');

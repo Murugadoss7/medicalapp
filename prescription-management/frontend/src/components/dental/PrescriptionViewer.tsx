@@ -59,6 +59,8 @@ interface PrescriptionViewerProps {
   clinicAddress?: string;
   clinicPhone?: string;
   refetch?: () => void;
+  hideNewPrescriptionButton?: boolean; // Hide "New Prescription" button
+  hidePrice?: boolean; // Hide price and total amount
 }
 
 export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
@@ -71,6 +73,8 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   clinicAddress = '123 Main Street, City, State - 123456',
   clinicPhone = '+91 1234567890',
   refetch: externalRefetch,
+  hideNewPrescriptionButton = false,
+  hidePrice = false,
 }) => {
   // Toast and confirm dialog hooks
   const toast = useToast();
@@ -528,8 +532,11 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             <Typography variant="h5" gutterBottom fontWeight={700} color="#667eea">
               Prescription Created
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+            <Typography variant="body2" color="text.secondary" fontWeight={500} className="no-print">
               Prescription #{prescription.prescription_number}
+            </Typography>
+            <Typography variant="body1" fontWeight={600} sx={{ mt: 0.5 }}>
+              Patient: {prescription.patient_full_name || `${prescription.patient_first_name} ${prescription.patient_last_name || ''}`.trim()}
             </Typography>
             <Chip
               label={prescription.status}
@@ -545,8 +552,8 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            {/* New Prescription Button - Only show if onAddMore callback is provided */}
-            {onAddMore && (
+            {/* New Prescription Button - Only show if onAddMore callback is provided and not hidden */}
+            {onAddMore && !hideNewPrescriptionButton && (
               <Button
                 variant="outlined"
                 startIcon={<AddIcon />}
@@ -664,7 +671,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                   <TableCell><strong>Frequency</strong></TableCell>
                   <TableCell><strong>Duration</strong></TableCell>
                   <TableCell align="right"><strong>Qty</strong></TableCell>
-                  <TableCell align="right"><strong>Price</strong></TableCell>
+                  {!hidePrice && <TableCell align="right"><strong>Price</strong></TableCell>}
                   <TableCell align="right" className="no-print"><strong>Action</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -747,9 +754,11 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                           item.quantity
                         )}
                       </TableCell>
-                      <TableCell align="right">
-                        ₹{(item.quantity * item.unit_price).toFixed(2)}
-                      </TableCell>
+                      {!hidePrice && (
+                        <TableCell align="right">
+                          ₹{(item.quantity * item.unit_price).toFixed(2)}
+                        </TableCell>
+                      )}
                       <TableCell align="right" className="no-print">
                         <IconButton
                           size="small"
@@ -770,17 +779,19 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                     </TableRow>
                   );
                 })}
-                <TableRow>
-                  <TableCell colSpan={5} align="right">
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      Total Amount:
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Chip label={`₹${totalAmount.toFixed(2)}`} color="primary" />
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
+                {!hidePrice && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="right">
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Total Amount:
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip label={`₹${totalAmount.toFixed(2)}`} color="primary" />
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>

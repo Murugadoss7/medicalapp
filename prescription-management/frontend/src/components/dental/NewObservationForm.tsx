@@ -93,9 +93,6 @@ const COMMON_PROCEDURES = [
   { code: 'CUSTOM', name: 'Custom Procedure' },
 ];
 
-// Procedure statuses
-const PROCEDURE_STATUSES = ['Planned', 'Completed', 'Cancelled'];
-
 interface FileAttachment {
   id: string;
   file_name: string;
@@ -708,11 +705,18 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                       disabled={isCompleted}
                       onClick={() => {
                         if (!isCompleted) {
-                          handleUpdateProcedure(procedure.id, 'procedureCode', proc.code);
-                          handleUpdateProcedure(procedure.id, 'procedureName', proc.name);
-                          if (proc.code !== 'CUSTOM') {
-                            handleUpdateProcedure(procedure.id, 'customProcedureName', '');
-                          }
+                          // Update all fields at once to prevent React batching issues
+                          const updatedProcedures = observation.procedures.map(p =>
+                            p.id === procedure.id
+                              ? {
+                                  ...p,
+                                  procedureCode: proc.code,
+                                  procedureName: proc.name,
+                                  customProcedureName: proc.code !== 'CUSTOM' ? '' : p.customProcedureName,
+                                }
+                              : p
+                          );
+                          onUpdate({ ...observation, procedures: updatedProcedures });
                         }
                       }}
                       sx={{
@@ -763,16 +767,6 @@ const NewObservationForm: React.FC<NewObservationFormProps> = ({
                   sx={{ mb: 1.5 }}
                 />
               )}
-
-              {/* Status */}
-              <ButtonGroupSelect
-                label="Status"
-                options={PROCEDURE_STATUSES}
-                value={procedure.procedureStatus}
-                onChange={(val) => handleUpdateProcedure(procedure.id, 'procedureStatus', val)}
-                color="success"
-                disabled={isCompleted}
-              />
 
               {/* Date and Time - Same Row */}
               <LocalizationProvider dateAdapter={AdapterDateFns}>

@@ -5,22 +5,37 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Box, CircularProgress, Alert, Paper } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Box, CircularProgress, Alert, Paper, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
+import { useParams, useNavigate } from 'react-router-dom';
 import PatientDetailHeader from '../../components/treatments/PatientDetailHeader';
 import TreatmentTimeline from '../../components/treatments/TreatmentTimelineGrouped';
+import PrescriptionViewer from '../../components/dental/PrescriptionViewer';
 import treatmentService, { PatientSummary } from '../../services/treatmentService';
 
 export const TimelinePage = () => {
   const { mobile, firstName } = useParams<{ mobile: string; firstName: string }>();
+  const navigate = useNavigate();
   const [patient, setPatient] = useState<PatientSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
 
-  // Handle prescription click - open prescription in new tab
+  // Handle prescription click - show prescription in dialog
   const handlePrescriptionClick = (prescriptionId: string) => {
-    const prescriptionUrl = `/prescriptions/${prescriptionId}/view`;
-    window.open(prescriptionUrl, '_blank');
+    setSelectedPrescriptionId(prescriptionId);
+  };
+
+  // Close prescription dialog
+  const handleClosePrescription = () => {
+    setSelectedPrescriptionId(null);
+  };
+
+  // Handle procedure click - navigate to procedures tab
+  const handleProcedureClick = (procedureId: string) => {
+    if (mobile && firstName) {
+      navigate(`/treatments/patients/${mobile}/${firstName}/procedures`);
+    }
   };
 
   useEffect(() => {
@@ -136,9 +151,50 @@ export const TimelinePage = () => {
             patientMobile={patient.patient.mobile_number}
             patientFirstName={patient.patient.first_name}
             onPrescriptionClick={handlePrescriptionClick}
+            onProcedureClick={handleProcedureClick}
           />
         </Paper>
       )}
+
+      {/* Prescription Viewer Dialog */}
+      <Dialog
+        open={!!selectedPrescriptionId}
+        onClose={handleClosePrescription}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0,0,0,0.1)',
+            pb: 2,
+          }}
+        >
+          Prescription Details
+          <IconButton onClick={handleClosePrescription} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {selectedPrescriptionId && (
+            <PrescriptionViewer
+              prescriptionId={selectedPrescriptionId}
+              onAddMore={handleClosePrescription}
+              onEdit={() => {}}
+              hideNewPrescriptionButton={true}
+              hidePrice={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
