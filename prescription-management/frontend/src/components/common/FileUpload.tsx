@@ -161,12 +161,35 @@ export const FileUpload = ({
       );
     }
 
-    // Call success callback with file type and caption
+    // CRITICAL FIX: Wait for actual backend upload to complete before clearing preview
+    // The onUploadSuccess callback is actually async (handleUploadAttachment)
+    // We must await it so the file stays visible until backend upload finishes
     if (onUploadSuccess) {
-      onUploadSuccess(uploadedFile.file, uploadedFile.fileType, uploadedFile.caption);
-    }
+      try {
+        // Await the callback (it's async and uploads to backend)
+        await onUploadSuccess(uploadedFile.file, uploadedFile.fileType, uploadedFile.caption);
 
-    toast.success(`File uploaded: ${uploadedFile.file.name}`);
+        toast.success(`File uploaded: ${uploadedFile.file.name}`);
+
+        // Only clear after successful backend upload
+        setFiles(prev => prev.filter(f => f.file !== uploadedFile.file));
+
+        // Clean up preview URL to prevent memory leaks
+        if (uploadedFile.preview) {
+          URL.revokeObjectURL(uploadedFile.preview);
+        }
+      } catch (error) {
+        // If upload fails, keep the file in preview and mark it as error
+        setFiles(prev =>
+          prev.map(f =>
+            f.file === uploadedFile.file
+              ? { ...f, error: 'Upload failed', progress: 0 }
+              : f
+          )
+        );
+        // Error toast is handled by the parent component
+      }
+    }
   };
 
   // Remove file
@@ -367,7 +390,7 @@ export const FileUpload = ({
                   </Typography>
 
                   {/* Upload Progress */}
-                  {uploadedFile.progress < 100 && (
+                  {uploadedFile.progress < 100 && !uploadedFile.error && (
                     <LinearProgress
                       variant="determinate"
                       value={uploadedFile.progress}
@@ -375,10 +398,20 @@ export const FileUpload = ({
                     />
                   )}
 
-                  {uploadedFile.progress === 100 && (
+                  {uploadedFile.progress === 100 && !uploadedFile.error && (
                     <Chip
                       label="Uploaded"
                       color="success"
+                      size="small"
+                      sx={{ mt: 0.5 }}
+                    />
+                  )}
+
+                  {/* Error Display */}
+                  {uploadedFile.error && (
+                    <Chip
+                      label={uploadedFile.error}
+                      color="error"
                       size="small"
                       sx={{ mt: 0.5 }}
                     />

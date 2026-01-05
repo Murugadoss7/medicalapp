@@ -1454,10 +1454,23 @@ const DentalConsultation: React.FC = () => {
     try {
       await updateAttachment({ attachmentId, caption }).unwrap();
 
-      // Update local state - current attachments
+      // Update local state - current attachments (left panel)
       setCurrentAttachments(prev =>
         prev.map(a => (a.id === attachmentId ? { ...a, caption } : a))
       );
+
+      // CRITICAL FIX: Also update observationAttachments (right panel)
+      // This ensures caption changes show instantly without requiring navigation away/back
+      setObservationAttachments(prev => {
+        const updated = { ...prev };
+        // Find and update the attachment across all observations
+        Object.keys(updated).forEach(obsId => {
+          updated[obsId] = updated[obsId].map(a =>
+            a.id === attachmentId ? { ...a, caption } : a
+          );
+        });
+        return updated;
+      });
 
       toast.success('Caption updated successfully');
     } catch (error: any) {
