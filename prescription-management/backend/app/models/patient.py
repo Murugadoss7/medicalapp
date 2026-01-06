@@ -60,7 +60,15 @@ class Patient(Base, TimestampMixin, CompositeKeyMixin, AuditMixin):
         default=uuid.uuid4,
         comment="Unique identifier for internal references"
     )
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable initially for migration
+        comment="Tenant reference for multi-tenancy"
+    )
+
     # Basic patient information
     last_name = Column(String(100), nullable=False)
     date_of_birth = Column(Date, nullable=False)
@@ -94,10 +102,15 @@ class Patient(Base, TimestampMixin, CompositeKeyMixin, AuditMixin):
     
     # Audit fields
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    
+
     # Relationships (as per ERD)
+    tenant = relationship(
+        "Tenant",
+        back_populates="patients"
+    )
+
     prescriptions = relationship(
-        "Prescription", 
+        "Prescription",
         back_populates="patient",
         cascade="all, delete-orphan",
         lazy="dynamic"
@@ -140,6 +153,7 @@ class Patient(Base, TimestampMixin, CompositeKeyMixin, AuditMixin):
     
     # Indexes for performance (as per ERD indexing strategy)
     __table_args__ = (
+        Index('idx_patients_tenant_id', 'tenant_id'),
         Index('idx_patients_mobile_number', 'mobile_number'),
         Index('idx_patients_id', 'id'),
         Index('idx_patients_primary_contact', 'primary_contact_mobile'),
@@ -147,6 +161,7 @@ class Patient(Base, TimestampMixin, CompositeKeyMixin, AuditMixin):
         Index('idx_patients_active', 'is_active'),
         Index('idx_patients_name_search', 'first_name', 'last_name'),
         Index('idx_patients_email', 'email'),
+        Index('idx_patients_tenant_composite', 'tenant_id', 'mobile_number', 'first_name'),  # Critical for multi-tenant composite key
     )
     
     @classmethod
