@@ -31,6 +31,7 @@ class TokenData(BaseModel):
     user_id: str = Field(..., description="User UUID")
     email: str = Field(..., description="User email")
     role: str = Field(..., description="User role")
+    tenant_id: Optional[str] = Field(None, description="Tenant UUID for multi-tenancy")
     permissions: List[str] = Field(default_factory=list, description="User permissions")
     exp: int = Field(..., description="Token expiration timestamp")
 

@@ -27,11 +27,20 @@ class Prescription(BaseModel):
     Following ERD prescription entity specifications
     """
     __tablename__ = "prescriptions"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Unique prescription identifier
     prescription_number = Column(
-        String(100), 
-        unique=True, 
+        String(100),
+        unique=True,
         nullable=False,
         comment="Unique prescription number"
     )
@@ -351,7 +360,16 @@ class PrescriptionItem(BaseModel):
     Following ERD prescription_items entity specifications
     """
     __tablename__ = "prescription_items"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Foreign keys
     prescription_id = Column(
         UUID(as_uuid=True),

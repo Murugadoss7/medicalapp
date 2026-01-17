@@ -183,21 +183,24 @@ class Tenant(BaseModel):
         """Check if trial period has expired"""
         if not self.trial_ends_at:
             return False
-        return datetime.now() > self.trial_ends_at
+        from datetime import timezone
+        return datetime.now(timezone.utc) > self.trial_ends_at
 
     def is_subscription_expired(self) -> bool:
         """Check if subscription has expired"""
         if not self.subscription_ends_at:
             return False
-        return datetime.now() > self.subscription_ends_at
+        from datetime import timezone
+        return datetime.now(timezone.utc) > self.subscription_ends_at
 
     def days_until_expiry(self) -> int:
         """Get days until subscription expires"""
+        from datetime import timezone
         if self.subscription_plan == 'trial' and self.trial_ends_at:
-            delta = self.trial_ends_at - datetime.now()
+            delta = self.trial_ends_at - datetime.now(timezone.utc)
             return max(0, delta.days)
         elif self.subscription_ends_at:
-            delta = self.subscription_ends_at - datetime.now()
+            delta = self.subscription_ends_at - datetime.now(timezone.utc)
             return max(0, delta.days)
         return -1  # No expiry set
 

@@ -3,9 +3,10 @@ Medicine model following ERD specifications
 Supports medicine catalog and drug interaction checking
 """
 
-from sqlalchemy import Column, String, Text, Boolean, Numeric, Index, ARRAY, or_
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, Boolean, Numeric, Index, ARRAY, or_, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship, validates
+import uuid
 from typing import Dict, Any, List
 from decimal import Decimal
 import re
@@ -19,10 +20,19 @@ class Medicine(BaseModel):
     Following ERD medicine entity specifications
     """
     __tablename__ = "medicines"
-    
+
+    # Multi-tenancy support (NULL = global medicine available to all tenants)
+    tenant_id = Column(
+        PG_UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID - NULL means global medicine"
+    )
+
     # Basic medicine information
     name = Column(
-        String(255), 
+        String(255),
         nullable=False,
         comment="Brand name of the medicine"
     )

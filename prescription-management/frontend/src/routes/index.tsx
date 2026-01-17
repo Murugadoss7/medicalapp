@@ -2,10 +2,12 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MainLayout } from '../components/layout/MainLayout';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
+import { RootPage } from '../components/auth/RootPage';
 
 // Auth pages
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
+import { ClinicRegistrationPage } from '../pages/auth/ClinicRegistrationPage';
 import { DashboardRedirect } from '../components/auth/DashboardRedirect';
 
 // Doctor pages
@@ -14,6 +16,8 @@ import { PatientConsultation } from '../pages/doctor/PatientConsultation';
 
 // Admin pages
 import { AdminDashboard } from '../pages/admin/AdminDashboard';
+import { AddDoctorPage } from '../pages/admin/AddDoctorPage';
+import { AdminClinics } from '../pages/admin/AdminClinics';
 
 // Appointment pages (shared by doctors and admin)
 import { UnifiedAppointments } from '../pages/appointments/UnifiedAppointments';
@@ -53,7 +57,21 @@ import PrescriptionDetailView from '../pages/prescriptions/PrescriptionDetailVie
 import { TestDashboard } from '../pages/TestDashboard';
 import { SimpleTest } from '../pages/SimpleTest';
 
+// Reception pages
+import { WalkInReception } from '../pages/reception/WalkInReception';
+
+// Settings pages
+import { PrescriptionTemplates } from '../pages/settings/PrescriptionTemplates';
+import { TemplateEditor } from '../components/prescription-templates';
+
 export const router = createBrowserRouter([
+  // Root - shows landing page or redirects to dashboard
+  {
+    path: '/',
+    element: <RootPage />,
+  },
+
+  // Auth routes
   {
     path: '/auth',
     element: <AuthLayout />,
@@ -67,33 +85,33 @@ export const router = createBrowserRouter([
         element: <RegisterPage />,
       },
       {
+        path: 'register-clinic',
+        element: <ClinicRegistrationPage />,
+      },
+      {
         index: true,
         element: <Navigate to="/auth/login" replace />,
       },
     ],
   },
+
+  // Protected application routes
   {
-    path: '/',
     element: (
       <ProtectedRoute>
         <MainLayout />
       </ProtectedRoute>
     ),
     children: [
-      {
-        index: true,
-        element: <DashboardRedirect />,
-      },
-      
       // Dashboard routes (role-based redirects)
       {
-        path: 'dashboard',
+        path: '/dashboard',
         element: <DashboardRedirect />,
       },
-      
+
       // Doctor routes
       {
-        path: 'doctor',
+        path: '/doctor',
         children: [
           {
             path: 'dashboard',
@@ -112,7 +130,7 @@ export const router = createBrowserRouter([
 
       // Admin routes
       {
-        path: 'admin',
+        path: '/admin',
         children: [
           {
             path: 'dashboard',
@@ -122,12 +140,20 @@ export const router = createBrowserRouter([
             path: 'appointments',
             element: <UnifiedAppointments />,
           },
+          {
+            path: 'add-doctor',
+            element: <AddDoctorPage />,
+          },
+          {
+            path: 'clinics',
+            element: <AdminClinics />,
+          },
         ],
       },
-      
+
       // Patient management routes
       {
-        path: 'patients',
+        path: '/patients',
         children: [
           {
             index: true,
@@ -146,7 +172,7 @@ export const router = createBrowserRouter([
       
       // Doctor management routes
       {
-        path: 'doctors',
+        path: '/doctors',
         children: [
           {
             index: true,
@@ -169,7 +195,7 @@ export const router = createBrowserRouter([
       
       // Appointment routes
       {
-        path: 'appointments',
+        path: '/appointments',
         children: [
           {
             index: true,
@@ -196,19 +222,35 @@ export const router = createBrowserRouter([
       
       // Medicine routes
       {
-        path: 'medicines',
+        path: '/medicines',
         element: <MedicineCatalog />,
       },
       
       // Short key routes
       {
-        path: 'short-keys',
+        path: '/short-keys',
         element: <ShortKeyManagement />,
+      },
+
+      // Settings routes
+      {
+        path: '/settings/templates',
+        element: <PrescriptionTemplates />,
+      },
+      {
+        path: '/settings/templates/:templateId/edit',
+        element: <TemplateEditor />,
+      },
+
+      // Walk-In Reception route
+      {
+        path: '/walk-in',
+        element: <WalkInReception />,
       },
 
       // Treatment Dashboard routes (NEW: Option 2 implementation)
       {
-        path: 'treatments',
+        path: '/treatments',
         children: [
           {
             index: true,
@@ -245,25 +287,25 @@ export const router = createBrowserRouter([
 
       // Prescription routes
       {
-        path: 'prescriptions/:prescriptionId',
+        path: '/prescriptions/:prescriptionId',
         element: <PrescriptionDetailView />,
       },
 
       // Test routes (development only)
       {
-        path: 'test',
+        path: '/test',
         element: <TestDashboard />,
       },
       {
-        path: 'simple-test',
+        path: '/simple-test',
         element: <SimpleTest />,
       },
     ],
   },
-  
-  // Catch all route
+
+  // Catch all route - redirect to root (will show landing or redirect to dashboard)
   {
     path: '*',
-    element: <Navigate to="/auth/login" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);

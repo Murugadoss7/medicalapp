@@ -44,7 +44,8 @@ class ShortKeyService:
             name=short_key_data.name,
             description=short_key_data.description,
             created_by=created_by,
-            is_global=short_key_data.is_global
+            is_global=short_key_data.is_global,
+            tenant_id=getattr(short_key_data, 'tenant_id', None)  # Multi-tenancy
         )
         
         try:
@@ -64,6 +65,7 @@ class ShortKeyService:
                         raise ValidationError(f"Medicine with ID {medicine_data.medicine_id} not found")
                     
                     short_key_medicine = ShortKeyMedicine(
+                        tenant_id=short_key.tenant_id,  # Inherit tenant_id from short_key
                         short_key_id=short_key.id,
                         medicine_id=medicine_data.medicine_id,
                         default_dosage=medicine_data.default_dosage,
@@ -75,8 +77,8 @@ class ShortKeyService:
                     db.add(short_key_medicine)
             
             db.commit()
-            db.refresh(short_key)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Created short key: {short_key.code} - {short_key.name}")
             return short_key
             
@@ -133,8 +135,8 @@ class ShortKeyService:
         
         try:
             db.commit()
-            db.refresh(short_key)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated short key: {short_key.code}")
             return short_key
             
@@ -191,7 +193,7 @@ class ShortKeyService:
         
         try:
             db.commit()
-            db.refresh(short_key)
+            # Don't refresh after commit - RLS blocks it
             logger.info(f"Reactivated short key: {short_key.code}")
             return short_key
             
@@ -244,6 +246,7 @@ class ShortKeyService:
             medicine_data.sequence_order = max_order + 1
         
         short_key_medicine = ShortKeyMedicine(
+            tenant_id=short_key.tenant_id,  # Inherit tenant_id from short_key
             short_key_id=short_key_id,
             medicine_id=medicine_data.medicine_id,
             default_dosage=medicine_data.default_dosage,
@@ -252,12 +255,12 @@ class ShortKeyService:
             default_instructions=medicine_data.default_instructions,
             sequence_order=medicine_data.sequence_order
         )
-        
+
         try:
             db.add(short_key_medicine)
             db.commit()
-            db.refresh(short_key_medicine)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Added medicine to short key {short_key.code}: {medicine.name}")
             return short_key_medicine
             
@@ -304,8 +307,8 @@ class ShortKeyService:
         
         try:
             db.commit()
-            db.refresh(short_key_medicine)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated medicine in short key {short_key.code}")
             return short_key_medicine
             
@@ -437,8 +440,8 @@ class ShortKeyService:
         
         try:
             db.commit()
-            db.refresh(short_key)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Used short key: {short_key.code} (usage: {short_key.usage_count})")
             return short_key
             

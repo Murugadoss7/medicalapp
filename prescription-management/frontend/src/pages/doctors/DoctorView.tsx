@@ -100,10 +100,11 @@ export const DoctorView = () => {
     }
   };
 
-  // Check permissions
-  const canEdit = currentUser?.role === 'admin' || 
-    (currentUser?.role === 'doctor' && doctor?.user_id === currentUser?.id);
-  const canDelete = currentUser?.role === 'admin';
+  // Check permissions - use permissions array instead of role check
+  const hasWritePermission = currentUser?.permissions?.includes('write:doctors');
+  const isOwnProfile = currentUser?.doctor_id === doctor?.id;
+  const canEdit = hasWritePermission || isOwnProfile;
+  const canDelete = currentUser?.permissions?.includes('admin:system');
 
   if (!doctorId) {
     return (

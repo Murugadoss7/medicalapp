@@ -44,35 +44,37 @@ class AuthService:
     
     # JWT Token Management
     def create_access_token(self, user: User) -> str:
-        """Create JWT access token"""
+        """Create JWT access token with tenant context"""
         expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
-        
+
         payload = {
             "sub": str(user.id),
             "user_id": str(user.id),
             "email": user.email,
             "role": user.role,
+            "tenant_id": str(user.tenant_id) if user.tenant_id else None,
             "permissions": self.get_role_permissions(user.role),
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "access"
         }
-        
+
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
     
     def create_refresh_token(self, user: User) -> str:
-        """Create JWT refresh token"""
+        """Create JWT refresh token with tenant context"""
         expire = datetime.utcnow() + timedelta(days=self.refresh_token_expire_days)
-        
+
         payload = {
             "sub": str(user.id),
             "user_id": str(user.id),
             "email": user.email,
+            "tenant_id": str(user.tenant_id) if user.tenant_id else None,
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "refresh"
         }
-        
+
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
     
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
@@ -168,16 +170,28 @@ class AuthService:
         user = self.user_service.get_user_by_email(db, email)
         if not user:
             return None
-        
+
         if not user.is_active:
             return None
-        
+
         if not self.verify_password(password, user.hashed_password):
             return None
-        
-        # Update last login
-        self.user_service.update_last_login(db, user.id)
-        
+
+        # Set tenant context and update last login in a single transaction
+        # This ensures RLS works correctly for the UPDATE
+        if user.tenant_id:
+            from sqlalchemy import text
+            # Set tenant context and update in same transaction
+            db.execute(text(f"SET LOCAL app.current_tenant_id = '{user.tenant_id}'"))
+            db.execute(
+                text("UPDATE users SET last_login_at = :login_time, updated_at = :update_time WHERE id = :user_id"),
+                {"login_time": datetime.utcnow().isoformat(), "update_time": datetime.utcnow(), "user_id": str(user.id)}
+            )
+            db.commit()
+            # Don't refresh after commit - RLS blocks it
+            # Update last_login_at in memory since we know the value
+            user.last_login_at = datetime.utcnow().isoformat()
+
         return user
     
     async def login(self, db: Session, login_request: LoginRequest) -> Optional[LoginResponse]:
@@ -202,6 +216,10 @@ class AuthService:
         doctor_id = None
         if user.role == 'doctor':
             from app.models.doctor import Doctor
+            from sqlalchemy import text
+            # Set tenant context for doctors query (needed after commit in authenticate_user)
+            if user.tenant_id:
+                db.execute(text(f"SET app.current_tenant_id = '{user.tenant_id}'"))
             print(f"[DEBUG LOGIN] Looking for doctor with user_id: {user.id}")
             doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
             if doctor:
@@ -219,6 +237,7 @@ class AuthService:
             last_name=user.last_name,
             role=user.role,
             keycloak_id=user.keycloak_id,
+            tenant_id=user.tenant_id,  # Include tenant_id for multi-tenancy
             is_active=user.is_active,
             last_login=user.last_login_at,
             created_at=user.created_at,
@@ -287,7 +306,7 @@ class AuthService:
 
             # Commit the transaction only if everything succeeds
             db.commit()
-            db.refresh(user)
+            # Don't refresh after commit - RLS blocks it
 
             return user
 

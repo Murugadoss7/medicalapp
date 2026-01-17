@@ -22,6 +22,14 @@ class CaseStudy(Base):
     # Primary Key
     id = Column(UUID, primary_key=True, server_default=func.gen_random_uuid())
 
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID,
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True
+    )
+
     # Unique Identifier
     case_study_number = Column(String(100), unique=True, nullable=False, index=True)
 

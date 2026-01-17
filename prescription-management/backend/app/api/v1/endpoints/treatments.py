@@ -9,8 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
 
-from app.core.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_db, get_current_active_user
 from app.models import User
 from app.services.treatment_service import TreatmentService
 

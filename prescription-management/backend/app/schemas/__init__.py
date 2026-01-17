@@ -13,6 +13,7 @@ from .medicine import *
 from .short_key import *
 from .appointment import *
 from .dental import *
+from .prescription_template import *
 # from .prescription import *
 
 __all__ = [

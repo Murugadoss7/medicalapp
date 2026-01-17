@@ -88,7 +88,7 @@ export const LoginPage = () => {
       }));
 
       // Navigate based on user role
-      const from = location.state?.from?.pathname || '/dashboard';
+      const from = location.state?.from?.pathname || '/app/dashboard';
       switch (response.user.role) {
         case 'doctor':
           navigate('/doctor/dashboard');

@@ -54,6 +54,9 @@ async def create_short_key(
     **Staff access required.**
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        short_key_data.tenant_id = current_user.tenant_id
+
         short_key = short_key_service.create_short_key(
             db=db,
             short_key_data=short_key_data,

@@ -37,15 +37,15 @@ export const DashboardRedirect = () => {
   // Redirect based on user role
   switch (user.role) {
     case 'admin':
-      return <Navigate to="/admin/dashboard" replace />;
+      return <Navigate to="/app/admin/dashboard" replace />;
     case 'doctor':
-      return <Navigate to="/doctor/dashboard" replace />;
+      return <Navigate to="/app/doctor/dashboard" replace />;
     case 'patient':
-      return <Navigate to="/patient/dashboard" replace />;
+      return <Navigate to="/app/patient/dashboard" replace />;
     case 'nurse':
     case 'receptionist':
-      return <Navigate to="/doctor/dashboard" replace />; // Default to doctor dashboard for now
+      return <Navigate to="/app/doctor/dashboard" replace />; // Default to doctor dashboard for now
     default:
-      return <Navigate to="/doctor/dashboard" replace />;
+      return <Navigate to="/app/doctor/dashboard" replace />;
   }
 };

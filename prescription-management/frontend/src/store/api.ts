@@ -26,10 +26,18 @@ export interface User {
   full_name: string;
   role: 'doctor' | 'admin' | 'patient' | 'nurse' | 'receptionist';
   phone: string;
+  tenant_id?: string; // Tenant ID for multi-tenancy
   is_active: boolean;
   profile_picture_url?: string;
   specialization?: string;
   doctor_id?: string; // Doctor ID from doctors table (for doctor role only)
+  temporary_password?: string; // Temporary password for admin-created accounts
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 export interface RegisterRequest {
@@ -78,6 +86,9 @@ export interface Appointment {
   appointment_datetime: string;
   duration_minutes: number;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  appointment_type?: 'scheduled' | 'walk_in';
+  is_walk_in?: boolean;
+  appointment_type_display?: string;
   reason_for_visit: string;
   notes?: string;
   created_at: string;
@@ -590,6 +601,7 @@ export interface AppointmentCreateRequest {
   reason_for_visit: string;
   contact_number?: string;
   notes?: string;
+  appointment_type?: 'scheduled' | 'walk_in';
 }
 
 export interface AppointmentConflictRequest {
@@ -609,6 +621,200 @@ export interface AppointmentConflictResponse {
     patient_name: string;
   }>;
   suggested_times?: string[];
+}
+
+// Multi-Tenancy Types
+export interface Tenant {
+  id: string;
+  tenant_name: string;
+  tenant_code: string;
+  subscription_plan: 'trial' | 'basic' | 'premium' | 'enterprise';
+  subscription_status: string;
+  trial_ends_at?: string;
+  max_doctors: number;
+  max_patients: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ClinicRegistrationRequest {
+  clinic_name: string;
+  clinic_phone: string;
+  clinic_address: string;
+  owner_first_name: string;
+  owner_last_name: string;
+  owner_email: string;
+  owner_phone: string;
+  password: string;
+  role: 'admin' | 'admin_doctor';
+  license_number?: string;
+  specialization?: string;
+  qualification?: string;
+  experience_years?: number;
+}
+
+export interface ClinicRegistrationResponse {
+  message: string;
+  tenant: Tenant;
+  user: User;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface AdminCreateDoctorRequest {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  license_number: string;
+  specialization: string;
+  qualification?: string;
+  experience_years?: number;
+  offices?: Array<{
+    id: string;
+    name: string;
+    address: string;
+    phone?: string;
+    is_primary: boolean;
+  }>;
+}
+
+export interface TenantLimitsResponse {
+  tenant_id: string;
+  tenant_name: string;
+  subscription_plan: string;
+  doctors: {
+    current: number;
+    max: number;
+    can_add: boolean;
+  };
+  patients: {
+    current: number;
+    max: number;
+    can_add: boolean;
+  };
+  users: {
+    current: number;
+  };
+  trial_status: {
+    is_trial: boolean;
+    trial_ends_at?: string;
+    is_expired: boolean;
+  };
+}
+
+export interface TenantOfficeDoctor {
+  id: string;
+  name: string;
+  specialization: string;
+  is_primary: boolean;
+}
+
+export interface TenantOffice {
+  id: string;
+  name: string;
+  address: string;
+  is_tenant_default: boolean;
+  doctors: TenantOfficeDoctor[];
+}
+
+export interface TenantOfficesResponse {
+  offices: TenantOffice[];
+  total: number;
+}
+
+// Prescription Template Types
+export interface PrescriptionTemplate {
+  id: string;
+  tenant_id: string;
+  doctor_id?: string;
+  office_id?: string;
+  name: string;
+  description?: string;
+  paper_size: 'a4' | 'a5' | 'letter';
+  orientation: 'portrait' | 'landscape';
+  margin_top: number;
+  margin_bottom: number;
+  margin_left: number;
+  margin_right: number;
+  layout_config: Record<string, unknown>;
+  logo_url?: string;
+  signature_url?: string;
+  signature_text?: string;
+  is_default: boolean;
+  preset_type?: 'classic' | 'modern' | 'minimal';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  margins?: { top: number; bottom: number; left: number; right: number };
+  paper_dimensions_mm?: { width: number; height: number };
+}
+
+export interface PrescriptionTemplateCreate {
+  name: string;
+  description?: string;
+  paper_size?: string;
+  orientation?: string;
+  margin_top?: number;
+  margin_bottom?: number;
+  margin_left?: number;
+  margin_right?: number;
+  layout_config?: Record<string, unknown>;
+  signature_text?: string;
+  is_default?: boolean;
+  doctor_id?: string;
+  office_id?: string;
+  preset_type?: string;
+}
+
+export interface PrescriptionTemplateUpdate {
+  name?: string;
+  description?: string;
+  paper_size?: string;
+  orientation?: string;
+  margin_top?: number;
+  margin_bottom?: number;
+  margin_left?: number;
+  margin_right?: number;
+  layout_config?: Record<string, unknown>;
+  logo_url?: string;
+  signature_url?: string;
+  signature_text?: string;
+  is_default?: boolean;
+  doctor_id?: string | null; // null = clinic default, string = doctor-specific
+  office_id?: string | null; // null = doctor default, string = office-specific
+}
+
+export interface PrescriptionTemplateListResponse {
+  templates: PrescriptionTemplate[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface PresetTemplateInfo {
+  type: string;
+  name: string;
+  description: string;
+  paper_size: string;
+  preview_config: Record<string, unknown>;
+}
+
+export interface PresetTemplateListResponse {
+  presets: PresetTemplateInfo[];
+}
+
+export interface PrescriptionTemplateCreateFromPreset {
+  preset_type: 'classic' | 'modern' | 'minimal';
+  name?: string;
+  doctor_id?: string;
+  office_id?: string;
+  is_default?: boolean;
 }
 
 // API slice
@@ -632,7 +838,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription', 'DentalTemplate', 'DentalAttachment'],
+  tagTypes: ['User', 'Doctor', 'Patient', 'Medicine', 'ShortKey', 'Appointment', 'Prescription', 'DentalTemplate', 'DentalAttachment', 'Tenant', 'PrescriptionTemplate'],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<LoginResponse, LoginRequest>({
@@ -653,7 +859,15 @@ export const api = createApi({
       // Don't invalidate User tag - we're creating a NEW user, not updating current user
       // invalidatesTags: ['User'],
     }),
-    
+
+    changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({
+      query: (passwordData) => ({
+        url: '/auth/change-password',
+        method: 'POST',
+        body: passwordData,
+      }),
+    }),
+
     getCurrentUser: builder.query<User, void>({
       query: () => '/auth/me',
       providesTags: ['User'],
@@ -876,9 +1090,13 @@ export const api = createApi({
 
     // Appointment Management endpoints
     getDoctorAppointments: builder.query<{ appointments: Appointment[]; total: number }, { doctorId: string } & AppointmentFilters>({
-      query: ({ doctorId, ...filters }) => ({
+      query: ({ doctorId, date, ...filters }) => ({
         url: `/appointments/doctor/${doctorId}`,
-        params: filters,
+        params: {
+          ...filters,
+          // Map 'date' to 'appointment_date' for backend compatibility
+          ...(date && { appointment_date: date }),
+        },
       }),
       providesTags: ['Appointment'],
     }),
@@ -1390,12 +1608,164 @@ export const api = createApi({
       providesTags: ['Doctor'],
     }),
 
+    // Multi-Tenancy endpoints
+    registerClinic: builder.mutation<ClinicRegistrationResponse, ClinicRegistrationRequest>({
+      query: (data) => ({
+        url: '/tenants/register-clinic',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Tenant'],
+    }),
+
+    adminCreateDoctor: builder.mutation<User, AdminCreateDoctorRequest>({
+      query: (data) => ({
+        url: '/tenants/doctors',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Doctor', 'Tenant'],
+    }),
+
+    getTenantLimits: builder.query<TenantLimitsResponse, void>({
+      query: () => '/tenants/limits',
+      providesTags: ['Tenant'],
+    }),
+
+    getMyTenant: builder.query<Tenant, void>({
+      query: () => '/tenants/me',
+      providesTags: ['Tenant'],
+    }),
+
+    getTenantOffices: builder.query<TenantOfficesResponse, void>({
+      query: () => '/tenants/offices',
+      providesTags: ['Tenant', 'Doctor'],
+    }),
+
+    // Prescription Template endpoints
+    listPrescriptionTemplates: builder.query<PrescriptionTemplateListResponse, {
+      query?: string;
+      doctor_id?: string;
+      preset_type?: string;
+      is_default?: boolean;
+      page?: number;
+      page_size?: number;
+    } | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params) {
+          if (params.query) searchParams.append('query', params.query);
+          if (params.doctor_id) searchParams.append('doctor_id', params.doctor_id);
+          if (params.preset_type) searchParams.append('preset_type', params.preset_type);
+          if (params.is_default !== undefined) searchParams.append('is_default', String(params.is_default));
+          if (params.page) searchParams.append('page', String(params.page));
+          if (params.page_size) searchParams.append('page_size', String(params.page_size));
+        }
+        const queryStr = searchParams.toString();
+        return `/prescription-templates/${queryStr ? `?${queryStr}` : ''}`;
+      },
+      providesTags: ['PrescriptionTemplate'],
+    }),
+
+    getPrescriptionTemplate: builder.query<PrescriptionTemplate, string>({
+      query: (id) => `/prescription-templates/${id}`,
+      providesTags: ['PrescriptionTemplate'],
+    }),
+
+    getEffectivePrescriptionTemplate: builder.query<PrescriptionTemplate | null, { doctor_id?: string; office_id?: string } | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.doctor_id) searchParams.append('doctor_id', params.doctor_id);
+        if (params?.office_id) searchParams.append('office_id', params.office_id);
+        const queryStr = searchParams.toString();
+        return `/prescription-templates/effective${queryStr ? `?${queryStr}` : ''}`;
+      },
+      providesTags: ['PrescriptionTemplate'],
+    }),
+
+    getPresetTemplates: builder.query<PresetTemplateListResponse, void>({
+      query: () => '/prescription-templates/presets',
+      providesTags: ['PrescriptionTemplate'],
+    }),
+
+    createPrescriptionTemplate: builder.mutation<PrescriptionTemplate, PrescriptionTemplateCreate>({
+      query: (data) => ({
+        url: '/prescription-templates/',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    createPrescriptionTemplateFromPreset: builder.mutation<PrescriptionTemplate, { preset_type: string; data: PrescriptionTemplateCreateFromPreset }>({
+      query: ({ preset_type, data }) => ({
+        url: `/prescription-templates/from-preset/${preset_type}`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    updatePrescriptionTemplate: builder.mutation<PrescriptionTemplate, { id: string; data: PrescriptionTemplateUpdate }>({
+      query: ({ id, data }) => ({
+        url: `/prescription-templates/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    deletePrescriptionTemplate: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/prescription-templates/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    setDefaultPrescriptionTemplate: builder.mutation<PrescriptionTemplate, string>({
+      query: (id) => ({
+        url: `/prescription-templates/${id}/set-default`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    uploadPrescriptionTemplateLogo: builder.mutation<PrescriptionTemplate, { id: string; file: File }>({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/prescription-templates/${id}/logo`,
+          method: 'POST',
+          body: formData,
+          formData: true,
+        };
+      },
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
+    uploadPrescriptionTemplateSignature: builder.mutation<PrescriptionTemplate, { id: string; file: File }>({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/prescription-templates/${id}/signature`,
+          method: 'POST',
+          body: formData,
+          formData: true,
+        };
+      },
+      invalidatesTags: ['PrescriptionTemplate'],
+    }),
+
   }),
 });
 
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useChangePasswordMutation,
   useGetCurrentUserQuery,
   useRefreshTokenMutation,
   // Admin Dashboard hooks
@@ -1466,6 +1836,7 @@ export const {
   // Family Management hooks
   useCheckFamilyExistsQuery,
   useGetFamilyMembersQuery,
+  useLazyGetFamilyMembersQuery,
   useCreateFamilyMemberMutation,
   // Doctor Management hooks
   useCreateDoctorMutation,
@@ -1488,4 +1859,22 @@ export const {
   useGetObservationAttachmentsQuery,
   useUpdateAttachmentMutation,
   useDeleteAttachmentMutation,
+  // Multi-Tenancy hooks
+  useRegisterClinicMutation,
+  useAdminCreateDoctorMutation,
+  useGetTenantLimitsQuery,
+  useGetMyTenantQuery,
+  useGetTenantOfficesQuery,
+  // Prescription Template hooks
+  useListPrescriptionTemplatesQuery,
+  useGetPrescriptionTemplateQuery,
+  useGetEffectivePrescriptionTemplateQuery,
+  useGetPresetTemplatesQuery,
+  useCreatePrescriptionTemplateMutation,
+  useCreatePrescriptionTemplateFromPresetMutation,
+  useUpdatePrescriptionTemplateMutation,
+  useDeletePrescriptionTemplateMutation,
+  useSetDefaultPrescriptionTemplateMutation,
+  useUploadPrescriptionTemplateLogoMutation,
+  useUploadPrescriptionTemplateSignatureMutation,
 } = api;

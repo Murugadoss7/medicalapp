@@ -58,7 +58,8 @@ class MedicineService:
             storage_conditions=medicine_data.storage_conditions,
             contraindications=medicine_data.contraindications,
             side_effects=medicine_data.side_effects,
-            created_by=created_by
+            created_by=created_by,
+            tenant_id=getattr(medicine_data, 'tenant_id', None)  # Multi-tenancy support
         )
         
         # Set dosage forms
@@ -68,8 +69,8 @@ class MedicineService:
         try:
             db.add(medicine)
             db.commit()
-            db.refresh(medicine)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Created medicine: {medicine.name}")
             return medicine
             
@@ -118,8 +119,8 @@ class MedicineService:
         
         try:
             db.commit()
-            db.refresh(medicine)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated medicine: {medicine.name}")
             return medicine
             
@@ -165,7 +166,7 @@ class MedicineService:
         
         try:
             db.commit()
-            db.refresh(medicine)
+            # Don't refresh after commit - RLS blocks it
             logger.info(f"Reactivated medicine: {medicine.name}")
             return medicine
             

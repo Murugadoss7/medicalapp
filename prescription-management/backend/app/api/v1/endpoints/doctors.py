@@ -10,8 +10,7 @@ from typing import List, Optional
 from uuid import UUID
 import math
 
-from app.core.database import get_db
-from app.api.deps.auth import get_current_active_user, require_admin, require_staff
+from app.api.deps import get_db, get_current_active_user, require_admin, require_staff
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.services.doctor_service import DoctorService
@@ -389,11 +388,14 @@ async def get_doctor_statistics(
 ) -> DoctorStats:
     """
     Get doctor statistics overview.
-    
+
     Requires staff privileges (nurse, admin, super_admin).
     """
     try:
-        stats = doctor_service.get_doctor_statistics(db)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Getting doctor stats for user {current_user.email} with tenant_id: {current_user.tenant_id}")
+        stats = doctor_service.get_doctor_statistics(db, tenant_id=current_user.tenant_id)
         return DoctorStats(**stats)
         
     except Exception as e:

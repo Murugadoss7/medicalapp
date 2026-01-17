@@ -110,7 +110,8 @@ class AttachmentService:
         file: UploadFile,
         file_type: str,
         caption: Optional[str],
-        user_id: UUID
+        user_id: UUID,
+        tenant_id: UUID = None
     ) -> DentalAttachmentResponse:
         """Upload file attachment for observation"""
 
@@ -153,6 +154,7 @@ class AttachmentService:
 
         # Create attachment record
         attachment = DentalAttachment(
+            tenant_id=tenant_id,
             observation_id=observation_id,
             patient_mobile_number=observation.patient_mobile_number,
             patient_first_name=observation.patient_first_name,
@@ -167,7 +169,7 @@ class AttachmentService:
 
         self.db.add(attachment)
         self.db.commit()
-        self.db.refresh(attachment)
+        # Don't refresh after commit - RLS blocks it
 
         logger.info(f"Attachment uploaded for observation {observation_id}: {file.filename}")
 
@@ -179,7 +181,8 @@ class AttachmentService:
         file: UploadFile,
         file_type: str,
         caption: Optional[str],
-        user_id: UUID
+        user_id: UUID,
+        tenant_id: UUID = None
     ) -> DentalAttachmentResponse:
         """Upload file attachment for procedure"""
 
@@ -251,6 +254,7 @@ class AttachmentService:
 
         # Create attachment record
         attachment = DentalAttachment(
+            tenant_id=tenant_id,
             procedure_id=procedure_id,
             patient_mobile_number=patient_mobile,
             patient_first_name=patient_first_name,
@@ -265,7 +269,7 @@ class AttachmentService:
 
         self.db.add(attachment)
         self.db.commit()
-        self.db.refresh(attachment)
+        # Don't refresh after commit - RLS blocks it
 
         logger.info(f"Attachment uploaded for procedure {procedure_id}: {file.filename}")
 
@@ -369,7 +373,7 @@ class AttachmentService:
         attachment.updated_at = datetime.now()
 
         self.db.commit()
-        self.db.refresh(attachment)
+        # Don't refresh after commit - RLS blocks it
 
         logger.info(f"Attachment updated: {attachment_id}")
 

@@ -52,6 +52,9 @@ async def create_prescription(
     - Integration with appointment system
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        prescription_data.tenant_id = current_user.tenant_id
+
         service = get_prescription_service(db)
         prescription = service.create_prescription(prescription_data, current_user.id)
         return PrescriptionResponse.model_validate(prescription)
@@ -81,6 +84,9 @@ async def create_prescription_from_short_key(
     - Usage tracking for short key analytics
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        short_key_data.tenant_id = current_user.tenant_id
+
         service = get_prescription_service(db)
         prescription = service.create_from_short_key(short_key_data, current_user.id)
         return PrescriptionResponse.model_validate(prescription)
@@ -196,10 +202,25 @@ async def get_prescription(
     # Check access permissions (doctors can only see their own prescriptions)
     if current_user.role == 'doctor':
         from app.models.doctor import Doctor
-        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-        if not doctor or str(prescription.doctor_id) != str(doctor.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    
+        # Check if the prescription's doctor belongs to the current user
+        # This avoids RLS issues by checking the relationship directly
+        if prescription.doctor and prescription.doctor.user_id == current_user.id:
+            # Doctor owns this prescription - allow access
+            pass
+        else:
+            # Also try the traditional lookup as fallback
+            doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+            if not doctor:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Doctor profile not found for current user"
+                )
+            if str(prescription.doctor_id) != str(doctor.id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. Prescription belongs to doctor {prescription.doctor_id}, not {doctor.id}"
+                )
+
     return PrescriptionResponse.model_validate(prescription)
 
 
@@ -223,13 +244,26 @@ async def get_prescription_by_number(
     if not prescription:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription not found")
     
-    # Check access permissions
+    # Check access permissions (doctors can only see their own prescriptions)
     if current_user.role == 'doctor':
         from app.models.doctor import Doctor
-        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-        if not doctor or str(prescription.doctor_id) != str(doctor.id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    
+        # Check if the prescription's doctor belongs to the current user
+        if prescription.doctor and prescription.doctor.user_id == current_user.id:
+            # Doctor owns this prescription - allow access
+            pass
+        else:
+            doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+            if not doctor:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Doctor profile not found for current user"
+                )
+            if str(prescription.doctor_id) != str(doctor.id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. Prescription belongs to doctor {prescription.doctor_id}, not {doctor.id}"
+                )
+
     return PrescriptionResponse.model_validate(prescription)
 
 

@@ -72,18 +72,19 @@ class MedicineBase(BaseModel):
 
     @validator('atc_code')
     def validate_atc_code(cls, v):
-        """Validate ATC code format"""
+        """Validate ATC code format - accepts any alphanumeric code"""
         if v:
             v = v.strip().upper()
-            # Basic ATC code format: Letter + 2 digits + Letter + Letter + 2 digits
-            if not re.match(r'^[A-Z]\d{2}[A-Z]{2}\d{2}$', v):
-                raise ValueError("Invalid ATC code format")
+            # Accept any alphanumeric code (relaxed validation)
+            # Standard ATC format is: Letter + 2 digits + Letter + Letter + 2 digits (e.g., N02BE01)
+            # But we allow custom codes for flexibility
         return v
 
 
 class MedicineCreate(MedicineBase):
     """Schema for creating a new medicine"""
-    
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID - NULL for global medicines")
+
     model_config = {
         "json_encoders": {
             Decimal: lambda v: float(v),

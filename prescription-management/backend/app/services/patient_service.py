@@ -55,7 +55,8 @@ class PatientService:
             relationship_to_primary=patient_data.relationship_to_primary,
             primary_contact_mobile=patient_data.primary_contact_mobile,
             notes=patient_data.notes,
-            created_by=created_by
+            created_by=created_by,
+            tenant_id=patient_data.tenant_id  # Multi-tenancy: set tenant_id
         )
         
         # Set emergency contact if provided
@@ -69,8 +70,8 @@ class PatientService:
         try:
             db.add(patient)
             db.commit()
-            db.refresh(patient)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Created patient: {patient.mobile_number} - {patient.get_full_name()}")
             return patient
             
@@ -94,8 +95,8 @@ class PatientService:
         primary_member = find_primary_family_member(db, family_mobile)
         if not primary_member:
             raise ValidationError("Primary family member must be registered first")
-        
-        # Create full patient data
+
+        # Create full patient data - inherit tenant_id from primary member
         patient_data = PatientCreate(
             mobile_number=family_mobile,
             first_name=member_data.first_name,
@@ -107,7 +108,8 @@ class PatientService:
             relationship_to_primary=member_data.relationship_to_primary,
             primary_contact_mobile=member_data.primary_contact_mobile or family_mobile,
             emergency_contact=member_data.emergency_contact,
-            notes=member_data.notes
+            notes=member_data.notes,
+            tenant_id=primary_member.tenant_id  # Inherit tenant from primary member
         )
         
         return self.create_patient(db, patient_data, created_by)
@@ -156,8 +158,8 @@ class PatientService:
         
         try:
             db.commit()
-            db.refresh(patient)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated patient: {patient.mobile_number} - {patient.get_full_name()}")
             return patient
             
@@ -199,7 +201,7 @@ class PatientService:
         
         try:
             db.commit()
-            db.refresh(patient)
+            # Don't refresh after commit - RLS blocks it
             logger.info(f"Reactivated patient: {patient.mobile_number} - {patient.get_full_name()}")
             return patient
             
@@ -329,39 +331,56 @@ class PatientService:
     
     # Statistics and Analytics
     
-    def get_patient_statistics(self, db: Session) -> Dict[str, Any]:
-        """Get patient statistics"""
-        total_patients = db.query(Patient).filter(Patient.is_active == True).count()
-        total_families = db.query(Patient.mobile_number).filter(Patient.is_active == True).distinct().count()
-        
+    def get_patient_statistics(self, db: Session, tenant_id: str = None) -> Dict[str, Any]:
+        """Get patient statistics filtered by tenant_id"""
+        # Base query with tenant filter
+        base_query = db.query(Patient).filter(Patient.is_active == True)
+        if tenant_id:
+            base_query = base_query.filter(Patient.tenant_id == tenant_id)
+
+        total_patients = base_query.count()
+
+        # Total families
+        families_query = db.query(Patient.mobile_number).filter(Patient.is_active == True)
+        if tenant_id:
+            families_query = families_query.filter(Patient.tenant_id == tenant_id)
+        total_families = families_query.distinct().count()
+
         # Gender distribution
-        gender_stats = db.query(
+        gender_query = db.query(
             Patient.gender,
             func.count(Patient.id).label('count')
-        ).filter(Patient.is_active == True).group_by(Patient.gender).all()
-        
+        ).filter(Patient.is_active == True)
+        if tenant_id:
+            gender_query = gender_query.filter(Patient.tenant_id == tenant_id)
+        gender_stats = gender_query.group_by(Patient.gender).all()
+
         # Relationship distribution
-        relationship_stats = db.query(
+        relationship_query = db.query(
             Patient.relationship_to_primary,
             func.count(Patient.id).label('count')
-        ).filter(Patient.is_active == True).group_by(Patient.relationship_to_primary).all()
-        
+        ).filter(Patient.is_active == True)
+        if tenant_id:
+            relationship_query = relationship_query.filter(Patient.tenant_id == tenant_id)
+        relationship_stats = relationship_query.group_by(Patient.relationship_to_primary).all()
+
         # Age groups (approximate)
         today = date.today()
+        children_query = base_query.filter(
+            Patient.date_of_birth >= date(today.year - 18, today.month, today.day)
+        )
+        adults_query = base_query.filter(
+            Patient.date_of_birth < date(today.year - 18, today.month, today.day),
+            Patient.date_of_birth >= date(today.year - 65, today.month, today.day)
+        )
+        seniors_query = base_query.filter(
+            Patient.date_of_birth < date(today.year - 65, today.month, today.day)
+        )
+
         age_groups = {
-            'children': db.query(Patient).filter(
-                Patient.is_active == True,
-                Patient.date_of_birth >= date(today.year - 18, today.month, today.day)
-            ).count(),
-            'adults': db.query(Patient).filter(
-                Patient.is_active == True,
-                Patient.date_of_birth < date(today.year - 18, today.month, today.day),
-                Patient.date_of_birth >= date(today.year - 65, today.month, today.day)
-            ).count(),
-            'seniors': db.query(Patient).filter(
-                Patient.is_active == True,
-                Patient.date_of_birth < date(today.year - 65, today.month, today.day)
-            ).count()
+            'children': children_query.count(),
+            'adults': adults_query.count(),
+            'seniors': seniors_query.count()
         }
         
         return {

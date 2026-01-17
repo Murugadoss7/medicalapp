@@ -41,6 +41,7 @@ interface OfficeLocation {
   name: string;
   address: string;
   is_primary: boolean;
+  is_tenant_default?: boolean; // Tenant's registered clinic (non-deletable)
 }
 
 // Simple UUID generator using crypto API
@@ -787,6 +788,10 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
   };
 
   const removeOffice = (index: number) => {
+    // Don't allow removal of tenant's default clinic
+    if (formData.offices[index].is_tenant_default) {
+      return;
+    }
     const updatedOffices = formData.offices.filter((_, i) => i !== index);
     // If we removed the primary office, make the first remaining one primary
     if (formData.offices[index].is_primary && updatedOffices.length > 0) {
@@ -888,10 +893,21 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
                     variant="outlined"
                     sx={{
                       p: 2,
-                      border: office.is_primary ? '2px solid' : '1px solid',
-                      borderColor: office.is_primary ? 'primary.main' : 'grey.300',
+                      border: office.is_tenant_default ? '2px solid' : office.is_primary ? '2px solid' : '1px solid',
+                      borderColor: office.is_tenant_default ? 'success.main' : office.is_primary ? 'primary.main' : 'grey.300',
+                      bgcolor: office.is_tenant_default ? 'success.50' : 'background.paper',
                     }}
                   >
+                    {office.is_tenant_default && (
+                      <Box sx={{ mb: 1 }}>
+                        <Chip
+                          size="small"
+                          label="Registered Clinic"
+                          color="success"
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                      </Box>
+                    )}
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={4}>
                         <TextField
@@ -901,6 +917,7 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
                           placeholder="e.g., Main Clinic, Branch Office"
                           value={office.name}
                           onChange={(e) => updateOffice(index, 'name', e.target.value)}
+                          disabled={office.is_tenant_default}
                         />
                       </Grid>
                       <Grid item xs={12} sm={5}>
@@ -911,6 +928,7 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
                           placeholder="Full address"
                           value={office.address}
                           onChange={(e) => updateOffice(index, 'address', e.target.value)}
+                          disabled={office.is_tenant_default}
                         />
                       </Grid>
                       <Grid item xs={12} sm={3}>
@@ -922,6 +940,7 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
                             onClick={() => setPrimaryOffice(index)}
                             startIcon={<StarIcon />}
                             sx={{ flex: 1 }}
+                            disabled={office.is_tenant_default && office.is_primary}
                           >
                             {office.is_primary ? 'Primary' : 'Set Primary'}
                           </Button>
@@ -930,6 +949,8 @@ const ProfessionalDetailsStep = ({ formData, onChange }: ProfessionalDetailsStep
                             variant="outlined"
                             color="error"
                             onClick={() => removeOffice(index)}
+                            disabled={office.is_tenant_default}
+                            title={office.is_tenant_default ? "Cannot remove registered clinic" : "Remove office"}
                           >
                             <DeleteIcon fontSize="small" />
                           </Button>

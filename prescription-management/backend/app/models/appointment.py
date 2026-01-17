@@ -20,6 +20,13 @@ APPOINTMENT_STATUS_ENUM = ENUM(
     create_type=True
 )
 
+# Appointment type enum - distinguishes walk-in from scheduled appointments
+APPOINTMENT_TYPE_ENUM = ENUM(
+    'scheduled', 'walk_in',
+    name='appointment_type',
+    create_type=True
+)
+
 
 class Appointment(BaseModel):
     """
@@ -27,7 +34,16 @@ class Appointment(BaseModel):
     Following ERD appointment entity specifications
     """
     __tablename__ = "appointments"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Unique appointment identifier
     appointment_number = Column(
         String(100), 
@@ -87,11 +103,20 @@ class Appointment(BaseModel):
     
     # Appointment details
     status = Column(
-        APPOINTMENT_STATUS_ENUM, 
+        APPOINTMENT_STATUS_ENUM,
         default='scheduled',
         comment="Current appointment status"
     )
-    
+
+    # Appointment type - distinguishes walk-in from scheduled
+    appointment_type = Column(
+        APPOINTMENT_TYPE_ENUM,
+        default='scheduled',
+        nullable=False,
+        server_default='scheduled',
+        comment="Type of appointment: scheduled or walk_in"
+    )
+
     reason_for_visit = Column(
         Text, 
         nullable=False,

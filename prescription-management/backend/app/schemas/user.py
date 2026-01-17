@@ -75,6 +75,7 @@ class UserResponse(UserBase):
     """User response schema"""
     id: UUID = Field(..., description="User UUID")
     keycloak_id: Optional[str] = Field(None, description="Keycloak user ID")
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     is_active: bool = Field(..., description="Whether user is active")
     last_login: Optional[datetime] = Field(None, description="Last login timestamp")
     created_at: datetime = Field(..., description="User creation timestamp")
@@ -85,6 +86,7 @@ class UserResponse(UserBase):
     permissions: List[str] = Field(default_factory=list, description="User permissions based on role")
     specialization: Optional[str] = Field(None, description="Doctor's specialization (e.g., Dental, Cardiology)")
     doctor_id: Optional[UUID] = Field(None, description="Doctor ID from doctors table (for doctor role only)")
+    temporary_password: Optional[str] = Field(None, description="Temporary password for admin-created accounts")
     
     class Config:
         from_attributes = True

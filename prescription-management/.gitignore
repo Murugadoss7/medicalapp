@@ -1,1 +1,103 @@
+# Uploads
 backend/uploads/
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Node modules
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.log
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ============================================
+# TEMPORARY DOCS - NOT FOR GIT
+# ============================================
+# These are working documents, not core documentation
+
+# Root level temp docs (keep only: CLAUDE.md, LESSONS_LEARNED.md, PRE_IMPLEMENTATION_CHECKLIST.md, MULTI_TENANCY_IMPLEMENTATION_SUMMARY.md, README.md)
+/CLOUD_DEPLOYMENT_ANALYSIS.md
+/DEPLOYMENT_QUICKSTART.md
+/GOOGLE_CLOUD_RUN_DEPLOYMENT.md
+/IMPLEMENTATION_STATUS.md
+/MIGRATION_RENDER_TO_CLOUDRUN.md
+/MULTI_TENANCY_ANALYSIS.md
+/MULTI_TENANT_DOCTOR_IMPLEMENTATION.md
+/MULTI_TENANT_IMPLEMENTATION_NOTES.md
+/MULTI_TENANT_REGISTRATION_FLOW.md
+/PRODUCTION_MIGRATION_GUIDE.md
+/QUICK_ANSWERS.md
+/QUICK_START.md
+/README_MULTI_TENANCY.md
+/TENANT_ISOLATION_FILES_INDEX.md
+/TENANT_ISOLATION_FIX_SUMMARY.md
+/TESTING_MULTI_TENANCY.md
+/VERCEL_URL_GUIDE.md
+
+# Project level temp docs
+DEVELOPMENT_PROGRESS.md
+DEVELOPMENT_WORKFLOW_TEMPLATE.md
+SERVER_SETUP.md
+START_HERE.md
+WORKFLOW_SPECIFICATIONS.md
+.claude_shortcuts.md
+
+# Frontend temp docs
+frontend/IPAD_SCROLL_FIX.md
+
+# ============================================
+# MANUAL SQL FIX FILES - NOT FOR GIT
+# ============================================
+backend/fix_*.sql
+
+# ============================================
+# TASK TRACKING - LOCAL ONLY
+# ============================================
+/tasks/
+
+# ============================================
+# BACKUP FILES
+# ============================================
+*.dump
+*.backup
+*.bak
+
+# ============================================
+# LOCAL CLAUDE SETTINGS (keep skills/)
+# ============================================
+.claude/settings.local.json
+.claude/commands/

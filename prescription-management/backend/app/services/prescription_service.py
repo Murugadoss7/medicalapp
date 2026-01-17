@@ -87,6 +87,7 @@ class PrescriptionService:
         # Create prescription
         prescription = Prescription(
             id=uuid4(),
+            tenant_id=getattr(prescription_data, 'tenant_id', None),
             prescription_number=generate_prescription_number(self.db),
             patient_mobile_number=prescription_data.patient_mobile_number,
             patient_first_name=prescription_data.patient_first_name,
@@ -115,6 +116,7 @@ class PrescriptionService:
             
             item = PrescriptionItem(
                 id=uuid4(),
+                tenant_id=prescription.tenant_id,  # Inherit tenant_id from prescription
                 prescription_id=prescription.id,
                 medicine_id=item_data.medicine_id,
                 dosage=item_data.dosage,
@@ -158,19 +160,20 @@ class PrescriptionService:
                 print(f"[PRESCRIPTION-LINK] No unlinked observations found for appointment {prescription_data.appointment_id}")
 
         self.db.commit()
+        # Don't refresh after commit - RLS blocks it
 
-        # Reload with relationships
-        return self._get_prescription_with_relationships(prescription.id)
+        return prescription
     
     def create_from_short_key(
-        self, 
-        short_key_data: ShortKeyPrescriptionCreate, 
+        self,
+        short_key_data: ShortKeyPrescriptionCreate,
         created_by: UUID
     ) -> Prescription:
         """Create prescription from short key"""
-        
+
         # Convert to standard prescription create
         prescription_data = PrescriptionCreate(
+            tenant_id=getattr(short_key_data, 'tenant_id', None),
             patient_mobile_number=short_key_data.patient_mobile_number,
             patient_first_name=short_key_data.patient_first_name,
             patient_uuid=short_key_data.patient_uuid,
@@ -184,7 +187,7 @@ class PrescriptionService:
             short_key_code=short_key_data.short_key_code,
             items=[]  # Will be populated from short key
         )
-        
+
         return self.create_prescription(prescription_data, created_by)
     
     def get_prescription_by_id(self, prescription_id: UUID) -> Optional[Prescription]:
@@ -226,9 +229,10 @@ class PrescriptionService:
         
         prescription.updated_at = datetime.utcnow()
         prescription.updated_by = updated_by
-        
+
         self.db.commit()
-        return self.get_prescription_by_id(prescription_id)
+        # Don't refresh after commit - RLS blocks it
+        return prescription
     
     def add_prescription_item(
         self, 
@@ -257,6 +261,7 @@ class PrescriptionService:
         
         item = PrescriptionItem(
             id=uuid4(),
+            tenant_id=prescription.tenant_id,  # Inherit tenant_id from prescription
             prescription_id=prescription_id,
             medicine_id=item_data.medicine_id,
             dosage=item_data.dosage,
@@ -468,9 +473,10 @@ class PrescriptionService:
         
         if notes:
             prescription.clinical_notes = f"{prescription.clinical_notes or ''}\n[{datetime.utcnow()}] Status changed to {status}: {notes}".strip()
-        
+
         self.db.commit()
-        return self.get_prescription_by_id(prescription_id)
+        # Don't refresh after commit - RLS blocks it
+        return prescription
     
     def mark_as_printed(
         self, 
@@ -693,28 +699,30 @@ class PrescriptionService:
         return prescription
 
     def _get_clinic_address_for_prescription(self, prescription: Prescription) -> Optional[str]:
-        """Extract clinic address from doctor's offices based on appointment's office_id"""
+        """Extract clinic address - prioritizes appointment's office where patient was seen"""
         try:
-            # If no appointment, fall back to doctor's primary office or deprecated clinic_address
-            if not prescription.appointment or not prescription.appointment.office_id:
-                # Try to find primary office
+            # 1. First priority: Appointment's office_id -> doctor's offices (specific office selected)
+            if prescription.appointment and prescription.appointment.office_id:
                 if prescription.doctor and prescription.doctor.offices:
+                    office_id = prescription.appointment.office_id
                     for office in prescription.doctor.offices:
-                        if office.get('is_primary', False):
+                        if office.get('id') == office_id:
                             return office.get('address')
-                # Fall back to deprecated clinic_address field
-                if prescription.doctor:
-                    return prescription.doctor.clinic_address
-                return None
 
-            # Find the office by office_id from appointment
+            # 2. Second priority: Doctor's primary office
             if prescription.doctor and prescription.doctor.offices:
-                office_id = prescription.appointment.office_id
                 for office in prescription.doctor.offices:
-                    if office.get('id') == office_id:
+                    if office.get('is_primary', False):
                         return office.get('address')
 
-            # Fallback to deprecated field
+            # 3. Third priority: Tenant's registered clinic address (fallback)
+            if prescription.tenant_id:
+                from app.models.tenant import Tenant
+                tenant = self.db.query(Tenant).filter(Tenant.id == prescription.tenant_id).first()
+                if tenant and tenant.settings and tenant.settings.get('clinic_address'):
+                    return tenant.settings.get('clinic_address')
+
+            # 4. Fallback to deprecated clinic_address field
             if prescription.doctor:
                 return prescription.doctor.clinic_address
 
@@ -724,28 +732,33 @@ class PrescriptionService:
             return None
 
     def _get_clinic_name_for_prescription(self, prescription: Prescription) -> Optional[str]:
-        """Extract clinic name from doctor's offices based on appointment's office_id"""
+        """Extract clinic name - prioritizes appointment's office where patient was seen"""
         try:
-            # If no appointment, fall back to doctor's primary office or deprecated clinic_name
-            if not prescription.appointment or not prescription.appointment.office_id:
-                # Try to find primary office
+            # 1. First priority: Appointment's office_id -> doctor's offices (specific office selected)
+            if prescription.appointment and prescription.appointment.office_id:
                 if prescription.doctor and prescription.doctor.offices:
+                    office_id = prescription.appointment.office_id
                     for office in prescription.doctor.offices:
-                        if office.get('is_primary', False):
+                        if office.get('id') == office_id:
                             return office.get('name')
-                # Fall back to deprecated clinic_name field
-                if prescription.doctor:
-                    return prescription.doctor.clinic_name
-                return None
 
-            # Find the office by office_id from appointment
+            # 2. Second priority: Doctor's primary office
             if prescription.doctor and prescription.doctor.offices:
-                office_id = prescription.appointment.office_id
                 for office in prescription.doctor.offices:
-                    if office.get('id') == office_id:
+                    if office.get('is_primary', False):
                         return office.get('name')
 
-            # Fallback to deprecated field
+            # 3. Third priority: Tenant's registered clinic name (fallback)
+            if prescription.tenant_id:
+                from app.models.tenant import Tenant
+                tenant = self.db.query(Tenant).filter(Tenant.id == prescription.tenant_id).first()
+                if tenant and tenant.settings and tenant.settings.get('clinic_name'):
+                    return tenant.settings.get('clinic_name')
+                # Also try tenant_name if no clinic_name in settings
+                if tenant and tenant.tenant_name:
+                    return tenant.tenant_name
+
+            # 4. Fallback to deprecated clinic_name field
             if prescription.doctor:
                 return prescription.doctor.clinic_name
 

@@ -50,6 +50,11 @@ body {
   overflow: hidden; /* Prevent document-level scroll; MainLayout handles its own scroll */
 }
 
+/* CRITICAL FIX for iPad/iOS scroll: Enable momentum scrolling on all scrollable elements */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Global Autocomplete (Dropdown Search) Styling - Medical Futurism */
 .MuiAutocomplete-root .MuiOutlinedInput-root {
   min-height: 56px !important;

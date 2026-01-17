@@ -34,6 +34,7 @@ import {
   Healing,
   Vaccines,
   MonitorHeart,
+  LocationOn as ClinicsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks';
@@ -42,6 +43,7 @@ import {
   useGetAdminDoctorStatsQuery,
   useGetAdminPatientStatsQuery,
   useGetAdminTodayAppointmentsQuery,
+  useGetTenantLimitsQuery,
 } from '../../store/api';
 
 export const AdminDashboard = () => {
@@ -67,6 +69,11 @@ export const AdminDashboard = () => {
     isLoading: appointmentsLoading,
     error: appointmentsError
   } = useGetAdminTodayAppointmentsQuery();
+
+  const {
+    data: tenantInfo,
+    isLoading: tenantLoading,
+  } = useGetTenantLimitsQuery();
 
   useEffect(() => {
     // Only redirect once, and only if we have user data
@@ -141,6 +148,13 @@ export const AdminDashboard = () => {
       icon: <MedicinesIcon sx={{ fontSize: 40, color: 'warning.main' }} />,
       action: () => navigate('/medicines'),
       color: 'warning',
+    },
+    {
+      title: 'All Clinics',
+      description: 'View all clinic locations',
+      icon: <ClinicsIcon sx={{ fontSize: 40, color: 'error.main' }} />,
+      action: () => navigate('/admin/clinics'),
+      color: 'error',
     },
   ];
 
@@ -378,13 +392,12 @@ export const AdminDashboard = () => {
 
       <Fade in timeout={1200}>
         <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
-        {/* Quick Actions - Enhanced Glassmorphism */}
-        <Grid item xs={12} md={8}>
+        {/* Quick Actions - Enhanced Glassmorphism - Full width */}
+        <Grid item xs={12}>
           <Paper
             elevation={0}
             sx={{
               p: 3,
-              mb: 3,
               background: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(20px)',
               borderRadius: 4,
@@ -421,7 +434,7 @@ export const AdminDashboard = () => {
             </Typography>
             <Grid container spacing={2}>
               {quickActions.map((action, index) => (
-                <Grid item xs={12} sm={6} key={index}>
+                <Grid item xs={12} sm={6} md={4} lg={4} key={index}>
                   <Card
                     elevation={0}
                     sx={{
@@ -445,10 +458,10 @@ export const AdminDashboard = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         {action.icon}
                         <Box sx={{ ml: 2 }}>
-                          <Typography variant="h6" component="div">
+                          <Typography variant="h6" component="div" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                             {action.title}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                             {action.description}
                           </Typography>
                         </Box>
@@ -474,13 +487,189 @@ export const AdminDashboard = () => {
           </Paper>
         </Grid>
 
+        {/* Tenant Info - Enhanced Glassmorphism */}
+        <Grid item xs={12} sm={6} md={4}>
+          {tenantLoading ? (
+            <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 4 }} />
+          ) : tenantInfo ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                height: '100%',
+                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: 4,
+                border: '2px solid rgba(102, 126, 234, 0.2)',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                },
+              }}
+            >
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                <DashboardIcon sx={{ mr: 1, color: '#667eea' }} />
+                Your Clinic
+              </Typography>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Clinic Name
+                </Typography>
+                <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  {tenantInfo.tenant_name}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Subscription Plan
+                </Typography>
+                <Chip
+                  label={tenantInfo.subscription_plan.toUpperCase()}
+                  sx={{
+                    background: tenantInfo.subscription_plan === 'trial'
+                      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                      : tenantInfo.subscription_plan === 'basic'
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Doctor Limits */}
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      Doctors
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} color={tenantInfo.doctors.can_add ? 'success.main' : 'error.main'}>
+                      {tenantInfo.doctors.current} / {tenantInfo.doctors.max}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 8,
+                      bgcolor: 'rgba(102, 126, 234, 0.1)',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${(tenantInfo.doctors.current / tenantInfo.doctors.max) * 100}%`,
+                        height: '100%',
+                        background: tenantInfo.doctors.can_add
+                          ? 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                          : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Patient Limits */}
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      Patients
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} color={tenantInfo.patients.can_add ? 'success.main' : 'error.main'}>
+                      {tenantInfo.patients.current} / {tenantInfo.patients.max}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 8,
+                      bgcolor: 'rgba(16, 185, 129, 0.1)',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${(tenantInfo.patients.current / tenantInfo.patients.max) * 100}%`,
+                        height: '100%',
+                        background: tenantInfo.patients.can_add
+                          ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)'
+                          : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+              {!tenantInfo.doctors.can_add && (
+                <Alert
+                  severity="warning"
+                  sx={{
+                    mt: 2,
+                    borderRadius: 2,
+                    '& .MuiAlert-message': {
+                      fontSize: '0.75rem',
+                    },
+                  }}
+                >
+                  Doctor limit reached. Upgrade plan to add more.
+                </Alert>
+              )}
+
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<PersonAddIcon />}
+                onClick={() => navigate('/admin/add-doctor')}
+                disabled={!tenantInfo.doctors.can_add}
+                sx={{
+                  mt: 2,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #653a8e 100%)',
+                  },
+                }}
+              >
+                Add New Doctor
+              </Button>
+            </Paper>
+          ) : null}
+        </Grid>
+
         {/* Today's Summary - Enhanced Glassmorphism */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={6} md={4}>
           <Paper
             elevation={0}
             sx={{
               p: 3,
-              mb: 3,
+              height: '100%',
               background: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(20px)',
               borderRadius: 4,
@@ -649,13 +838,16 @@ export const AdminDashboard = () => {
               </Box>
             )}
           </Paper>
+        </Grid>
 
-          {/* Specialization Summary - Enhanced Glassmorphism */}
-          {doctorStats?.specialization_counts && Object.keys(doctorStats.specialization_counts).length > 0 && (
+        {/* Specialization Summary - Enhanced Glassmorphism */}
+        <Grid item xs={12} sm={12} md={4}>
+          {doctorStats?.specialization_counts && Object.keys(doctorStats.specialization_counts).length > 0 ? (
             <Paper
               elevation={0}
               sx={{
                 p: 3,
+                height: '100%',
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(20px)',
                 borderRadius: 4,
@@ -711,6 +903,55 @@ export const AdminDashboard = () => {
                   />
                 ))}
               </Box>
+            </Paper>
+          ) : (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: 4,
+                border: '1px solid rgba(102, 126, 234, 0.15)',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                },
+              }}
+            >
+              <DoctorsIcon sx={{ fontSize: 48, color: 'rgba(102, 126, 234, 0.3)', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary" textAlign="center">
+                No doctors registered yet
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/doctors/register')}
+                sx={{
+                  mt: 2,
+                  borderColor: 'rgba(102, 126, 234, 0.3)',
+                  color: '#667eea',
+                  '&:hover': {
+                    borderColor: '#667eea',
+                    background: 'rgba(102, 126, 234, 0.05)',
+                  },
+                }}
+              >
+                Register Doctor
+              </Button>
             </Paper>
           )}
         </Grid>

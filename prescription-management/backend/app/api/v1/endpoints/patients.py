@@ -10,8 +10,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 import logging
 
-from app.core.database import get_db
-from app.api.deps.auth import get_current_active_user, require_admin, require_staff
+from app.api.deps import get_db, get_current_active_user, require_admin, require_staff
 from app.models.user import User
 from app.services.patient_service import PatientService
 from app.schemas.patient import (
@@ -56,6 +55,8 @@ async def create_patient(
     **Permissions**: Staff, Doctor, Admin, Super Admin
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        patient_data.tenant_id = current_user.tenant_id
         patient = patient_service.create_patient(db, patient_data, current_user.id)
         return PatientResponse.model_validate(patient)
     
@@ -162,7 +163,8 @@ async def get_patient_statistics(
     **Staff access required** (admin, doctor, nurse, receptionist)
     """
     try:
-        stats = patient_service.get_patient_statistics(db)
+        logger.info(f"Getting patient stats for user {current_user.email} with tenant_id: {current_user.tenant_id}")
+        stats = patient_service.get_patient_statistics(db, tenant_id=current_user.tenant_id)
         return stats
 
     except Exception as e:

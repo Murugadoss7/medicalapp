@@ -101,14 +101,15 @@ class AppointmentService:
             duration_minutes=appointment_data.duration_minutes,
             contact_number=appointment_data.contact_number,
             status='scheduled',
-            created_by=created_by
+            created_by=created_by,
+            tenant_id=getattr(appointment_data, 'tenant_id', None)  # Multi-tenancy
         )
         
         try:
             db.add(appointment)
             db.commit()
-            db.refresh(appointment)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Created appointment: {appointment.appointment_number} for patient {appointment.patient_mobile_number}")
             return appointment
             
@@ -167,8 +168,8 @@ class AppointmentService:
         
         try:
             db.commit()
-            db.refresh(appointment)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated appointment: {appointment.appointment_number}")
             return appointment
             
@@ -209,8 +210,8 @@ class AppointmentService:
         
         try:
             db.commit()
-            db.refresh(appointment)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Rescheduled appointment: {appointment.appointment_number} to {reschedule_data.appointment_date} {reschedule_data.appointment_time}")
             return appointment
             
@@ -248,8 +249,8 @@ class AppointmentService:
         
         try:
             db.commit()
-            db.refresh(appointment)
-            
+            # Don't refresh after commit - RLS blocks it
+
             logger.info(f"Updated appointment status: {appointment.appointment_number} to {status_data.status}")
             return appointment
             

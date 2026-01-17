@@ -57,7 +57,8 @@ async def upload_observation_attachment(
             file=file,
             file_type=file_type,
             caption=caption,
-            user_id=current_user.id
+            user_id=current_user.id,
+            tenant_id=current_user.tenant_id
         )
         return attachment
     except HTTPException:
@@ -100,7 +101,8 @@ async def upload_procedure_attachment(
             file=file,
             file_type=file_type,
             caption=caption,
-            user_id=current_user.id
+            user_id=current_user.id,
+            tenant_id=current_user.tenant_id
         )
         return attachment
     except HTTPException:

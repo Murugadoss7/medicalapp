@@ -3,23 +3,39 @@ Authentication and Authorization Dependencies
 """
 
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+import logging
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.database import SessionLocal
 from app.models.user import User
 from app.services.auth_service import AuthService
 
+logger = logging.getLogger(__name__)
 
 # Security scheme
 security = HTTPBearer()
 
 
-def get_db() -> Generator:
-    """Database session dependency"""
+def get_db(request: Request) -> Generator:
+    """
+    Database session dependency with multi-tenancy support.
+    Automatically sets tenant context from JWT token for RLS.
+
+    NOTE: Request parameter is required - FastAPI will inject it automatically.
+    The TenantMiddleware sets request.state.tenant_id from JWT.
+    """
+    db = SessionLocal()
     try:
-        db = SessionLocal()
+        # Set tenant context if available from request state (set by TenantMiddleware)
+        if hasattr(request.state, 'tenant_id') and request.state.tenant_id:
+            try:
+                db.execute(text(f"SET app.current_tenant_id = '{request.state.tenant_id}'"))
+                logger.debug(f"Tenant context set: {request.state.tenant_id}")
+            except Exception as e:
+                logger.error(f"Failed to set tenant context: {e}")
         yield db
     finally:
         db.close()
