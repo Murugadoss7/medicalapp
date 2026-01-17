@@ -73,10 +73,13 @@ import { DoctorQueueColumn } from '../../components/reception/DoctorQueueColumn'
 import PageContainer from '../../components/layout/PageContainer';
 import theme from '../../theme/medicalFuturismTheme';
 
-// Get today's date in YYYY-MM-DD format
+// Get today's date in YYYY-MM-DD format (using local timezone)
 const getTodayDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Get next available time slot (rounds up to next 30 min)

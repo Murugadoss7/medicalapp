@@ -199,7 +199,10 @@ export const DentalPrescriptionBuilder: React.FC<DentalPrescriptionBuilderProps>
       patient_uuid: patientUuid,
       doctor_id: doctorId,
       appointment_id: appointmentId,
-      visit_date: new Date().toISOString().split('T')[0],
+      visit_date: (() => {
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      })(),
       chief_complaint: consultationNotes.chief_complaint,
       diagnosis: consultationNotes.diagnosis || 'Dental treatment',
       symptoms: consultationNotes.symptoms,

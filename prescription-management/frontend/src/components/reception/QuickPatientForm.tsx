@@ -290,7 +290,10 @@ export const QuickPatientForm: React.FC<QuickPatientFormProps> = ({
           error={!!errors.date_of_birth}
           helperText={errors.date_of_birth}
           InputLabelProps={{ shrink: true }}
-          inputProps={{ max: new Date().toISOString().split('T')[0] }}
+          inputProps={{ max: (() => {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          })() }}
           sx={{ mb: 3 }}
           size="small"
         />
