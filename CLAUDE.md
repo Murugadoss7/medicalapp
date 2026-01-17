@@ -1,6 +1,22 @@
 # Claude Code Instructions
-# Update on:  31-oct-2025:12PM
+# Update on: 10-Jan-2026 (Multi-Tenancy RLS Complete)
 ## Prescription Management System - Development Guidelines
+
+### 🧠 PROJECT KNOWLEDGE SKILL
+**IMPORTANT**: A skill exists at `.claude/skills/project-knowledge/SKILL.md` with:
+- Multi-tenancy implementation details
+- RLS policy patterns
+- Common issues & fixes
+- File locations for key components
+
+### 🔴 CRITICAL: get_db IMPORT
+```python
+# ALWAYS USE THIS:
+from app.api.deps import get_db
+
+# NEVER USE THIS (no tenant context):
+from app.core.database import get_db
+```
 
 ### 🚨 CRITICAL RULES - ALWAYS FOLLOW
 
@@ -111,9 +127,49 @@ rg "mobile_number|first_name" backend/app/models/
 
 - **Patient composite key**: mobile_number + first_name
 - **API base URL**: http://localhost:8000/api/v1
-- **Authentication**: JWT Bearer tokens
+- **Authentication**: JWT Bearer tokens (now includes tenant_id)
 - **Field mappings**: See ENTITY_RELATIONSHIP_DIAGRAM.md
 - **Page specs**: See FRONTEND_DEVELOPMENT_PLAN.md
+
+### 🏢 MULTI-TENANCY (Added: Jan 8, 2026)
+
+#### **Critical Routing Rules**
+- **Protected routes are at root path `/`**
+- **Auth routes are at `/auth/*`**
+- **Landing page for clinic registration is at `/welcome`**
+
+#### **Correct Navigation Examples:**
+```typescript
+// ✅ CORRECT - Protected routes
+navigate('/doctor/dashboard');
+navigate('/appointments/book');
+navigate('/patients');
+navigate('/admin/dashboard');
+
+// ✅ CORRECT - Auth routes
+navigate('/auth/login');
+navigate('/auth/register');
+navigate('/auth/register-clinic');
+
+// ✅ CORRECT - Landing page
+navigate('/welcome');
+```
+
+#### **Tenant Context**
+- Every API request automatically includes tenant context via middleware
+- JWT tokens now contain `tenant_id` field
+- Row-Level Security (RLS) ensures data isolation at database level
+- Users can only see data within their tenant
+- Global medicines (tenant_id=NULL) are visible to all tenants
+
+#### **New Tenant Endpoints:**
+- `POST /api/v1/tenants/register-clinic` - Register new clinic (public)
+- `POST /api/v1/tenants/doctors` - Admin creates doctor (auth required)
+- `GET /api/v1/tenants/limits` - Get tenant subscription limits
+- `GET /api/v1/tenants/me` - Get current tenant info
+
+#### **Migration to Production:**
+See `MULTI_TENANCY_IMPLEMENTATION_SUMMARY.md` for full details
 
 
 ### RULES TO be Followed 

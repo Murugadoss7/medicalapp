@@ -18,7 +18,16 @@ class ShortKey(BaseModel):
     Following ERD short_keys entity specifications
     """
     __tablename__ = "short_keys"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Short key identifier
     code = Column(
         String(20), 
@@ -199,7 +208,16 @@ class ShortKeyMedicine(BaseModel):
     Following ERD short_key_medicines entity specifications
     """
     __tablename__ = "short_key_medicines"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Foreign keys
     short_key_id = Column(
         UUID(as_uuid=True),

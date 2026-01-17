@@ -378,9 +378,10 @@ export const DoctorSearch = () => {
                   }}
                 >
                   {doctorsData.doctors.map((doctor, index) => {
-                    const canEdit =
-                      currentUser?.role === 'admin' ||
-                      (currentUser?.role === 'doctor' && doctor.user_id === currentUser?.id);
+                    // Check if user can edit: has write:doctors permission OR is the doctor themselves
+                    const hasWritePermission = currentUser?.permissions?.includes('write:doctors');
+                    const isOwnProfile = currentUser?.doctor_id === doctor.id;
+                    const canEdit = hasWritePermission || isOwnProfile;
 
                     return (
                       <Fade key={doctor.id} in timeout={1200 + index * 50}>

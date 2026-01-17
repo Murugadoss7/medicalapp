@@ -46,6 +46,7 @@ import {
   useAddPrescriptionItemMutation,
   useUpdatePrescriptionItemMutation,
   useSearchMedicinesQuery,
+  useGetEffectivePrescriptionTemplateQuery,
   type Medicine,
 } from '../../store/api';
 
@@ -58,6 +59,7 @@ interface PrescriptionViewerProps {
   clinicName?: string;
   clinicAddress?: string;
   clinicPhone?: string;
+  officeId?: string; // Office ID for fetching correct template
   refetch?: () => void;
   hideNewPrescriptionButton?: boolean; // Hide "New Prescription" button
   hidePrice?: boolean; // Hide price and total amount
@@ -72,6 +74,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   clinicName = 'Smile Dental Clinic',
   clinicAddress = '123 Main Street, City, State - 123456',
   clinicPhone = '+91 1234567890',
+  officeId,
   refetch: externalRefetch,
   hideNewPrescriptionButton = false,
   hidePrice = false,
@@ -85,6 +88,56 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
   const [addItem, { isLoading: addingItem }] = useAddPrescriptionItemMutation();
   const [updateItem, { isLoading: updatingItem }] = useUpdatePrescriptionItemMutation();
   const [retryCount, setRetryCount] = useState(0);
+
+  // Fetch effective prescription template for print styling
+  const { data: template } = useGetEffectivePrescriptionTemplateQuery(
+    prescription?.doctor_id ? { doctor_id: prescription.doctor_id, office_id: officeId } : undefined,
+    { skip: !prescription }
+  );
+
+  // Get print styles from template
+  const getPaperSize = () => {
+    if (!template?.paper_size) return 'A4';
+    return template.paper_size.toUpperCase();
+  };
+
+  const getMargins = () => {
+    if (!template) return { top: 15, right: 15, bottom: 15, left: 15 };
+    return {
+      top: template.margin_top || 15,
+      right: template.margin_right || 15,
+      bottom: template.margin_bottom || 15,
+      left: template.margin_left || 15,
+    };
+  };
+
+  // Get layout config from template - read directly like LivePreview does
+  const layoutConfig = (template?.layout_config || {}) as Record<string, Record<string, unknown>>;
+  const headerConfig = layoutConfig.header || {};
+  const footerConfig = layoutConfig.footer || {};
+
+  // Extract settings from layout config
+  const accentColor = (headerConfig.accentColor as string) || '#667eea';
+  const logoUrl = template?.logo_url;
+  const signatureUrl = template?.signature_url;
+  const signatureText = template?.signature_text;
+  const logoPosition = ((headerConfig.logo as Record<string, unknown>)?.position as string) || 'left';
+  const logoMaxWidth = ((headerConfig.logo as Record<string, unknown>)?.maxWidth as number) || 80;
+
+  // Debug: Log template data to verify it's being fetched correctly
+  React.useEffect(() => {
+    if (template) {
+      console.log('[PrescriptionViewer] Template fetched:', {
+        id: template.id,
+        name: template.name,
+        layout_config: template.layout_config,
+        logo_url: template.logo_url,
+        doctor_id: template.doctor_id,
+        office_id: template.office_id,
+      });
+      console.log('[PrescriptionViewer] Extracted logoPosition:', logoPosition);
+    }
+  }, [template, logoPosition]);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -368,9 +421,16 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
     sum + (item.quantity * item.unit_price), 0
   ) || 0;
 
+  // Get template-based print margins
+  const margins = getMargins();
+
   return (
     <>
       <style>{`
+        @page {
+          size: ${getPaperSize()};
+          margin: ${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm;
+        }
         @media print {
           /* STEP 1: Hide everything first */
           body * {
@@ -392,7 +452,7 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             top: 0;
             width: 100%;
             background: white;
-            padding: 20px;
+            padding: 0; /* Margins handled by @page */
           }
 
           /* Hide no-print elements completely */
@@ -481,36 +541,73 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
         }
       `}</style>
       <Box className="prescription-print-area">
-        {/* Doctor/Clinic Header with Purple Theme */}
+        {/* Doctor/Clinic Header - Template Styled */}
         <Paper
           elevation={0}
           sx={{
             p: 3,
             mb: 2,
-            borderBottom: '3px solid #667eea',
+            borderBottom: `3px solid ${accentColor}`,
             borderRadius: 2,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(102, 126, 234, 0.15)',
-            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+            border: `1px solid ${accentColor}20`,
+            boxShadow: `0 2px 12px ${accentColor}15`,
           }}
         >
-          <Box sx={{ textAlign: 'center', mb: 2 }}>
-            <Typography variant="h4" fontWeight={700} color="#667eea">
-              {prescription?.clinic_name || clinicName}
-            </Typography>
-            <Typography variant="h6" color="text.secondary" fontWeight={600}>
-              {prescription?.doctor_name || doctorName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-              {prescription?.doctor_specialization || doctorSpecialization}
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }} fontWeight={500}>
-              {prescription?.clinic_address || clinicAddress}
-            </Typography>
-            <Typography variant="body2" fontWeight={500}>
-              Phone: {clinicPhone}
-            </Typography>
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 3,
+            flexDirection: logoPosition === 'right' ? 'row-reverse' : 'row',
+          }}>
+            {/* Logo - position based on layout_config */}
+            {logoUrl && logoPosition !== 'center' && (
+              <Box sx={{ flexShrink: 0 }}>
+                <img
+                  src={logoUrl}
+                  alt="Clinic Logo"
+                  style={{
+                    maxWidth: logoMaxWidth,
+                    maxHeight: 80,
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* Clinic Info */}
+            <Box sx={{ flex: 1, textAlign: logoUrl && logoPosition !== 'center' ? (logoPosition === 'right' ? 'right' : 'left') : 'center' }}>
+              {/* Center logo above clinic name */}
+              {logoUrl && logoPosition === 'center' && (
+                <Box sx={{ mb: 1, display: 'flex', justifyContent: 'center' }}>
+                  <img
+                    src={logoUrl}
+                    alt="Clinic Logo"
+                    style={{
+                      maxWidth: logoMaxWidth,
+                      maxHeight: 80,
+                      objectFit: 'contain',
+                    }}
+                  />
+                </Box>
+              )}
+              <Typography variant="h4" fontWeight={700} sx={{ color: accentColor }}>
+                {prescription?.clinic_name || clinicName}
+              </Typography>
+              <Typography variant="h6" color="text.secondary" fontWeight={600}>
+                {prescription?.doctor_name || doctorName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                {prescription?.doctor_specialization || doctorSpecialization}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }} fontWeight={500}>
+                {prescription?.clinic_address || clinicAddress}
+              </Typography>
+              <Typography variant="body2" fontWeight={500}>
+                Phone: {clinicPhone}
+              </Typography>
+            </Box>
           </Box>
         </Paper>
 
@@ -523,13 +620,13 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
           borderRadius: 2,
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(102, 126, 234, 0.15)',
-          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+          border: `1px solid ${accentColor}20`,
+          boxShadow: `0 2px 12px ${accentColor}15`,
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
-            <Typography variant="h5" gutterBottom fontWeight={700} color="#667eea">
+            <Typography variant="h5" gutterBottom fontWeight={700} sx={{ color: accentColor }}>
               Prescription Created
             </Typography>
             <Typography variant="body2" color="text.secondary" fontWeight={500} className="no-print">
@@ -564,12 +661,12 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                   minHeight: 36,
                   px: 2,
                   fontWeight: 700,
-                  borderColor: '#667eea',
-                  color: '#667eea',
+                  borderColor: accentColor,
+                  color: accentColor,
                   borderRadius: 1.5,
                   '&:hover': {
-                    borderColor: '#5568d3',
-                    bgcolor: 'rgba(102, 126, 234, 0.08)',
+                    borderColor: accentColor,
+                    bgcolor: `${accentColor}10`,
                   },
                 }}
               >
@@ -586,13 +683,14 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
                 minHeight: 36,
                 px: 2,
                 fontWeight: 700,
-                bgcolor: '#667eea',
+                bgcolor: accentColor,
                 color: 'white',
-                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                boxShadow: `0 2px 8px ${accentColor}50`,
                 borderRadius: 1.5,
                 '&:hover': {
-                  bgcolor: '#5568d3',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                  bgcolor: accentColor,
+                  filter: 'brightness(0.9)',
+                  boxShadow: `0 4px 12px ${accentColor}60`,
                 },
               }}
             >
@@ -620,21 +718,21 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
           borderRadius: 2,
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(102, 126, 234, 0.15)',
-          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.1)',
+          border: `1px solid ${accentColor}20`,
+          boxShadow: `0 2px 12px ${accentColor}15`,
         }}
       >
         <Box
           sx={{
             p: 2,
-            borderBottom: '1px solid rgba(102, 126, 234, 0.15)',
+            borderBottom: `1px solid ${accentColor}20`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            bgcolor: 'rgba(102, 126, 234, 0.03)',
+            bgcolor: `${accentColor}08`,
           }}
         >
-          <Typography variant="h6" fontWeight={700} color="#667eea">
+          <Typography variant="h6" fontWeight={700} sx={{ color: accentColor }}>
             Prescribed Medicines ({prescription.items?.filter(item => item.is_active !== false).length || 0})
           </Typography>
           <Button
@@ -800,6 +898,45 @@ export const PrescriptionViewer: React.FC<PrescriptionViewerProps> = ({
             <Typography color="text.secondary">No medicines prescribed</Typography>
           </Box>
         )}
+
+        {/* Signature Section - Printable */}
+        <Box sx={{ p: 3, display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${accentColor}15` }}>
+          <Box sx={{ textAlign: 'center', minWidth: 180 }}>
+            {signatureUrl ? (
+              <Box sx={{ mb: 1 }}>
+                <img
+                  src={signatureUrl}
+                  alt="Doctor Signature"
+                  style={{
+                    maxWidth: 150,
+                    maxHeight: 60,
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
+            ) : signatureText ? (
+              <Typography
+                variant="body1"
+                sx={{
+                  fontFamily: 'cursive',
+                  fontSize: 18,
+                  mb: 1,
+                  color: accentColor,
+                }}
+              >
+                {signatureText}
+              </Typography>
+            ) : null}
+            <Box sx={{ borderTop: '1px solid #333', pt: 0.5 }}>
+              <Typography variant="caption" fontWeight={600}>
+                {prescription?.doctor_name || doctorName}
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Date: {new Date(prescription?.created_at || Date.now()).toLocaleDateString()}
+            </Typography>
+          </Box>
+        </Box>
 
         {/* Add Medicine Form - Collapsible */}
         <Collapse in={isEditMode} timeout="auto" unmountOnExit>

@@ -15,6 +15,7 @@ from app.models.appointment import Appointment
 from app.models.audit_log import AuditLog
 from app.models.dental import DentalObservation, DentalProcedure, DentalObservationTemplate
 from app.models.case_study import CaseStudy
+from app.models.prescription_template import PrescriptionTemplate, PRESET_TEMPLATES, create_template_from_preset
 
 # Import helper functions
 from app.models.patient import (
@@ -82,6 +83,9 @@ __all__ = [
     "DentalProcedure",
     "DentalObservationTemplate",
     "CaseStudy",
+    "PrescriptionTemplate",
+    "PRESET_TEMPLATES",
+    "create_template_from_preset",
 
     # Helper functions
     "get_family_members",

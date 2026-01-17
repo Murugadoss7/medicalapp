@@ -60,6 +60,9 @@ async def create_dental_observation(
     - Treatment requirement tracking
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        observation_data.tenant_id = current_user.tenant_id
+
         service = get_dental_service(db)
         observation = service.create_observation(observation_data, current_user.id)
         return DentalObservationResponse.model_validate(observation)
@@ -261,6 +264,10 @@ async def bulk_create_observations(
     - Maximum 32 observations per request (full permanent dentition)
     """
     try:
+        # Set tenant_id from current user for multi-tenancy on each observation
+        for obs in bulk_data.observations:
+            obs.tenant_id = current_user.tenant_id
+
         service = get_dental_service(db)
         observations = service.bulk_create_observations(bulk_data, current_user.id)
         return [DentalObservationResponse.model_validate(obs) for obs in observations]
@@ -291,6 +298,9 @@ async def create_dental_procedure(
     - Procedure duration tracking
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        procedure_data.tenant_id = current_user.tenant_id
+
         service = get_dental_service(db)
         procedure = service.create_procedure(procedure_data, current_user.id)
         return DentalProcedureResponse.model_validate(procedure)
@@ -374,7 +384,7 @@ async def delete_dental_procedure(
 @router.put("/procedures/{procedure_id}/status", response_model=DentalProcedureResponse)
 async def update_procedure_status(
     procedure_id: UUID = Path(..., description="Procedure ID"),
-    status: str = Body(..., embed=True, description="New status"),
+    new_status: str = Body(..., embed=True, alias="status", description="New status"),
     notes: Optional[str] = Body(None, embed=True, description="Status change notes"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff)
@@ -395,7 +405,7 @@ async def update_procedure_status(
     try:
         service = get_dental_service(db)
         procedure = service.update_procedure_status(
-            procedure_id, status, current_user.id, notes
+            procedure_id, new_status, current_user.id, notes
         )
 
         if not procedure:
@@ -535,6 +545,10 @@ async def bulk_create_procedures(
     - Maximum 20 procedures per request
     """
     try:
+        # Set tenant_id from current user for multi-tenancy on each procedure
+        for proc in bulk_data.procedures:
+            proc.tenant_id = current_user.tenant_id
+
         service = get_dental_service(db)
         procedures = service.bulk_create_procedures(bulk_data, current_user.id)
         return [DentalProcedureResponse.model_validate(proc) for proc in procedures]
@@ -773,6 +787,9 @@ async def create_template(
         )
 
     try:
+        # Set tenant_id from current user for multi-tenancy
+        template_data.tenant_id = current_user.tenant_id
+
         template = dental_template_service.create_template(
             db=db,
             data=template_data,

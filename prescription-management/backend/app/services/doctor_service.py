@@ -77,6 +77,7 @@ class DoctorService:
         # Create doctor profile
         doctor = Doctor(
             user_id=doctor_data.user_id,
+            tenant_id=doctor_data.tenant_id,  # Multi-tenancy: set tenant_id
             license_number=doctor_data.license_number.upper(),
             specialization=doctor_data.specialization,
             qualification=doctor_data.qualification,
@@ -100,7 +101,7 @@ class DoctorService:
 
         if auto_commit:
             db.commit()
-            db.refresh(doctor)
+            # Don't refresh after commit - RLS blocks it
         else:
             db.flush()  # Flush to validate constraints without committing
 
@@ -173,10 +174,10 @@ class DoctorService:
         
         doctor.updated_at = datetime.utcnow()
         db.commit()
-        db.refresh(doctor)
-        
+        # Don't refresh after commit - RLS blocks it
+
         return doctor
-    
+
     def deactivate_doctor(self, db: Session, doctor_id: UUID) -> bool:
         """Deactivate doctor (soft delete)"""
         doctor = self.get_doctor_by_id(db, doctor_id)
@@ -270,10 +271,10 @@ class DoctorService:
         doctor.set_availability_schedule(schedule)
         doctor.updated_at = datetime.utcnow()
         db.commit()
-        db.refresh(doctor)
-        
+        # Don't refresh after commit - RLS blocks it
+
         return doctor
-    
+
     def get_doctor_schedule(self, db: Session, doctor_id: UUID) -> Optional[Dict[str, Any]]:
         """Get doctor availability schedule"""
         doctor = self.get_doctor_by_id(db, doctor_id)
@@ -298,17 +299,24 @@ class DoctorService:
         
         return available_doctors
     
-    def get_doctor_statistics(self, db: Session) -> Dict[str, Any]:
-        """Get doctor statistics"""
+    def get_doctor_statistics(self, db: Session, tenant_id: str = None) -> Dict[str, Any]:
+        """Get doctor statistics filtered by tenant_id"""
+        # Base query with tenant filter
+        base_query = db.query(Doctor)
+        if tenant_id:
+            base_query = base_query.filter(Doctor.tenant_id == tenant_id)
+
         # Total and active doctors
-        total_doctors = db.query(Doctor).count()
-        active_doctors = db.query(Doctor).filter(Doctor.is_active == True).count()
-        
+        total_doctors = base_query.count()
+        active_doctors = base_query.filter(Doctor.is_active == True).count()
+
         # Specialization counts
-        specializations = db.query(Doctor.specialization).filter(
+        specialization_query = base_query.filter(
             Doctor.is_active == True,
             Doctor.specialization.isnot(None)
-        ).all()
+        )
+        specializations = specialization_query.all()
+        specializations = [(d.specialization,) for d in specializations]
         
         specialization_counts = {}
         for (spec,) in specializations:
@@ -320,10 +328,11 @@ class DoctorService:
                         specialization_counts[s] = specialization_counts.get(s, 0) + 1
         
         # Experience distribution
-        experience_doctors = db.query(Doctor.experience_years).filter(
+        experience_query = base_query.filter(
             Doctor.is_active == True,
             Doctor.experience_years.isnot(None)
-        ).all()
+        )
+        experience_doctors = [(d.experience_years,) for d in experience_query.all()]
         
         experience_distribution = {
             "0-2 years": 0,

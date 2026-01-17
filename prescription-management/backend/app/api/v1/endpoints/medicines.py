@@ -52,6 +52,9 @@ async def create_medicine(
     **Admin access required.**
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        medicine_data.tenant_id = current_user.tenant_id
+
         medicine = medicine_service.create_medicine(
             db=db,
             medicine_data=medicine_data,

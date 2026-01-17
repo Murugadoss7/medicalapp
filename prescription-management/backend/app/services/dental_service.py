@@ -123,6 +123,7 @@ class DentalService:
         # Create observation
         observation = DentalObservation(
             id=uuid4(),
+            tenant_id=getattr(observation_data, 'tenant_id', None),
             prescription_id=observation_data.prescription_id,
             appointment_id=observation_data.appointment_id,
             patient_mobile_number=observation_data.patient_mobile_number,
@@ -142,7 +143,7 @@ class DentalService:
 
         self.db.add(observation)
         self.db.commit()
-        self.db.refresh(observation)
+        # Don't refresh after commit - RLS blocks it
 
         return observation
 
@@ -219,7 +220,7 @@ class DentalService:
         observation.updated_by = updated_by
 
         self.db.commit()
-        self.db.refresh(observation)
+        # Don't refresh after commit - RLS blocks it
 
         return observation
 
@@ -345,6 +346,7 @@ class DentalService:
         # Create procedure
         procedure = DentalProcedure(
             id=uuid4(),
+            tenant_id=getattr(procedure_data, 'tenant_id', None),
             observation_id=procedure_data.observation_id,
             prescription_id=procedure_data.prescription_id,
             appointment_id=procedure_data.appointment_id,
@@ -365,7 +367,7 @@ class DentalService:
 
         self.db.add(procedure)
         self.db.commit()
-        self.db.refresh(procedure)
+        # Don't refresh after commit - RLS blocks it
 
         return procedure
 
@@ -402,7 +404,7 @@ class DentalService:
         procedure.updated_by = updated_by
 
         self.db.commit()
-        self.db.refresh(procedure)
+        # Don't refresh after commit - RLS blocks it
 
         return procedure
 
@@ -484,7 +486,7 @@ class DentalService:
 
         # Validate status transitions
         valid_transitions = {
-            'planned': ['in_progress', 'cancelled'],
+            'planned': ['in_progress', 'completed', 'cancelled'],  # Allow direct completion
             'in_progress': ['completed', 'cancelled'],
             'completed': [],  # Terminal state
             'cancelled': []   # Terminal state
@@ -509,7 +511,7 @@ class DentalService:
         procedure.updated_by = updated_by
 
         self.db.commit()
-        self.db.refresh(procedure)
+        # Don't refresh after commit - RLS blocks it
 
         return procedure
 

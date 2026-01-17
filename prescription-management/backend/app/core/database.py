@@ -25,7 +25,9 @@ engine = create_engine(
 )
 
 # Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# expire_on_commit=False prevents objects from being expired after commit
+# This is needed because RLS blocks SELECT after commit (can't refresh)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
 
 # Base class for all models (following ERD structure)
 Base = declarative_base()

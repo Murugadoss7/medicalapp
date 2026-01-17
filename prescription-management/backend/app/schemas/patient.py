@@ -126,11 +126,12 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     """Schema for creating a new patient"""
     mobile_number: str = Field(
-        ..., 
-        min_length=10, 
+        ...,
+        min_length=10,
         max_length=15,
         description="Mobile number (part of composite key)"
     )
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
 
     @validator('mobile_number')
     def validate_mobile_number(cls, v):

@@ -26,6 +26,7 @@ import {
   LocationOn,
   MedicalServices,
   Schedule,
+  DirectionsWalk,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -626,18 +627,34 @@ export const TodayAppointmentsSidebar = () => {
                       >
                         {getTimeDisplay(appointment)}
                       </Typography>
-                      <Chip
-                        icon={getStatusIcon(appointment.status)}
-                        label={getStatusLabel(appointment.status)}
-                        size="small"
-                        color={getStatusColor(appointment.status)}
-                        variant={
-                          appointment.status === 'completed'
-                            ? 'outlined'
-                            : 'filled'
-                        }
-                        sx={{ height: 22, fontSize: '0.7rem' }}
-                      />
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Chip
+                          icon={getStatusIcon(appointment.status)}
+                          label={getStatusLabel(appointment.status)}
+                          size="small"
+                          color={getStatusColor(appointment.status)}
+                          variant={
+                            appointment.status === 'completed'
+                              ? 'outlined'
+                              : 'filled'
+                          }
+                          sx={{ height: 22, fontSize: '0.7rem' }}
+                        />
+                        {appointment.is_walk_in && (
+                          <Chip
+                            icon={<DirectionsWalk sx={{ fontSize: 14 }} />}
+                            label="Walk-In"
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              bgcolor: 'rgba(156, 39, 176, 0.1)',
+                              color: '#9C27B0',
+                              fontWeight: 600,
+                            }}
+                          />
+                        )}
+                      </Box>
                     </Box>
 
                     {/* Patient Name - Prominently displayed */}

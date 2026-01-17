@@ -28,6 +28,7 @@ class DentalAttachmentBase(BaseModel):
 
 class DentalAttachmentCreate(DentalAttachmentBase):
     """Schema for creating a new attachment (used after file upload)"""
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     observation_id: Optional[UUID] = Field(None, description="Link to observation")
     procedure_id: Optional[UUID] = Field(None, description="Link to procedure")
     case_study_id: Optional[UUID] = Field(None, description="Link to case study")

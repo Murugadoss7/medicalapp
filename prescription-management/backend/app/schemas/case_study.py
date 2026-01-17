@@ -4,6 +4,7 @@ For AI-generated treatment case studies
 """
 
 from typing import Optional, List
+from uuid import UUID
 from datetime import date, datetime
 from pydantic import BaseModel, Field, UUID4
 
@@ -45,6 +46,9 @@ class CaseStudyBase(BaseModel):
 
 class CaseStudyCreate(BaseModel):
     """Schema for creating a new case study (manual or LLM trigger)"""
+    # Multi-tenancy support
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
+
     # Patient identification (composite key)
     patient_mobile_number: str = Field(..., min_length=10, max_length=15)
     patient_first_name: str = Field(..., min_length=1, max_length=100)
@@ -69,6 +73,9 @@ class CaseStudyGenerateRequest(BaseModel):
     Schema for triggering LLM case study generation
     This will be used in Phase 2
     """
+    # Multi-tenancy support
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
+
     # Patient identification
     patient_mobile_number: str = Field(..., min_length=10, max_length=15)
     patient_first_name: str = Field(..., min_length=1, max_length=100)

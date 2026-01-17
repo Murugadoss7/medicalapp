@@ -26,9 +26,13 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   LocationOn as LocationIcon,
+  ContentCopy,
+  Check,
+  Warning,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import theme from '../../theme/medicalFuturismTheme';
+import { useAppSelector } from '../../hooks';
 
 // Simple UUID generator using crypto API
 const generateUUID = (): string => {
@@ -36,7 +40,10 @@ const generateUUID = (): string => {
 };
 import {
   useRegisterMutation,
+  useAdminCreateDoctorMutation,
+  useGetTenantLimitsQuery,
   type RegisterRequest,
+  type AdminCreateDoctorRequest,
 } from '../../store/api';
 
 interface UserAccountData {
@@ -53,6 +60,7 @@ interface OfficeLocation {
   name: string;
   address: string;
   is_primary: boolean;
+  is_tenant_default?: boolean;
 }
 
 interface DoctorFormData {
@@ -91,8 +99,18 @@ interface RegistrationState {
   createdUserId: string | null;
 }
 
-const steps = [
+// Steps for public registration (includes password)
+const publicSteps = [
   'User Account',
+  'Professional Credentials',
+  'Clinic Details',
+  'Availability Schedule',
+  'Review & Submit'
+];
+
+// Steps for admin registration (no password needed)
+const adminSteps = [
+  'Doctor Details',
   'Professional Credentials',
   'Clinic Details',
   'Availability Schedule',
@@ -147,7 +165,20 @@ const consultationDurations = [
 
 export const DoctorRegistration = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAppSelector((state) => state.auth);
+
+  // Determine if user is admin - admin uses different API endpoint
+  const isAdmin = currentUser?.role === 'admin';
+  const steps = isAdmin ? adminSteps : publicSteps;
+
+  // Use different mutations based on user role
   const [registerUser, { isLoading: isRegistering }] = useRegisterMutation();
+  const [adminCreateDoctor, { isLoading: isAdminCreating }] = useAdminCreateDoctorMutation();
+  const { data: tenantLimits } = useGetTenantLimitsQuery(undefined, { skip: !isAdmin });
+
+  // State for admin flow - stores created doctor with temp password
+  const [createdDoctor, setCreatedDoctor] = useState<{ email: string; temporary_password?: string; first_name: string; last_name: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   const [registrationState, setRegistrationState] = useState<RegistrationState>({
     currentStep: 0,
@@ -234,7 +265,16 @@ export const DoctorRegistration = () => {
     const { currentStep, userAccountData, doctorInfo } = registrationState;
 
     switch (currentStep) {
-      case 0: // User Account
+      case 0: // User Account / Doctor Details
+        if (isAdmin) {
+          // Admin flow: No password required
+          return !!(
+            userAccountData.email &&
+            userAccountData.first_name &&
+            userAccountData.last_name
+          );
+        }
+        // Public flow: Password required
         return !!(
           userAccountData.email &&
           userAccountData.password &&
@@ -269,38 +309,63 @@ export const DoctorRegistration = () => {
     try {
       setError('');
 
-      // Register with ALL doctor details in a single API call
-      // The /api/v1/auth/register endpoint now accepts all doctor fields
-      const registerData: RegisterRequest = {
-        email: registrationState.userAccountData.email,
-        password: registrationState.userAccountData.password,
-        confirm_password: registrationState.userAccountData.confirm_password,
-        first_name: registrationState.userAccountData.first_name,
-        last_name: registrationState.userAccountData.last_name,
-        phone: registrationState.userAccountData.phone || undefined,
-        role: 'doctor',
-        // All doctor-specific fields
-        license_number: registrationState.doctorInfo.license_number,
-        specialization: registrationState.doctorInfo.specialization,
-        qualification: registrationState.doctorInfo.qualification || undefined,
-        experience_years: registrationState.doctorInfo.experience_years || undefined,
-        clinic_address: registrationState.doctorInfo.clinic_address || undefined,
-        consultation_fee: registrationState.doctorInfo.consultation_fee || undefined,
-        consultation_duration: registrationState.doctorInfo.consultation_duration || 30,
-        availability_schedule: registrationState.doctorInfo.availability_schedule,
-        offices: registrationState.doctorInfo.offices.length > 0
-          ? registrationState.doctorInfo.offices
-          : undefined,
-      };
+      if (isAdmin) {
+        // Admin flow: Use admin create doctor endpoint (tenant_id from auth token)
+        const adminData: AdminCreateDoctorRequest = {
+          email: registrationState.userAccountData.email,
+          first_name: registrationState.userAccountData.first_name,
+          last_name: registrationState.userAccountData.last_name,
+          phone: registrationState.userAccountData.phone || undefined,
+          license_number: registrationState.doctorInfo.license_number,
+          specialization: registrationState.doctorInfo.specialization,
+          qualification: registrationState.doctorInfo.qualification || undefined,
+          experience_years: registrationState.doctorInfo.experience_years || undefined,
+          offices: registrationState.doctorInfo.offices.length > 0
+            ? registrationState.doctorInfo.offices
+            : undefined,
+        };
 
-      await registerUser(registerData).unwrap();
+        const result = await adminCreateDoctor(adminData).unwrap();
 
-      // Navigate to doctor search page with success message
-      navigate('/doctors', {
-        state: {
-          message: `Doctor ${registrationState.userAccountData.first_name} ${registrationState.userAccountData.last_name} registered successfully!`
-        }
-      });
+        // Store result to show temp password
+        setCreatedDoctor({
+          email: result.email,
+          temporary_password: result.temporary_password,
+          first_name: result.first_name || registrationState.userAccountData.first_name,
+          last_name: result.last_name || registrationState.userAccountData.last_name,
+        });
+      } else {
+        // Public flow: Use register endpoint (ONLY for non-multi-tenant setups)
+        const registerData: RegisterRequest = {
+          email: registrationState.userAccountData.email,
+          password: registrationState.userAccountData.password,
+          confirm_password: registrationState.userAccountData.confirm_password,
+          first_name: registrationState.userAccountData.first_name,
+          last_name: registrationState.userAccountData.last_name,
+          phone: registrationState.userAccountData.phone || undefined,
+          role: 'doctor',
+          license_number: registrationState.doctorInfo.license_number,
+          specialization: registrationState.doctorInfo.specialization,
+          qualification: registrationState.doctorInfo.qualification || undefined,
+          experience_years: registrationState.doctorInfo.experience_years || undefined,
+          clinic_address: registrationState.doctorInfo.clinic_address || undefined,
+          consultation_fee: registrationState.doctorInfo.consultation_fee || undefined,
+          consultation_duration: registrationState.doctorInfo.consultation_duration || 30,
+          availability_schedule: registrationState.doctorInfo.availability_schedule,
+          offices: registrationState.doctorInfo.offices.length > 0
+            ? registrationState.doctorInfo.offices
+            : undefined,
+        };
+
+        await registerUser(registerData).unwrap();
+
+        // Navigate to doctor search page with success message
+        navigate('/doctors', {
+          state: {
+            message: `Doctor ${registrationState.userAccountData.first_name} ${registrationState.userAccountData.last_name} registered successfully!`
+          }
+        });
+      }
     } catch (err: any) {
       console.error('Failed to register doctor:', err);
 
@@ -325,13 +390,23 @@ export const DoctorRegistration = () => {
     }
   };
 
+  // Handle copy password
+  const handleCopyPassword = () => {
+    if (createdDoctor?.temporary_password) {
+      navigator.clipboard.writeText(createdDoctor.temporary_password);
+      setPasswordCopied(true);
+      setTimeout(() => setPasswordCopied(false), 2000);
+    }
+  };
+
   const renderStepContent = () => {
     switch (registrationState.currentStep) {
-      case 0: // User Account
+      case 0: // User Account / Doctor Details
         return (
           <UserAccountStep
             formData={registrationState.userAccountData}
             onChange={handleUserAccountChange}
+            isAdmin={isAdmin}
           />
         );
       case 1: // Professional Credentials
@@ -367,6 +442,104 @@ export const DoctorRegistration = () => {
     }
   };
 
+  // Show success screen for admin flow with temp password
+  if (createdDoctor) {
+    return (
+      <Box sx={{ ...theme.layouts.pageContainer, py: 2 }}>
+        <Box sx={theme.layouts.floatingOrb} />
+        <Container maxWidth="sm" disableGutters sx={{ position: 'relative', zIndex: 1, px: { xs: 1.5, sm: 2 } }}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...theme.components.glassPaper,
+              p: 4,
+              textAlign: 'center',
+            }}
+          >
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                bgcolor: 'success.main',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+              }}
+            >
+              <Check sx={{ fontSize: 40 }} />
+            </Box>
+            <Typography variant="h5" fontWeight="bold" gutterBottom>
+              Doctor Account Created!
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Dr. {createdDoctor.first_name} {createdDoctor.last_name} has been added to your clinic.
+            </Typography>
+
+            <Card sx={{ bgcolor: 'warning.light', border: '2px solid', borderColor: 'warning.main', mb: 3 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+                  <Warning color="warning" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Share This Password
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                  This is the temporary password for the new doctor. Share it securely.
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: 'white',
+                    p: 2,
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="h6" fontFamily="monospace" sx={{ letterSpacing: 2 }}>
+                    {createdDoctor.temporary_password}
+                  </Typography>
+                  <IconButton color="primary" onClick={handleCopyPassword}>
+                    {passwordCopied ? <Check color="success" /> : <ContentCopy />}
+                  </IconButton>
+                </Box>
+                {passwordCopied && (
+                  <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block' }}>
+                    Password copied!
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setCreatedDoctor(null);
+                  setRegistrationState(prev => ({ ...prev, currentStep: 0 }));
+                }}
+                fullWidth
+                disabled={tenantLimits && !tenantLimits.doctors.can_add}
+              >
+                Add Another Doctor
+              </Button>
+              <Button variant="outlined" onClick={() => navigate('/doctors')} fullWidth>
+                Back to Doctors
+              </Button>
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -399,14 +572,16 @@ export const DoctorRegistration = () => {
               <DoctorIcon sx={{ fontSize: 22 }} />
             </Box>
             <Typography sx={{ ...theme.typography.pageTitle }}>
-              Doctor Registration
+              {isAdmin ? 'Register Doctor for Your Clinic' : 'Doctor Registration'}
             </Typography>
           </Box>
         </Fade>
 
         <Fade in timeout={800}>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-            Create a comprehensive doctor profile with professional credentials and availability schedule.
+            {isAdmin
+              ? 'Add a new doctor to your clinic. Their account will be created under your tenant.'
+              : 'Create a comprehensive doctor profile with professional credentials and availability schedule.'}
           </Typography>
         </Fade>
 
@@ -508,7 +683,7 @@ export const DoctorRegistration = () => {
             <Button
               variant="outlined"
               onClick={handleBack}
-              disabled={registrationState.currentStep === 0 || isRegistering}
+              disabled={registrationState.currentStep === 0 || (isAdmin ? isAdminCreating : isRegistering)}
               sx={{
                 ...theme.components.outlinedButton,
                 minWidth: { xs: 100, sm: 120 },
@@ -522,14 +697,14 @@ export const DoctorRegistration = () => {
                 <Button
                   variant="contained"
                   onClick={handleSubmit}
-                  disabled={!validateForSubmission() || isRegistering}
-                  startIcon={isRegistering ? <CircularProgress size={18} color="inherit" /> : undefined}
+                  disabled={!validateForSubmission() || (isAdmin ? isAdminCreating : isRegistering)}
+                  startIcon={(isAdmin ? isAdminCreating : isRegistering) ? <CircularProgress size={18} color="inherit" /> : undefined}
                   sx={{
                     ...theme.components.primaryButton,
                     minWidth: { xs: 140, sm: 180 },
                   }}
                 >
-                  {isRegistering ? 'Registering...' : 'Register Doctor'}
+                  {(isAdmin ? isAdminCreating : isRegistering) ? 'Registering...' : 'Register Doctor'}
                 </Button>
               ) : (
                 <Button
@@ -556,9 +731,10 @@ export const DoctorRegistration = () => {
 interface UserAccountStepProps {
   formData: UserAccountData;
   onChange: (field: keyof UserAccountData, value: any) => void;
+  isAdmin?: boolean;
 }
 
-const UserAccountStep = ({ formData, onChange }: UserAccountStepProps) => {
+const UserAccountStep = ({ formData, onChange, isAdmin = false }: UserAccountStepProps) => {
   const handleInputChange = (field: keyof UserAccountData) => (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -568,10 +744,12 @@ const UserAccountStep = ({ formData, onChange }: UserAccountStepProps) => {
   return (
     <Box>
       <Typography variant="h6" gutterBottom color="primary">
-        Create User Account
+        {isAdmin ? 'Doctor Details' : 'Create User Account'}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Create a new user account for the doctor. This will be their login credentials.
+        {isAdmin
+          ? 'Enter the doctor\'s information. A temporary password will be auto-generated.'
+          : 'Create a new user account for the doctor. This will be their login credentials.'}
       </Typography>
 
       <Grid container spacing={3}>
@@ -619,34 +797,48 @@ const UserAccountStep = ({ formData, onChange }: UserAccountStepProps) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Password"
-            type="password"
-            required
-            value={formData.password}
-            onChange={handleInputChange('password')}
-            helperText="Minimum 8 characters"
-          />
-        </Grid>
+        {/* Password fields - only show for non-admin (public registration) */}
+        {!isAdmin && (
+          <>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Password"
+                type="password"
+                required
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                helperText="Minimum 8 characters"
+              />
+            </Grid>
 
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Confirm Password"
-            type="password"
-            required
-            value={formData.confirm_password}
-            onChange={handleInputChange('confirm_password')}
-            error={formData.password !== formData.confirm_password && formData.confirm_password !== ''}
-            helperText={
-              formData.password !== formData.confirm_password && formData.confirm_password !== ''
-                ? 'Passwords do not match'
-                : 'Re-enter password'
-            }
-          />
-        </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Confirm Password"
+                type="password"
+                required
+                value={formData.confirm_password}
+                onChange={handleInputChange('confirm_password')}
+                error={formData.password !== formData.confirm_password && formData.confirm_password !== ''}
+                helperText={
+                  formData.password !== formData.confirm_password && formData.confirm_password !== ''
+                    ? 'Passwords do not match'
+                    : 'Re-enter password'
+                }
+              />
+            </Grid>
+          </>
+        )}
+
+        {/* Admin info message */}
+        {isAdmin && (
+          <Grid item xs={12}>
+            <Alert severity="info">
+              A temporary password will be automatically generated. You'll need to share it with the doctor after registration.
+            </Alert>
+          </Grid>
+        )}
       </Grid>
     </Box>
   );

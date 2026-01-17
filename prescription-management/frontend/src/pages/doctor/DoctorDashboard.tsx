@@ -39,6 +39,7 @@ import {
   useGetDoctorTodayAppointmentsQuery,
   useGetDoctorTodayProceduresQuery,
   useGetDoctorProfileQuery,
+  useGetMyTenantQuery,
 } from '../../store/api';
 import { StatCard } from '../../components/dashboard/StatCard';
 import { getCurrentDoctorId } from '../../utils/doctorUtils';
@@ -147,6 +148,9 @@ export const DoctorDashboard = () => {
     skip: !doctorId,
   });
 
+  // Get tenant info for clinic name
+  const { data: tenantData } = useGetMyTenantQuery();
+
   // Open both sidebars, reset office filter, and refetch data when dashboard loads
   // CRITICAL: Must be AFTER hooks are defined to avoid reference errors
   useEffect(() => {
@@ -161,7 +165,8 @@ export const DoctorDashboard = () => {
     if (isDentalDoctor) {
       refetchProcedures();
     }
-  }, [dispatch, refetchAppointments, refetchProcedures, isDentalDoctor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, isDentalDoctor]); // Removed refetch functions to prevent infinite loop
 
   // Extract appointments array from response
   const todayAppointments = useMemo(() => {
@@ -213,8 +218,17 @@ export const DoctorDashboard = () => {
       countMap[officeId] = (countMap[officeId] || 0) + 1;
     });
 
-    // Build stats for all offices (even with 0 count)
-    const stats = offices.map((office, index) => ({
+    // Deduplicate offices by id (keep first occurrence)
+    const uniqueOfficesMap = new Map<string, typeof offices[0]>();
+    offices.forEach((office) => {
+      if (!uniqueOfficesMap.has(office.id)) {
+        uniqueOfficesMap.set(office.id, office);
+      }
+    });
+    const uniqueOffices = Array.from(uniqueOfficesMap.values());
+
+    // Build stats for all unique offices (even with 0 count)
+    const stats = uniqueOffices.map((office, index) => ({
       id: office.id,
       name: office.name,
       address: office.address,
@@ -224,11 +238,12 @@ export const DoctorDashboard = () => {
     }));
 
     // Add "No Office" if there are appointments without office_id
+    // Use the tenant's clinic name instead of "Default"
     const noOfficeCount = countMap['no_office'] || 0;
     if (noOfficeCount > 0 || offices.length === 0) {
       stats.push({
         id: 'no_office',
-        name: 'Default',
+        name: tenantData?.tenant_name || 'Clinic',
         address: '',
         is_primary: offices.length === 0,
         count: noOfficeCount,
@@ -237,7 +252,7 @@ export const DoctorDashboard = () => {
     }
 
     return stats;
-  }, [doctorProfile?.offices, todayAppointments]);
+  }, [doctorProfile?.offices, todayAppointments, tenantData?.tenant_name]);
 
   // REMOVED: Auto-select first office
   // Now defaults to showing ALL appointments across all locations

@@ -3,7 +3,7 @@ User model for Keycloak integration
 Following ERD user management specifications
 """
 
-from sqlalchemy import Column, String, Boolean, Index, DateTime
+from sqlalchemy import Column, String, Boolean, Index, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import relationship, validates
 from typing import List, Dict, Any
@@ -27,11 +27,19 @@ class User(BaseModel):
     Manages authentication and role-based access control
     """
     __tablename__ = "users"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable initially for migration, will be NOT NULL after data migration
+        comment="Tenant reference for multi-tenancy"
+    )
+
     # Keycloak integration (optional for local development)
     keycloak_id = Column(
-        String(255), 
-        unique=True, 
+        String(255),
+        unique=True,
         nullable=True,  # Made nullable for local authentication
         comment="Keycloak user identifier"
     )
@@ -67,11 +75,16 @@ class User(BaseModel):
     is_email_verified = Column(Boolean, default=False)
     is_phone_verified = Column(Boolean, default=False)
     last_login_at = Column(String, nullable=True)  # Match existing database schema
-    
+
     # Relationships (as per ERD)
+    tenant = relationship(
+        "Tenant",
+        back_populates="users"
+    )
+
     doctor_profile = relationship(
-        "Doctor", 
-        back_populates="user", 
+        "Doctor",
+        back_populates="user",
         uselist=False,
         cascade="all, delete-orphan"
     )
@@ -96,10 +109,12 @@ class User(BaseModel):
     
     # Indexes for performance
     __table_args__ = (
+        Index('idx_users_tenant_id', 'tenant_id'),
         Index('idx_users_keycloak_id', 'keycloak_id'),
         Index('idx_users_email', 'email'),
         Index('idx_users_role', 'role'),
         Index('idx_users_active', 'is_active'),
+        Index('idx_users_tenant_role', 'tenant_id', 'role'),  # Composite for common queries
     )
     
     @validates('email')

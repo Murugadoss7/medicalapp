@@ -19,6 +19,15 @@ class DentalObservationTemplate(Base, UUIDMixin, TimestampMixin, AuditMixin, Act
     """
     __tablename__ = "dental_observation_templates"
 
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
+
     # Matching criteria (NULL = wildcard, matches all)
     condition_type = Column(String(50), nullable=True)  # e.g., "Cavity", NULL = all conditions
     tooth_surface = Column(String(10), nullable=True)   # e.g., "Occlusal", NULL = all surfaces
@@ -63,6 +72,15 @@ class DentalObservation(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin
     - Primary teeth: 51-55, 61-65, 71-75, 81-85 (20 teeth)
     """
     __tablename__ = "dental_observations"
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
 
     # Foreign key relationships
     prescription_id = Column(UUID(as_uuid=True), ForeignKey("prescriptions.id"), nullable=True)
@@ -116,6 +134,15 @@ class DentalProcedure(Base, UUIDMixin, TimestampMixin, AuditMixin, ActiveMixin):
     Can be linked to observations or stand alone
     """
     __tablename__ = "dental_procedures"
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
 
     # Foreign key relationships
     observation_id = Column(UUID(as_uuid=True), ForeignKey("dental_observations.id"), nullable=True)
@@ -279,6 +306,15 @@ class DentalAttachment(Base, UUIDMixin, TimestampMixin, ActiveMixin):
     Note: Uses uploaded_by instead of AuditMixin's created_by
     """
     __tablename__ = "dental_attachments"
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey('tenants.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy"
+    )
 
     # Foreign key relationships (exactly one must be set)
     observation_id = Column(UUID(as_uuid=True), ForeignKey("dental_observations.id", ondelete="CASCADE"), nullable=True)

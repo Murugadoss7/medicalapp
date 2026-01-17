@@ -215,8 +215,9 @@ class PrescriptionBase(BaseModel):
 
 class PrescriptionCreate(PrescriptionBase):
     """Schema for creating prescriptions"""
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     items: List[PrescriptionItemCreate] = Field(default=[], description="Prescription items")
-    
+
     # Optional fields for quick creation
     short_key_code: Optional[str] = Field(None, min_length=2, max_length=20, description="Short key for quick prescription")
     template_id: Optional[UUID] = Field(None, description="Prescription template ID")
@@ -467,11 +468,14 @@ class PrescriptionSearchParams(BaseModel):
 
 class ShortKeyPrescriptionCreate(BaseModel):
     """Schema for creating prescription from short key"""
+    # Multi-tenancy
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
+
     # Patient identification
     patient_mobile_number: str = Field(..., min_length=10, max_length=15)
     patient_first_name: str = Field(..., min_length=2, max_length=100)
     patient_uuid: UUID = Field(...)
-    
+
     # Doctor
     doctor_id: UUID = Field(...)
     

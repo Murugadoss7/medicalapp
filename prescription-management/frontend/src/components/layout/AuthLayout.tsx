@@ -72,7 +72,7 @@ export const AuthLayout = () => {
         width: '100vw',
         display: 'flex',
         flexDirection: isLandscape ? 'row' : 'column',
-        overflow: 'hidden',
+        overflow: 'auto', // Changed from 'hidden' to enable scroll on iPad
         position: 'relative',
         transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
@@ -129,7 +129,7 @@ export const AuthLayout = () => {
           px: { xs: 2, sm: 3, md: 4 },
           minHeight: isLandscape ? '100vh' : '100vh',
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'auto', // Changed from 'hidden' to enable scroll on iPad
           transition: 'background 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >

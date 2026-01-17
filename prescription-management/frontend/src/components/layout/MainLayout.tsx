@@ -32,6 +32,8 @@ import {
   LocalHospital,
   EventNote,
   Timeline,
+  PersonAdd,
+  Description,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -39,6 +41,7 @@ import { useAppSelector, useAppDispatch } from '../../hooks';
 import { logout } from '../../store/slices/authSlice';
 import { toggleSidebar, toggleAppointmentsSidebar } from '../../store/slices/uiSlice';
 import { TodayAppointmentsSidebar } from '../dashboard/TodayAppointmentsSidebar';
+import { ChangePasswordDialog } from '../common/ChangePasswordDialog';
 
 const drawerWidth = 240;
 
@@ -51,6 +54,7 @@ export const MainLayout = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { sidebarOpen, appointmentsSidebarOpen } = useAppSelector((state) => state.ui);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const isDoctor = user?.role === 'doctor';
 
   // Dashboard always shows persistent sidebar, other pages only on large screens
@@ -94,6 +98,12 @@ export const MainLayout = () => {
       roles: ['doctor', 'admin', 'receptionist'],
     },
     {
+      text: 'Walk-In Reception',
+      icon: <PersonAdd />,
+      path: '/walk-in',
+      roles: ['doctor', 'admin', 'receptionist'],
+    },
+    {
       text: 'Patients',
       icon: <People />,
       path: '/patients',
@@ -121,6 +131,12 @@ export const MainLayout = () => {
       text: 'Treatments',
       icon: <Timeline />,
       path: '/treatments',
+      roles: ['doctor', 'admin'],
+    },
+    {
+      text: 'Prescription Templates',
+      icon: <Description />,
+      path: '/settings/templates',
       roles: ['doctor', 'admin'],
     },
   ];
@@ -247,6 +263,15 @@ export const MainLayout = () => {
                   <Settings fontSize="small" />
                 </ListItemIcon>
                 Settings
+              </MenuItem>
+              <MenuItem onClick={() => {
+                handleUserMenuClose();
+                setChangePasswordOpen(true);
+              }}>
+                <ListItemIcon>
+                  <VpnKey fontSize="small" />
+                </ListItemIcon>
+                Change Password
               </MenuItem>
               <Divider />
               <MenuItem onClick={handleLogout}>
@@ -416,6 +441,12 @@ export const MainLayout = () => {
 
       {/* Today's Appointments Sidebar - Doctors Only */}
       {isDoctor && <TodayAppointmentsSidebar />}
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </Box>
   );
 };

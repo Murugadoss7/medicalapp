@@ -57,6 +57,9 @@ async def create_appointment(
     **Staff access required.**
     """
     try:
+        # Set tenant_id from current user for multi-tenancy
+        appointment_data.tenant_id = current_user.tenant_id
+
         appointment = appointment_service.create_appointment(
             db=db,
             appointment_data=appointment_data,

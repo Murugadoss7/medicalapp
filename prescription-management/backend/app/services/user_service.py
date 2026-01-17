@@ -34,7 +34,7 @@ class UserService:
 
         if auto_commit:
             db.commit()
-            db.refresh(user)
+            # Don't refresh after commit - RLS blocks it
         else:
             db.flush()  # Flush to get the ID without committing
 
@@ -73,7 +73,7 @@ class UserService:
         
         user.updated_at = datetime.utcnow()
         db.commit()
-        db.refresh(user)
+        # Don't refresh after commit - RLS blocks it
         return user
     
     def update_last_login(self, db: Session, user_id: UUID) -> None:

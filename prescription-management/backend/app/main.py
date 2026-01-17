@@ -14,6 +14,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.database import init_db, check_db_connection, check_redis_connection
+from app.core.middleware import TenantMiddleware
 from app.api.v1 import api_router
 
 
@@ -87,6 +88,10 @@ app.add_middleware(
 
 # Compression middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Tenant middleware - Set database context for multi-tenancy
+app.add_middleware(TenantMiddleware)
+logger.info("✅ Tenant middleware registered - Multi-tenancy enabled")
 
 
 # Static files - Mount uploads directory for serving uploaded files

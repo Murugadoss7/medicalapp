@@ -17,6 +17,7 @@ class OfficeLocation(BaseModel):
     name: str = Field(..., max_length=200, description="Office name (e.g., 'Main Clinic')")
     address: str = Field(..., description="Full office address")
     is_primary: bool = Field(False, description="Whether this is the primary office")
+    is_tenant_default: bool = Field(False, description="Whether this is the tenant's registered clinic (non-deletable)")
 
     class Config:
         json_schema_extra = {
@@ -24,7 +25,8 @@ class OfficeLocation(BaseModel):
                 "id": "office-123",
                 "name": "Main Clinic",
                 "address": "123 Medical Center, Chrompet, Chennai",
-                "is_primary": True
+                "is_primary": True,
+                "is_tenant_default": False
             }
         }
 
@@ -45,8 +47,9 @@ class DoctorBase(BaseModel):
 class DoctorCreate(DoctorBase):
     """Schema for creating a new doctor profile"""
     user_id: UUID = Field(..., description="Reference to user account")
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     availability_schedule: Optional[Dict[str, List[Dict[str, str]]]] = Field(
-        None, 
+        None,
         description="Weekly availability schedule"
     )
     

@@ -18,7 +18,15 @@ class Doctor(BaseModel):
     Following ERD doctor entity specifications
     """
     __tablename__ = "doctors"
-    
+
+    # Multi-tenancy support
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable initially for migration, will be NOT NULL after data migration
+        comment="Tenant reference for multi-tenancy"
+    )
+
     # Foreign key to User (as per ERD)
     user_id = Column(
         UUID(as_uuid=True),
@@ -92,14 +100,19 @@ class Doctor(BaseModel):
     )
     
     consultation_duration = Column(
-        Integer, 
+        Integer,
         default=30,
         comment="Default consultation duration in minutes"
     )
-    
+
     # Relationships (as per ERD)
+    tenant = relationship(
+        "Tenant",
+        back_populates="doctors"
+    )
+
     user = relationship(
-        "User", 
+        "User",
         back_populates="doctor_profile"
     )
     
@@ -139,10 +152,12 @@ class Doctor(BaseModel):
     
     # Indexes for performance
     __table_args__ = (
+        Index('idx_doctors_tenant_id', 'tenant_id'),
         Index('idx_doctors_user_id', 'user_id'),
         Index('idx_doctors_license_number', 'license_number'),
         Index('idx_doctors_specialization', 'specialization'),
         Index('idx_doctors_active', 'is_active'),
+        Index('idx_doctors_tenant_specialization', 'tenant_id', 'specialization'),  # Composite index
     )
     
     @validates('license_number')

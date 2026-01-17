@@ -1,13 +1,22 @@
 # Prescription Management System - Git Ignore File
 
 # ===========================================
-# Claude Code & MCP - DO NOT COMMIT
+# Claude Code & MCP - Local settings only
 # ===========================================
-.claude/
+# Keep .claude/skills/ for project knowledge
+.claude/settings.local.json
+.claude/commands/
+.claude/agents/
+prescription-management/backend/.claude/
 .mcp/
 *.mcp.json
 mcp-config.json
 claude-config.json
+
+# ===========================================
+# Task Tracking - Local Only
+# ===========================================
+tasks/
 
 # ===========================================
 # Python Backend
@@ -224,13 +233,59 @@ mock_data/
 dev_database/
 
 # ===========================================
+# Temporary/Working Documentation - Local Only
+# ===========================================
+# Keep: CLAUDE.md, LESSONS_LEARNED.md, PRE_IMPLEMENTATION_CHECKLIST.md,
+#       MULTI_TENANCY_IMPLEMENTATION_SUMMARY.md, README.md
+# Keep: prescription-management/ENTITY_RELATIONSHIP_DIAGRAM.md, PROJECT_ARCHITECTURE.md
+# Keep: prescription-management/archive/docs/ (API_REFERENCE_GUIDE, FRONTEND_DEVELOPMENT_PLAN, DATE_STANDARDIZATION_PLAN)
+
+# Root level temp docs to ignore
+CLOUD_DEPLOYMENT_ANALYSIS.md
+DEPLOYMENT_QUICKSTART.md
+GOOGLE_CLOUD_RUN_DEPLOYMENT.md
+IMPLEMENTATION_STATUS.md
+MIGRATION_RENDER_TO_CLOUDRUN.md
+MULTI_TENANCY_ANALYSIS.md
+MULTI_TENANT_DOCTOR_IMPLEMENTATION.md
+MULTI_TENANT_IMPLEMENTATION_NOTES.md
+MULTI_TENANT_REGISTRATION_FLOW.md
+PRODUCTION_MIGRATION_GUIDE.md
+QUICK_ANSWERS.md
+QUICK_START.md
+README_MULTI_TENANCY.md
+TENANT_ISOLATION_FILES_INDEX.md
+TENANT_ISOLATION_FIX_SUMMARY.md
+TESTING_MULTI_TENANCY.md
+VERCEL_URL_GUIDE.md
+
+# Project level temp docs to ignore
+prescription-management/DEVELOPMENT_PROGRESS.md
+prescription-management/DEVELOPMENT_WORKFLOW_TEMPLATE.md
+prescription-management/SERVER_SETUP.md
+prescription-management/START_HERE.md
+prescription-management/WORKFLOW_SPECIFICATIONS.md
+prescription-management/.claude_shortcuts.md
+prescription-management/frontend/IPAD_SCROLL_FIX.md
+
+# Manual SQL fix files (temporary)
+prescription-management/backend/fix_*.sql
+
+# Database dumps
+*.dump
+
+# ===========================================
 # Keep These Files (Force Include)
 # ===========================================
 # These are important and should be committed
 !README.md
 !CLAUDE.md
+!LESSONS_LEARNED.md
+!PRE_IMPLEMENTATION_CHECKLIST.md
+!MULTI_TENANCY_IMPLEMENTATION_SUMMARY.md
 !.gitignore
 !requirements.txt
 !package.json
 !pyproject.toml
 !tsconfig.json
+!prescription-management/.claude/skills/

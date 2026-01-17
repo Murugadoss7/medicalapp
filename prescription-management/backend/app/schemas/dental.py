@@ -88,6 +88,7 @@ class DentalObservationBase(BaseModel):
 
 class DentalObservationCreate(DentalObservationBase):
     """Schema for creating dental observation"""
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     prescription_id: Optional[UUID] = Field(None, description="Related prescription ID")
     appointment_id: Optional[UUID] = Field(None, description="Related appointment ID")
     patient_mobile_number: str = Field(..., description="Patient mobile number")
@@ -191,6 +192,7 @@ class DentalProcedureBase(BaseModel):
 
 class DentalProcedureCreate(DentalProcedureBase):
     """Schema for creating dental procedure"""
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     observation_id: Optional[UUID] = Field(None, description="Related observation ID")
     prescription_id: Optional[UUID] = Field(None, description="Related prescription ID")
     appointment_id: Optional[UUID] = Field(None, description="Related appointment ID")
@@ -365,7 +367,7 @@ class DentalObservationTemplateBase(BaseModel):
 
 class DentalObservationTemplateCreate(DentalObservationTemplateBase):
     """Schema for creating observation note template"""
-    pass
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
 
 
 class DentalObservationTemplateUpdate(BaseModel):

@@ -91,7 +91,9 @@ class AppointmentBase(BaseModel):
 
 class AppointmentCreate(AppointmentBase):
     """Schema for creating a new appointment"""
-    
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
+    appointment_type: Literal["scheduled", "walk_in"] = Field("scheduled", description="Type: scheduled or walk_in")
+
     model_config = {
         "json_schema_extra": {
             "example": {
@@ -184,6 +186,7 @@ class AppointmentResponse(BaseModel):
     
     # Status and details
     status: str
+    appointment_type: Optional[str] = Field("scheduled", description="Type: scheduled or walk_in")
     reason_for_visit: str
     notes: Optional[str]
     duration_minutes: int
@@ -255,6 +258,22 @@ class AppointmentResponse(BaseModel):
             'rescheduled': 'Rescheduled'
         }
         return status_map.get(self.status, self.status)
+
+    @computed_field
+    @property
+    def is_walk_in(self) -> bool:
+        """Check if appointment is a walk-in"""
+        return self.appointment_type == 'walk_in'
+
+    @computed_field
+    @property
+    def appointment_type_display(self) -> str:
+        """Get human-readable appointment type"""
+        type_map = {
+            'scheduled': 'Scheduled',
+            'walk_in': 'Walk-In'
+        }
+        return type_map.get(self.appointment_type or 'scheduled', 'Scheduled')
     
     model_config = {
         "from_attributes": True,

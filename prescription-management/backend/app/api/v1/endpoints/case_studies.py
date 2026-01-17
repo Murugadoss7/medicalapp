@@ -234,9 +234,12 @@ async def generate_case_study(
     if request.treatment_end_date:
         case_study.treatment_end_date = request.treatment_end_date
 
+    # Set tenant_id from current user for multi-tenancy
+    case_study.tenant_id = current_user.tenant_id
+
     db.add(case_study)
     db.commit()
-    db.refresh(case_study)
+    # Don't refresh after commit - RLS blocks it
 
     # Fetch attachments from selected observations (don't update - they already have observation_id)
     # The case study stores observation_ids, so we can always query attachments later
@@ -361,7 +364,7 @@ async def update_case_study(
     case_study.updated_at = datetime.now()
 
     db.commit()
-    db.refresh(case_study)
+    # Don't refresh after commit - RLS blocks it
 
     logger.info(f"Case study updated: {case_study.case_study_number}")
 
@@ -494,7 +497,7 @@ async def regenerate_section(
     case_study.updated_at = datetime.now()
 
     db.commit()
-    db.refresh(case_study)
+    # Don't refresh after commit - RLS blocks it
 
     return {
         "section": section,

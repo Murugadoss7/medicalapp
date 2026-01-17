@@ -167,6 +167,7 @@ class DentalTemplateService:
     ) -> DentalObservationTemplate:
         """Create a new observation template"""
         template = DentalObservationTemplate(
+            tenant_id=getattr(data, 'tenant_id', None),
             condition_type=data.condition_type,
             tooth_surface=data.tooth_surface,
             severity=data.severity,
@@ -180,7 +181,7 @@ class DentalTemplateService:
 
         db.add(template)
         db.commit()
-        db.refresh(template)
+        # Don't refresh after commit - RLS blocks it
 
         return template
 
@@ -207,7 +208,7 @@ class DentalTemplateService:
             setattr(template, field, value)
 
         db.commit()
-        db.refresh(template)
+        # Don't refresh after commit - RLS blocks it
 
         return template
 

@@ -5,7 +5,7 @@ Includes all endpoint modules with proper prefixes and tags
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental, dental_attachments, treatments, case_studies
+from app.api.v1.endpoints import auth, users, doctors, patients, medicines, short_keys, appointments, prescriptions, dental, dental_attachments, treatments, case_studies, tenants, prescription_templates
 
 # Main API router
 api_router = APIRouter()
@@ -94,6 +94,20 @@ api_router.include_router(
     tags=["Case Studies"]
 )
 
+# Tenant management endpoints (multi-tenancy)
+api_router.include_router(
+    tenants.router,
+    prefix="/tenants",
+    tags=["Tenant Management"]
+)
+
+# Prescription template endpoints
+api_router.include_router(
+    prescription_templates.router,
+    prefix="/prescription-templates",
+    tags=["Prescription Templates"]
+)
+
 # Temporary endpoint for testing
 @api_router.get("/")
 async def api_root():
@@ -110,6 +124,8 @@ async def api_root():
             "prescriptions": "/prescriptions",
             "dental": "/dental",
             "treatments": "/treatments",
-            "case-studies": "/case-studies"
+            "case-studies": "/case-studies",
+            "tenants": "/tenants",
+            "prescription-templates": "/prescription-templates"
         }
     }

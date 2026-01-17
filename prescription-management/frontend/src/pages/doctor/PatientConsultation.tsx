@@ -221,7 +221,7 @@ export const PatientConsultation = () => {
 
     try {
       await completeConsultation(consultationData).unwrap();
-      navigate('/doctor/appointments', { 
+      navigate('/doctor/appointments', {
         state: { message: 'Consultation completed successfully!' }
       });
     } catch (error) {

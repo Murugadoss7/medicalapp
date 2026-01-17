@@ -15,6 +15,7 @@ import {
   Edit,
   Visibility,
   MedicalServices,
+  DirectionsWalk,
 } from '@mui/icons-material';
 import type { Appointment } from '../../store/api';
 import { appointmentDate } from '../../utils/dateUtils';
@@ -136,6 +137,22 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
               '& .MuiChip-label': { px: 0.6 }
             }}
           />
+          {appointment.is_walk_in && (
+            <Chip
+              size="small"
+              icon={<DirectionsWalk sx={{ fontSize: 12 }} />}
+              label="Walk-In"
+              sx={{
+                height: 18,
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                bgcolor: 'rgba(156, 39, 176, 0.1)',
+                color: '#9C27B0',
+                '& .MuiChip-icon': { fontSize: '0.7rem', ml: 0.4, color: '#9C27B0' },
+                '& .MuiChip-label': { px: 0.6 }
+              }}
+            />
+          )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

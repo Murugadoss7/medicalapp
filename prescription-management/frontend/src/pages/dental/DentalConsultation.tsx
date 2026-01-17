@@ -900,7 +900,8 @@ const DentalConsultation: React.FC = () => {
         }
 
         // Save or update procedure if added
-        if (obs.hasProcedure && obs.procedureCode) {
+        // CRITICAL FIX: Also check procedureCode is not empty string
+        if (obs.hasProcedure && obs.procedureCode && obs.procedureCode.trim() !== '') {
           const procedureName = obs.procedureCode === 'CUSTOM'
             ? obs.customProcedureName
             : obs.procedureName;
@@ -1059,10 +1060,15 @@ const DentalConsultation: React.FC = () => {
         }
 
         // Update procedures if they exist
-        if (newObservation.procedures && newObservation.procedures.length > 0) {
+        // CRITICAL FIX: Filter out empty procedures (no code/name) before saving
+        const validEditProcedures = (newObservation.procedures || []).filter(
+          p => p.procedureCode && p.procedureCode.trim() !== ''
+        );
+
+        if (validEditProcedures.length > 0) {
           const updatedProcedures: ProcedureData[] = [];
 
-          for (const procedure of newObservation.procedures) {
+          for (const procedure of validEditProcedures) {
             const procedureName = procedure.procedureCode === 'CUSTOM'
               ? procedure.customProcedureName
               : procedure.procedureName;
@@ -1137,7 +1143,45 @@ const DentalConsultation: React.FC = () => {
         const updatedObservationId = editingObservationId;
         setEditingObservationId(null);
         toast.success('Observation updated successfully');
-        await loadDentalChart(); // Refresh chart
+
+        // Refresh chart AND reload observations/procedures from backend
+        await loadDentalChart();
+
+        // Also reload procedures from backend to ensure UI is in sync
+        if (appointmentId) {
+          try {
+            const procResponse = await dentalService.procedures.getByAppointment(appointmentId);
+            const procedures = procResponse.procedures || [];
+
+            // Update observations with fresh procedure data
+            setObservations(prev => prev.map(obs => {
+              if (!obs.isSaved || !obs.backendObservationIds) return obs;
+
+              // Find procedures linked to this observation
+              const obsIds = Object.values(obs.backendObservationIds);
+              const linkedProcs = procedures.filter(p => obsIds.includes(p.observation_id));
+
+              if (linkedProcs.length > 0) {
+                const mappedProcs = linkedProcs.map(proc => ({
+                  id: proc.id,
+                  selectedTeeth: proc.tooth_numbers?.split(',') || [],
+                  procedureCode: proc.procedure_code,
+                  procedureName: proc.procedure_name,
+                  customProcedureName: proc.procedure_code === 'CUSTOM' ? proc.procedure_name : undefined,
+                  procedureDate: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                  procedureTime: proc.procedure_date ? new Date(proc.procedure_date) : new Date(),
+                  procedureNotes: proc.procedure_notes || '',
+                  procedureStatus: (proc.status || 'planned') as 'planned' | 'cancelled' | 'completed',
+                  backendProcedureId: proc.id,
+                }));
+                return { ...obs, procedures: mappedProcs, hasProcedure: true };
+              }
+              return obs;
+            }));
+          } catch (err) {
+            console.error('Failed to reload procedures:', err);
+          }
+        }
 
         // Invalidate dashboard cache to refresh counts
         invalidateDashboardCache();
@@ -1173,10 +1217,15 @@ const DentalConsultation: React.FC = () => {
         let proceduresArray: ProcedureData[] = [];
 
         // Check if observation has procedures array (new format)
-        if (newObservation.procedures && newObservation.procedures.length > 0) {
-          console.log('Saving procedures:', newObservation.procedures);
+        // CRITICAL FIX: Filter out empty procedures (no code/name) before saving
+        const validProcedures = (newObservation.procedures || []).filter(
+          p => p.procedureCode && p.procedureCode.trim() !== ''
+        );
 
-          for (const procedure of newObservation.procedures) {
+        if (validProcedures.length > 0) {
+          console.log('Saving procedures:', validProcedures);
+
+          for (const procedure of validProcedures) {
             const procedureName = procedure.procedureCode === 'CUSTOM'
               ? procedure.customProcedureName
               : procedure.procedureName;

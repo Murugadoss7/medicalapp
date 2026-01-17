@@ -131,6 +131,7 @@ class ShortKeyMedicineResponse(BaseModel):
 
 class ShortKeyCreate(ShortKeyBase):
     """Schema for creating a new short key"""
+    tenant_id: Optional[UUID] = Field(None, description="Tenant ID for multi-tenancy")
     medicines: Optional[List[ShortKeyMedicineCreate]] = Field(default=[], description="Initial medicines")
 
     @validator('medicines')
