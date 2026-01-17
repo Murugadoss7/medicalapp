@@ -536,7 +536,10 @@ export const WalkInReception: React.FC = () => {
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
             gap: 2,
-            minHeight: { xs: 'auto', md: 'calc(100vh - 350px)' },
+            // Use flex: 1 to fill available space, not fixed vh which breaks on iPad
+            flex: 1,
+            minHeight: 0, // Allow flex shrink
+            overflow: 'auto', // Enable scroll on this container for iPad
           }}
         >
           {/* Left Panel - Patient Lookup & Registration */}

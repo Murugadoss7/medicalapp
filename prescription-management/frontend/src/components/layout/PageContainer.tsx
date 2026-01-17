@@ -50,13 +50,16 @@ export const PageContainer = ({
   centered = true,
   sx,
 }: PageContainerProps) => {
-  // For 'full' width, just return a Box without Container
+  // For 'full' width, return a flex-friendly Box without Container
   if (maxWidth === 'full') {
     return (
       <Box
         sx={{
           width: '100%',
-          minHeight: '100%',
+          height: '100%', // Fill parent height
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'auto', // Enable scroll for iPad
           ...sx,
         }}
       >
