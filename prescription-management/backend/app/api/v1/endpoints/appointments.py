@@ -779,10 +779,13 @@ async def get_available_time_slots(
         )
         
     except Exception as e:
-        logger.error(f"Error retrieving available time slots: {str(e)}")
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"Error retrieving available time slots: {error_detail}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve available time slots"
+            detail=f"Failed to retrieve available time slots: {error_detail}"
         )
 
 

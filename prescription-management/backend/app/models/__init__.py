@@ -5,6 +5,7 @@ Following ERD specifications and relationships
 
 # Import all models to ensure they are registered with SQLAlchemy
 from app.models.base import BaseModel, CompositeKeyMixin, TimestampMixin, UUIDMixin
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.doctor import Doctor
@@ -69,6 +70,7 @@ __all__ = [
     "UUIDMixin",
     
     # Core models
+    "Tenant",
     "User",
     "Patient",
     "Doctor",
