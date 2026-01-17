@@ -84,7 +84,11 @@ const getNextTimeSlot = () => {
   const now = new Date();
   const minutes = now.getMinutes();
   const roundedMinutes = minutes < 30 ? 30 : 0;
-  const hours = minutes < 30 ? now.getHours() : now.getHours() + 1;
+  let hours = minutes < 30 ? now.getHours() : now.getHours() + 1;
+  // Handle midnight wrap-around (hour 24 is invalid, use 00)
+  if (hours >= 24) {
+    hours = 0;
+  }
   return `${hours.toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}:00`;
 };
 
