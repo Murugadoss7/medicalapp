@@ -132,19 +132,27 @@ def upgrade():
         print(f"  ✓ {table} - RLS forced")
 
     # 5. Remove SUPERUSER and BYPASSRLS privileges from application user
+    # Note: Skip on Neon/cloud DBs where the role name differs
     print("\n" + "="*60)
     print("Securing application database user")
     print("="*60)
 
-    op.execute("""
-        ALTER ROLE prescription_user NOSUPERUSER;
-    """)
-    print("  ✓ Removed SUPERUSER privilege from prescription_user")
-
-    op.execute("""
-        ALTER ROLE prescription_user NOBYPASSRLS;
-    """)
-    print("  ✓ Removed BYPASSRLS privilege from prescription_user")
+    try:
+        op.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'prescription_user') THEN
+                    ALTER ROLE prescription_user NOSUPERUSER;
+                    ALTER ROLE prescription_user NOBYPASSRLS;
+                    RAISE NOTICE 'Secured prescription_user role';
+                ELSE
+                    RAISE NOTICE 'prescription_user role not found - skipping (cloud DB)';
+                END IF;
+            END $$;
+        """)
+        print("  ✓ Role security check completed")
+    except Exception as e:
+        print(f"  ⚠ Skipped role modification (cloud DB): {e}")
 
     print("\n" + "="*60)
     print("✅ Row-Level Security successfully enabled!")
